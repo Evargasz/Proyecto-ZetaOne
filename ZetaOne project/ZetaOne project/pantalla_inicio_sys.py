@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from ventana_credenciales import credenciales
+from Usuario_basico.usu_basico_main import usuBasicoMain
 import os
 
 class PantallaInicio: 
@@ -38,7 +39,7 @@ class PantallaInicio:
         #botones:
 
         # Opción de usuario
-        btn_usuario = tk.Button(root, text="Usuario", width=25, command=self.usuario_normal)
+        btn_usuario = tk.Button(root, text="Usuario basico", width=25, command=self.usuario_normal)
         btn_usuario.pack(pady=10)
 
         #Opcion administrador
@@ -49,15 +50,18 @@ class PantallaInicio:
         btn_salir = tk.Button(root, text="salir", width=25, command=self.root.quit,)
         btn_salir.pack(pady=10)
 
-    def usuario_normal(self):
-        # Mostrar mensaje por ahora, en lo que se desarrolla 
-        messagebox.showinfo("Usuario normal", "Aún no hay funcionalidades.")
 
     def ir_credenciales(self):
         self.root.destroy()
         root_login = tk.Tk()
         app = credenciales(root_login)
         root_login.mainloop()
+
+    def usuario_normal(self):
+        self.root.destroy()
+        root_usu = tk.Tk()
+        app = usuBasicoMain(root_usu)
+        root_usu.mainloop()
 
 def abrir_pantalla_inicio():
     root = tk.Tk()
