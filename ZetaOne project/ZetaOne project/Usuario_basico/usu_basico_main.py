@@ -1,12 +1,17 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, Toplevel, Entry, Label, Button, Frame
 from PIL import Image, ImageTk
-import os
+import os 
 
-class usuBasicoMain:
-    def __init__(self, root):
-        self.root = root
-        # Configuración de ventana
+class usuBasicoMain(Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.root = master
+    
+    #btn usar
+        self.master = master
+    
+    # Configuración de ventana
         self.root.title("ZetaOne")
         ventana_ancho = 790
         ventana_alto = 600
@@ -16,10 +21,26 @@ class usuBasicoMain:
         y = int((pantalla_alto / 2) - (ventana_alto / 2))
         self.root.geometry(f"{ventana_ancho}x{ventana_alto}+{x}+{y}")
         self.root.resizable(False, False)
+
+    #funcionalidades 
+        self.funcionalidades = [
+            {"titulo":"desbloquear usuario", "desc":"...", "accion":self.usar_desbloquear_usuario},
+            {"titulo":"autorizar tablas", "desc": "...", "accion":self.usar_autorizar_tablas},
+            {"titulo": "actualizar fechas de contabilidad", "desc": "...", "accion":self.usar_actualizar_fecha_cont}
+        ]
+    
+    #variables de la barra de busqueda
         self.texto_busqueda = ""
         self.placeholder_text = "¿Qué deseas hacer?"
+    
+    #icono
         self.root.iconbitmap("Zeta99.ico")
 
+        #otras variables
+    #lista de ambientes
+        self.lista_de_ambientes = []
+    
+        
         # Variables de control del filtro
         self.filtro_acceso_rapido = False
         self.color_boton_activo = "#FF3131"
@@ -36,7 +57,6 @@ class usuBasicoMain:
         self.main_frame.pack(side="right", fill="both", expand=True)
         self.armar_area_principal()
 
-    
     def armar_sidebar(self):
         usuario_img = Image.open("imagenes_iconos/userico.png")  # Llama imagen de usuario
         usuario_img = usuario_img.resize((120, 120))
@@ -146,17 +166,20 @@ class usuBasicoMain:
             {
                 "titulo": "Desbloquear usuario",
                 "desc": "Borrar usuario de un ambiente...",
-                "acceso_directo": False
+                "acceso_directo": False,
+                "accion": self.usar_desbloquear_usuario
             },
             {
                 "titulo": "Autorizar tablas",
                 "desc": "Autoriza ciertas tablas en BD.",
-                "acceso_directo": False
+                "acceso_directo": False,
+                "accion": self.usar_autorizar_tablas
             },
             {
                 "titulo": "Actualizar fecha de contabilidad",
                 "desc": "Descripción...",
-                "acceso_directo": False
+                "acceso_directo": False,
+                "accion": self.usar_actualizar_fecha_cont
             }
         ]
 
@@ -231,34 +254,30 @@ class usuBasicoMain:
             )
             btn_acceso.pack(side="left", padx=(14, 8), pady=6)
             # Botón de usar la funcionalidad
-            btn_usar = tk.Button(card_frame, text="usar", font=("Arial", 8), width=8,
-                                 command=lambda t=func["titulo"]: self.usar_funcionalidad(t))
-            btn_usar.pack(side="right", padx=(8, 14), pady=6)
+            btn_usar = Button(
+                card_frame,
+                text="Usar",
+                command=func["accion"]
+                )
+            btn_usar.pack(side="right", padx=10, pady=6)
 
             columna += 1
             if columna >= columnas:
                 columna = 0
                 fila += 1
 
+
     #------------------las funciones estan desordenadas, luego me encargo de ordenarlas por seccion----
 
+        #Funciones Frame izquierdo
 
-    #recargar las cards
-    def recargar_cards(self):
-        
-        self.entry_busqueda.delete(0, tk.END)
-        self.entry_busqueda.insert(0, self.placeholder_text)
-        self.entry_busqueda.config(foreground='black')
-        self.texto_busqueda = ""
-        self.filtro_acceso_rapido = False
-        self.boton_acceso_rapido.config(bg=self.color_boton_default, fg="black")
-        self.mostrar_funcionalidades(acceso_rapido=False)
-
-        #forzar el focus
-        self.entry_busqueda.focus_set()
-        self.entry_busqueda.icursor(0)
-        self.root.focus()
-
+    #boton salir
+    def salir(self):
+        self.root.destroy()
+    
+        #-----------------Funciones frame derecho-------------------
+    
+    #buscador
     def accion_busqueda(self):
         txt = self.entry_busqueda.get()
         if txt == self.placeholder_text or txt.strip() == "":
@@ -268,18 +287,13 @@ class usuBasicoMain:
         self.mostrar_funcionalidades(acceso_rapido=self.filtro_acceso_rapido)
         print("el script se ejecuto correctamente")
 
-        
-
-    def usar_funcionalidad(self, titulo):
-        print("Funcionalidad", f"¡Has seleccionado usar: {titulo}!")
-
-    def salir(self):
-        self.root.destroy()
-
     def accion_busqueda(self):
         self.texto_busqueda = self.entry_busqueda.get().strip().lower()
         self.mostrar_funcionalidades(acceso_rapido=self.filtro_acceso_rapido)
 
+        #----------------Botones de accion-----------------------
+    
+    #Boton de acceso rapido
     def toggle_acceso_rapido(self):
         """
         Alterna el estado del filtro de acceso rápido.
@@ -298,7 +312,7 @@ class usuBasicoMain:
             self.mostrar_funcionalidades(acceso_rapido=False)
             print("Todos los accesos",
                 "Todos los elementos han sido restaurados.")
-
+            
     def toggle_acceso_directo(self, funcionalidad):
         """
         Cambia el valor de acceso rápido en la funcionalidad y actualiza la vista.
@@ -306,7 +320,8 @@ class usuBasicoMain:
         funcionalidad["acceso_directo"] = not funcionalidad["acceso_directo"]
         # Al cambiar un acceso, vuelve a mostrar las cards conforme el filtro actual
         self.mostrar_funcionalidades(self.filtro_acceso_rapido)
-
+            
+    #Boton de Todos
     def mostrar_todos(self):
         """
         Acceso rápido: Desactiva el filtro y muestra todas las funcionalidades
@@ -316,8 +331,104 @@ class usuBasicoMain:
         self.mostrar_funcionalidades(acceso_rapido=False)
         print("Todos los accesos", "Todos los elementos han sido restaurados.")
 
+    #Boton de recarga
+    def recargar_cards(self):
+        
+        self.entry_busqueda.delete(0, tk.END)
+        self.entry_busqueda.insert(0, self.placeholder_text)
+        self.entry_busqueda.config(foreground='black')
+        self.texto_busqueda = ""
+        self.filtro_acceso_rapido = False
+        self.boton_acceso_rapido.config(bg=self.color_boton_default, fg="black")
+        self.mostrar_funcionalidades(acceso_rapido=False)
+
+        #forzar el focus
+        self.entry_busqueda.focus_set()
+        self.entry_busqueda.icursor(0)
+        self.root.focus()
+
+        #----------------Ventana modal-----------------------
+
+    #configuraciones generales para la ventana modal
+    def abrir_modal(self, parent, ambientes_lista, callback_confirmar):
+            #creacion de la ventana modal
+            modal = Toplevel(parent)
+            ancho, alto = 320, 160
+            modal.title("desbloquear usuario")
+            self.centrar_ventana(modal, ancho, alto)
+            modal.grab_set()
+            modal.resizable(False, False)
+
+            #etiqueta campo y ambiente
+            lbl_ambiente = Label(modal, text="Ambiente")
+            lbl_ambiente.place(x=20, y=30)
+            entry_ambiente = Entry(modal)
+            entry_ambiente.place(x=100, y=30, width=180)
+            
+    #no se descarta la idea de un autocompletado y/o una lista con todos los ambientes, por ahora dejemoslo escrito
+
+            #etiqueta y campo de usuario
+            lbl_usuario = Label(modal, text="Usuario")
+            lbl_usuario.place(x=20, y=70)
+            entry_usuario = Entry(modal)
+            entry_usuario.place(x=100, y=70, width=180)
+
+            def on_continuar():
+                ambiente = entry_ambiente.get()
+                usuario = entry_usuario.get()
+                if not ambiente or not usuario: 
+                    messagebox.showwarning("Campo/s vació/s", "Por favo complete ambos campos.")
+                    return
+                #buscar el a,biente en la lista real
+                ambiente_obj = next((a for a in ambientes_lista if a['descripcion'] == ambiente), None)
+                if ambiente_obj is None:
+                    messagebox.showerror("Ambiente no encontrado", "Por favor complete ambos campos.")
+                    return
+                #llamar callback para ejecutar la accion real de desbloquear
+                callback_confirmar(usuario, ambiente_obj)
+                modal.destroy()
+            btn_continuar = Button(modal, text="Continuar", width=12, command=on_continuar)
+            btn_continuar.place(relx=1.0, rely=1.0, x=-30, y=-20, anchor='se')
+
+        #centrar ventanas modales
+    def centrar_ventana(self, ventana, ancho, alto):
+        ventana.update_idletasks()
+        pantalla_ancho = ventana.winfo_screenwidth()
+        pantalla_alto = ventana.winfo_screenheight()
+        x = int((pantalla_ancho/2)-(ancho/2))
+        y = int((pantalla_alto/2)-(alto/2))
+        ventana.geometry(f"{ancho}x{alto}+{x}+{y}")
+
+    #botones de usar (independientes) se debe agregar uno cada vez que haya una nueva "card"
+    def usar_desbloquear_usuario(self):
+        self.abrir_modal(self.master, self.lista_de_ambientes, self.desbloquear_usuario_en_bd)
+
+    def usar_autorizar_tablas(self):
+        messagebox.showinfo("funcion no implementada", "esta funcion estara disponible en breve" )
+    
+    def usar_actualizar_fecha_cont(sefl):
+        messagebox.showinfo("funcion no implementada", "esta funcion estara disponible en breve")
+    
+        #--------------Acciones de las ventanas modales-------------------
+
+    #Desbloquear usuarios
+    def desbloquear_usuario_en_bd(self, usuario, ambiente):
+        import pyodbc
+        try:
+            # Ajusta con los campos que realmente tiene tu config de ambiente
+            conn_str = f"DRIVER={{Adaptive Server Enterprise}};SERVER={ambiente['ip']},{ambiente['port']};DATABASE={ambiente['base_datos']};UID={ambiente['usuario']};PWD={ambiente['clave']}"
+            conn = pyodbc.connect(conn_str, timeout=5)
+            cursor = conn.cursor()
+            cursor.execute(f"sp_locklogin '{usuario}', 'unlock'")
+            conn.commit()
+            conn.close()
+            messagebox.showinfo("Éxito", f"Usuario {usuario} desbloqueado correctamente.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Ocurrió un error: {e}")
+            
 # ----------- Ejecución principal -----------
 if __name__ == "__main__":
     root = tk.Tk()
     app = usuBasicoMain(root)
+    app.pack(fill="both", expand=True)
     root.mainloop()
