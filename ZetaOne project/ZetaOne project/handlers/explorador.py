@@ -1,0 +1,1 @@
+from explorador import explorar_sd_folder
