@@ -3,21 +3,22 @@ from pantalla_inicio_sys import PantallaInicio
 from ventana_credenciales import credenciales
 from Usuario_administrador.usu_admin_main import usuAdminMain
 from Usuario_basico.usu_basico_main import usuBasicoMain
+from Usuario_administrador import extra_sp_utils  # <-- IMPORT DEL MODULO QUE PEDÍAS
 
 class controladorVentanas:
-    def __init__(self,root):
+    def __init__(self, root):
         self.root = root
         self.ventana_actual = None
         self.mostrar_pantalla_inicio()
 
-    def limpiar_root(sefl):
-        for widget in sefl.root.winfo_children():
+    def limpiar_root(self):
+        for widget in self.root.winfo_children():
             widget.destroy()
 
     def mostrar_pantalla_inicio(self):
         self.limpiar_root()
         PantallaInicio(self.root, self)
-        
+
     def mostrar_credenciales(self):
         self.limpiar_root()
         credenciales(self.root, self)

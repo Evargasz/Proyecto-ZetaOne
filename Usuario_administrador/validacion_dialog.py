@@ -1,9 +1,9 @@
 from tkinter import Toplevel, ttk, messagebox
 import tkinter as tk
 import datetime
-from .handlers.validacion import validar_archivos_multiambiente
-from .handlers.catalogacion import catalogar_archivos_multiambiente, mostrar_resultado_catalogacion
-from .styles import FUENTE_GENERAL, FUENTE_BOTON
+from Usuario_administrador.handlers.validacion import validar_archivos_multiambiente
+from Usuario_administrador.handlers.catalogacion import catalogar_archivos_multiambiente, mostrar_resultado_catalogacion
+from Usuario_administrador.styles import FUENTE_GENERAL, FUENTE_BOTON
 
 def centrar_ventana(win, width, height, parent=None):
     win.update_idletasks()
@@ -114,8 +114,8 @@ def lanzar_validacion(parent, archivos_unicos, seleccionados_idx, ambientes_pane
         logear(parent, "[VALIDACIÓN] ERROR crítico:\n" + traceback.format_exc())
 
 def validar_archivos_multiambiente_feedback(archivos_unicos, seleccionados_idx, ambientes, progress, label_porc, progreso_win, parent):
-    from extra_sp_utils import ultra_extraer_sp_bd, limpiar_identificador
-    from handlers.catalogacion import validar_archivo_sp_local_vs_sybase
+    from Usuario_administrador.extra_sp_utils import ultra_extraer_sp_bd, limpiar_identificador
+    from Usuario_administrador.handlers.catalogacion import validar_archivo_sp_local_vs_sybase
     resultados_fila = []
     contador = 0
     total_tareas = max(len(seleccionados_idx) * len(ambientes), 1)
@@ -294,7 +294,7 @@ def mostrar_resultado(parent, resultados, archivos_unicos, ambientes_panel):
                 archivos_unicos, seleccionados_archs, barra, lbl, progreso_popup
             )
             progreso_popup.destroy()
-            messagebox.showinfo("Catálogo", "Catálogo a Sybase finalizado.")
+            messagebox.showinfo("Catálogo", "Catalogacion finalizada.")
             logear(win, f"[CATALOGACIÓN] Finalizada para {len(resultados)} archivos (ver detalles en Sybase).")
             mostrar_resumen_catalogacion(win, resultados, archivos_unicos)
 
