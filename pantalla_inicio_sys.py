@@ -82,8 +82,3 @@ class PantallaInicio:
         if self.controlador:
             self.controlador.mostrar_basico()
 
-# Código para iniciar la ventana principal
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = PantallaInicio(root)
-    root.mainloop()
