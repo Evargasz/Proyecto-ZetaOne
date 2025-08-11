@@ -1,0 +1,6 @@
+# Ignora carpetas de pycache y archivos compilados de Python
+__pycache__
+*.pyc
+*.pyo
+
+Favoritos.json

@@ -31,6 +31,7 @@ class usuBasicoMain(tk.Frame):
         super().__init__(master)
         self.root = master
         self.master = master
+        self.controlador = controlador
 
         # Cargar ambientes desde ambientes.json
         self.lista_de_ambientes = []
@@ -111,12 +112,16 @@ class usuBasicoMain(tk.Frame):
         bienvenida_lbl = tk.Label(self.sidebar, text=f"BIENVENIDO\n{nombre_usuario}", bg="#fff", font=("Arial", 12))
         bienvenida_lbl.pack(pady=(0, 300))
 
+        btn_volver = tk.Button(self.sidebar, text="volver", bg="#333", fg="#fff", font=("Arial", 12), height=1, 
+                               relief="flat", width=10, command=self.volver)
+        btn_volver.pack(side="top", pady=(0, 5))
+
         btn_salir = tk.Button(self.sidebar, text="salir", bg="#333", fg="#fff", font=("Arial", 12), height=1,
                               relief="flat", width=10, command=self.salir)
-        btn_salir.pack(side="bottom", pady=20)
+        btn_salir.pack(side="bottom", pady=(5, 17))
         
     #------------------------------------------frame de la derecha---------------------------------------------
-    def armar_area_principal(self):
+    def armar_area_principal(self): #frame derecha
         #Buscador
 
         barra_superior = tk.Frame(self.main_frame, bg="#fff")
@@ -254,6 +259,9 @@ class usuBasicoMain(tk.Frame):
 
     def salir(self):
         self.root.destroy()
+
+    def volver(self):
+        self.controlador.mostrar_pantalla_inicio()
     
     def accion_busqueda(self):
         txt = self.entry_busqueda.get()

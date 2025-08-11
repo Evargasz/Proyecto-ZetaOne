@@ -4,7 +4,11 @@
 
 #importaciones generales
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, scrolledtext, PhotoImage
+from tkinter import filedialog, scrolledtext, messagebox
+import ttkbootstrap as tb
+from ttkbootstrap.constants import *
+
+import os
 
 #importaciones frame derecha (panel de archivos)
 from .handlers.explorador import explorar_sd_folder
@@ -15,9 +19,9 @@ from .validacion_dialog import lanzar_validacion
 from .catalogacion_dialog import CatalogacionDialog
 
 #importaciones frame izquierdo (panel de ambientes)
-import os
 from .handlers.ambientes import cargar_ambientes, guardar_ambientes, probar_conexion_amb
-from .styles import COLOR_ACCION, COLOR_RESALTADO, FONDO_PANEL2, FUENTE_GENERAL, configurar_estilos, configurar_botones_personalizados
+
+# 
 
 class usuAdminMain:
         
@@ -27,8 +31,11 @@ class usuAdminMain:
         def __init__(self, root, controlador):
             self.root = root
             self.root.title("Homologador Sybase SD - Multiambiente Validación/Catalogación")
-            style = ttk.Style()
-            
+            style = tb.Style()
+            print(style.element_names())
+           
+           
+
             #tamaño de la ventana
             ventana_ancho = 1366
             ventana_alto = 780
@@ -43,11 +50,10 @@ class usuAdminMain:
             self.root.iconbitmap("imagenes_iconos/Zeta99.ico")
 
             #llamado a los estilos de la ventana
-            style.theme_use("clam")  # Fuerza el tema clam antes de aplicar estilos personalizados
-            configurar_estilos(style)
-            configurar_botones_personalizados(style)
+              # Fuerza el tema clam antes de aplicar estilos personalizados
+        
 
-            main_frame = ttk.Frame(root, padding=12, style="Panel.TFrame")
+            main_frame = tb.Frame(root, padding=12, bootstyle="light")
             main_frame.pack(fill="both", expand=True)
 
             main_frame.columnconfigure(0, weight=0, minsize=400)
@@ -89,44 +95,51 @@ class usuAdminMain:
 
     class ArchivosPanel:
         def __init__(self, parent, ambientes_panel, toggle_log_callback=None):
-            self.frame = ttk.Frame(parent, style="Panel2.TFrame", padding=(3, 3))
+            self.frame = tb.Frame(parent, bootstyle="light", padding=(3, 3))
             self.ambientes_panel = ambientes_panel
             self.toggle_log_callback = toggle_log_callback
             self.logtxt = None  # Se asigna desde el main
 
             # Barra superior
-            barra_sd = ttk.Frame(self.frame, style="Barra.TFrame", padding=(8, 6))
+            barra_sd = tb.Frame(self.frame, bootstyle="secondary", padding=(8, 6))
             barra_sd.grid(row=0, column=0, sticky="ew", pady=(0, 8))
             barra_sd.columnconfigure(0, weight=1, minsize=180)
             barra_sd.columnconfigure(1, weight=1, minsize=230)
             barra_sd.columnconfigure(2, weight=5)
             barra_sd.columnconfigure(3, weight=2, minsize=240)
-            self.single_sd_btn = ttk.Button(
-                barra_sd, text="SD Único", command=self.single_sd, style="Accion.TButton", width=14
+
+            #botones de seleccion
+            self.single_sd_btn = tb.Button(
+                barra_sd, text="SD Único", command=self.single_sd, bootstyle="primary-outline", width=14
             )
-            self.multi_sd_btn = ttk.Button(
-                barra_sd, text="Carpeta con varios SD", command=self.multi_sd, style="Accion.TButton", width=22
+            self.multi_sd_btn = tb.Button(
+                barra_sd, text="Carpeta con varios SD", command=self.multi_sd, bootstyle="primary-outline", width=22
             )
             self.single_sd_btn.grid(row=0, column=0, padx=10, sticky="ew")
             self.multi_sd_btn.grid(row=0, column=1, padx=10, sticky="ew")
-            self.sd_label = ttk.Label(barra_sd, text="", foreground=COLOR_ACCION, font=FUENTE_GENERAL)
+
+            self.sd_label = tb.Label(barra_sd, text="")
             self.sd_label.grid(row=0, column=2, sticky="w", padx=(16, 0))
-            self.btn_repetidos = ttk.Button(
-                barra_sd, text="Programas Repetidos", command=self.ver_repetidos, width=31, style="TButton"
+
+            self.btn_repetidos = tb.Button(
+                barra_sd, text="Programas Repetidos", command=self.ver_repetidos, width=31, bootstyle="secondary-outline"
             )
             self.btn_repetidos.grid(row=0, column=3, padx=(6, 6), sticky="e")
 
-            archivos_frame = ttk.LabelFrame(
+            #parte principal
+            archivos_frame = tb.LabelFrame(
                 self.frame, text="Archivos Detectados",
-                padding=(16, 8, 12, 8), style="MainPanel.TLabelframe"
+                padding=(16, 8, 12, 8)
             )
             archivos_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 8))
             archivos_frame.rowconfigure(0, weight=1)
             archivos_frame.columnconfigure(0, weight=1)
+
             columns = ("Nombre", "Ruta", "Fecha Modif.")
-            self.tree = ttk.Treeview(
+            self.tree = tb.Treeview(
                 archivos_frame,
-                columns=columns, show="headings", selectmode="extended", style="Treeview"
+                columns=columns, show="headings", selectmode="extended",
+                bootstyle="primary"
             )
             self.tree.heading("Nombre", text="Nombre")
             self.tree.column("Nombre", width=200, anchor="w")
@@ -135,20 +148,23 @@ class usuAdminMain:
             self.tree.heading("Fecha Modif.", text="Fecha Modificación")
             self.tree.column("Fecha Modif.", width=170, anchor="center")
             self.tree.grid(row=0, column=0, sticky="nsew")
-            tree_vscroll = ttk.Scrollbar(archivos_frame, orient="vertical", command=self.tree.yview)
+
+            tree_vscroll = tb.Scrollbar(archivos_frame, orient="vertical", command=self.tree.yview, bootstyle="info-round")
             tree_vscroll.grid(row=0, column=1, sticky="ns")
-            tree_hscroll = ttk.Scrollbar(archivos_frame, orient="horizontal", command=self.tree.xview)
+            tree_hscroll = tb.Scrollbar(archivos_frame, orient="horizontal", command=self.tree.xview, bootstyle="info-round")
             tree_hscroll.grid(row=1, column=0, sticky="ew")
             self.tree.configure(yscrollcommand=tree_vscroll.set, xscrollcommand=tree_hscroll.set)
+            
             ToolTip(self.tree, self.get_tooltip_for_row)
 
-            barra_accion = ttk.Frame(self.frame, style="Barra.TFrame", padding=(7, 7, 12, 7))
+            #barra de accion
+            barra_accion = tb.Frame(self.frame, bootstyle="Barra.TFrame", padding=(7, 7, 12, 7))
             barra_accion.grid(row=2, column=0, sticky="ew", pady=(14, 6))
-            ttk.Button(barra_accion, text="Seleccionar Todos", command=self.seleccionar_todos, style="Accion.TButton").pack(side="left", padx=8)
-            ttk.Button(barra_accion, text="Deseleccionar", command=self.deseleccionar_todos, style="TButton").pack(side="left", padx=7)
-            ttk.Button(barra_accion, text="Validar Seleccionados", command=self.validar_seleccionados, style="Accion.TButton").pack(side="left", padx=18)
-            ttk.Button(barra_accion, text="Log de Operaciones 📝", command=self.toggle_log, style="TButton").pack(side="left", padx=18)
-            ttk.Button(barra_accion, text="Salir", command=self.salir, style="Salir.TButton").pack(side="right", padx=18)
+            tb.Button(barra_accion, text="Seleccionar Todos", command=self.seleccionar_todos, bootstyle="success-outline").pack(side="left", padx=8)
+            tb.Button(barra_accion, text="Deseleccionar", command=self.deseleccionar_todos, bootstyle="secondary-outline").pack(side="left", padx=7)
+            tb.Button(barra_accion, text="Validar Seleccionados", command=self.validar_seleccionados, bootstyle="warning-outline").pack(side="left", padx=18)
+            tb.Button(barra_accion, text="Log de Operaciones 📝", command=self.toggle_log, bootstyle="TButton").pack(side="left", padx=18)
+            tb.Button(barra_accion, text="Salir", command=self.salir, bootstyle="danger").pack(side="right", padx=18)
 
             self.frame.columnconfigure(0, weight=1)
             self.frame.rowconfigure(1, weight=1)
@@ -157,7 +173,7 @@ class usuAdminMain:
             self.selected_sd_folder = ""
             self.multi_sd_flag = False
             self.repetidos_log = []
-
+         
         def toggle_log(self):
             if self.toggle_log_callback:
                 self.toggle_log_callback()
@@ -265,7 +281,7 @@ class usuAdminMain:
 
             ambientes_panel = self.ambientes_panel
 
-            selamb_idx = ambientes_panel.lbamb.curselection()
+            selamb_idx = [i for i, var in enumerate(ambientes_panel.ambientes_vars) if var.get()]           
             if not selamb_idx:
                 messagebox.showwarning("Validación", "No ha seleccionado ambientes para validar.", parent=self.frame)
                 self.logear_panel("Intento de validar sin selección de ambientes.")
@@ -286,62 +302,65 @@ class usuAdminMain:
 
         def lanzar_catalogacion(self):
             def aceptar(nombre, descripcion):
-                messagebox.showinfo("Catalogado", f"Archivo '{nombre}' catalogado.\nDescripción: {descripcion}")
+                ("Catalogado", f"Archivo '{nombre}' catalogado.\nDescripción: {descripcion}")
                 self.logear_panel(f"Archivo '{nombre}' catalogado con descripción '{descripcion}'.")
             CatalogacionDialog(self.frame, aceptar_callback=aceptar)
 
     #--------------------------panel de ambientes-------------------------------------
 
     class AmbientesPanel:
-        
+
         def __init__(self, parent, logtxt=None):
-            self.frame = ttk.LabelFrame(parent, text="Ambientes Configurados", padding=(12, 8), style="SidePanel.TLabelframe")
+            self.frame = tb.LabelFrame(parent, text="Ambientes Configurados",bootstyle="primary", padding=(12, 8))
+            
             self.ambientes = cargar_ambientes()
             self.estado_conex_ambs = [None] * len(self.ambientes)  # None: sin testear, True: OK, False: fallido
 
             # Permitir asignar el widget del log externo (compartido con archivos_panel.py, por ejemplo)
             self.logtxt = logtxt
 
+            #icono para el boton de probar conexión
             icon_path = os.path.join(os.path.dirname(__file__), "imagenes_iconos/zeta99.png")
             if os.path.exists(icon_path):
-                self.zeta_icon = PhotoImage(file=icon_path)
+                self.zeta_icon = tk.PhotoImage(file=icon_path)
             else:
                 self.zeta_icon = None
 
-            self.btn_testamb = ttk.Button(
+            #botones para probar conexión
+            self.btn_testamb = tb.Button( 
                 self.frame,
                 text="Probar Conexión",
                 image=self.zeta_icon,
                 compound="left" if self.zeta_icon else None,
                 command=self.test_ambs,
-                style="BotonConectar.Amarillo.TButton"
+                bootstyle="warning-outline"
             )
             self.btn_testamb.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12), padx=(5,5))
 
-            self.lbamb = tk.Listbox(
-                self.frame, selectmode=tk.MULTIPLE, exportselection=0, height=9,
-                font=FUENTE_GENERAL, bg="white"
-            )
-            self.lbamb.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(0, 8), padx=(0, 0))
-            self.refresh_amb_list([])
+            self.ambientes_vars = []
+            self.check_frame = tb.Frame(self.frame)
+            self.check_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(0,8), padx=(0, 0))
+            self.refresh_amb_list()
 
             self.frame.rowconfigure(1, weight=1)
             self.frame.columnconfigure(0, weight=1)
 
-            botones_amb = ttk.Frame(self.frame, style="Panel2.TFrame")
+            #botones de accion
+            botones_amb = tb.Frame(self.frame, bootstyle="Panel2.TFrame")
             botones_amb.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10,0))
-            ttk.Button(botones_amb, text="➕ Agregar", command=self.add_amb).grid(row=0, column=0, padx=2, pady=2, sticky='ew')
-            ttk.Button(botones_amb, text="✏️ Editar", command=self.edit_amb).grid(row=1, column=0, padx=2, pady=2, sticky='ew')
-            ttk.Button(botones_amb, text="🗑️ Eliminar", command=self.del_amb).grid(row=2, column=0, padx=2, pady=2, sticky='ew')
+            tb.Button(botones_amb, text="➕ Agregar", command=self.add_amb, bootstyle="success-outline").grid(row=0, column=0, padx=2, pady=2, sticky='ew')
+            tb.Button(botones_amb, text="✏️ Editar", command=self.edit_amb, bootstyle="info-outline").grid(row=1, column=0, padx=2, pady=2, sticky='ew')
+            tb.Button(botones_amb, text="🗑️ Eliminar", command=self.del_amb, bootstyle="danger-outline").grid(row=2, column=0, padx=2, pady=2, sticky='ew')
 
-            self.amb_estado = tk.Label(self.frame, text="", fg=COLOR_ACCION, anchor="w", bg=FONDO_PANEL2, font=FUENTE_GENERAL)
+            self.amb_estado = tb.Label(self.frame, text="", anchor="w", bootstyle="inverse-info", font=("sagoe UI", 10, "bold"))
             self.amb_estado.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
 
-            self.progressbar_amb = ttk.Progressbar(
+            #barra de progreso visual
+            self.progressbar_amb = tb.Progressbar(
                 self.frame,
                 orient="horizontal",
                 length=220,
-                style="ProgressYellow.Horizontal.TProgressbar",
+                bootstyle="warning-striped",
                 mode="determinate"
             )
             self.progressbar_amb.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
@@ -352,30 +371,45 @@ class usuAdminMain:
                 self.logtxt.insert(tk.END, "[Ambientes] " + msg + "\n")
                 self.logtxt.see(tk.END)
 
-        def refresh_amb_list(self, keep_selection):
-            self.lbamb.delete(0, tk.END)
-            for amb in self.ambientes:
-                self.lbamb.insert(
-                    tk.END,
-                    f"{amb['nombre']} | {amb['ip']} | {amb['puerto']} | {amb['usuario']}"
-                )
-            for idx in keep_selection:
-                self.lbamb.select_set(idx)
-            self.colorear_lbamb()
+        def refresh_amb_list(self):
+            for widget in self.check_frame.winfo_children():
+                widget.destroy()
+            self.ambientes_vars.clear()
+            for idx, amb in enumerate(self.ambientes):
+                var = tk.BooleanVar()
+                self.ambientes_vars.append(var)
+                label = f"{amb['nombre']} | {amb['ip']} | {amb['puerto']} | {amb['usuario']}"
+                #determinar el estilo del checkbutton segun el estado de conexion
+                estado = self.estado_conex_ambs[idx]
+                if estado is True:
+                    bootstyle="success"
+                    icono = "\u2705"
+                elif estado is False:
+                    bootstyle = "danger"
+                    icono = "\u274C"
+                else:
+                    bootstyle = ""
+                    icono = ""
+
+                chk = tb.Checkbutton(self.check_frame, text=label, variable=var, bootstyle=bootstyle)
+                chk.grid(row=idx, sticky='w', padx=2, pady=0)
+                
+                lbl_estado = tb.Label(self.check_frame, text=icono, font=("Saegoe UI", 14))
+                lbl_estado.grid(row=idx, column=1, padx=(8, 2), sticky='w')
 
         def add_amb(self):
             self.editar_amb_dialog(nuevo=True)
 
         def edit_amb(self):
-            sel = self.lbamb.curselection()
+            sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
             if not sel:
-                messagebox.showinfo("Editar ambiente", "Seleccione uno", parent=self.frame)
+                messagebox.showerror("Editar ambiente", "Seleccione uno", parent=self.frame)
                 return
             idx = sel[0]
             self.editar_amb_dialog(nuevo=False, editar_idx=idx)
 
         def del_amb(self):
-            sel = self.lbamb.curselection()
+            sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
             if not sel:
                 return
             idx = sel[0]
@@ -385,23 +419,34 @@ class usuAdminMain:
                 self.ambientes.pop(idx)
                 self.estado_conex_ambs.pop(idx)
                 guardar_ambientes(self.ambientes)
-                self.refresh_amb_list([])
+                self.refresh_amb_list()
 
         def editar_amb_dialog(self, nuevo=True, editar_idx=None):
-            window = tk.Toplevel(self.frame)
+            window = tb.Toplevel(self.frame)
             window.title("Nuevo ambiente" if nuevo else "Editar ambiente")
+            window.resizable(False, False)
             fields = [
-                ("Nombre","nombre"),("IP/HOST","ip"),("Puerto","puerto"),
-                ("Usuario","usuario"),("Clave","clave"),("Base de datos","base"),
+                ("Nombre","nombre"),
+                ("IP/HOST","ip"),
+                ("Puerto","puerto"),
+                ("Usuario","usuario"),
+                ("Clave","clave"),
+                ("Base de datos","base"),
                 ("Driver ODBC","driver")
             ]
             default = {'driver':'Sybase ASE ODBC Driver', 'puerto':'7028'}
             vals = {}
+
             for i, (lbl, key) in enumerate(fields):
-                tk.Label(window, text=lbl+":", font=FUENTE_GENERAL).grid(row=i, column=0, sticky="w", padx=8, pady=3)
-                ent = tk.Entry(window, width=32, show="*" if key=="clave" else None, font=FUENTE_GENERAL)
-                ent.grid(row=i, column=1, padx=8, pady=3)
+                lab = tb.Label(window, text=lbl + ":")
+                lab.grid(row=i, column=0, padx=8, pady=4, sticky="e")
+                show = "*" if key == "clave" else ""
+                ent = tb.Entry(window, width=32, show=show, bootstyle="secondary")
+                ent.grid(row=i, column=1, padx=8, pady=4, sticky="we")
                 vals[key] = ent
+
+            window.columnconfigure(1, weight=1)
+
             if not nuevo and editar_idx is not None:
                 amb = self.ambientes[editar_idx]
                 for key in vals:
@@ -411,6 +456,7 @@ class usuAdminMain:
                 for key in vals:
                     if key in default:
                         vals[key].insert(0, default[key])
+
             def snd():
                 data = {key: vals[key].get() for key in vals}
                 if not all(data[x] for x in ['nombre', 'ip', 'puerto', 'usuario', 'clave', 'base', 'driver']):
@@ -424,22 +470,28 @@ class usuAdminMain:
                     self.logear_panel(f"Editado ambiente: {data['nombre']} (Anterior: {self.ambientes[editar_idx]['nombre']})")
                     self.ambientes[editar_idx] = data
                 guardar_ambientes(self.ambientes)
-                self.refresh_amb_list([])
+                self.refresh_amb_list()
                 window.destroy()
-            tk.Button(window, text="Guardar", command=snd, font=FUENTE_GENERAL).grid(row=len(fields), column=0, pady=6)
-            tk.Button(window, text="Cancelar", command=window.destroy, font=FUENTE_GENERAL).grid(row=len(fields), column=1, pady=6)
+
+            #botones ventana emergente agregar/editar
+            btn_save = tb.Button(window, text="Guardar", command=snd, bootstyle="success" )
+            btn_save.grid(row=len(fields), column=0, pady=6, padx=8, sticky="we")
+            btn_salir = tb.Button(window, text="Cancelar", command=window.destroy, bootstyle="secondary")
+            btn_salir.grid(row=len(fields), column=1, pady=6, padx=8, sticky="we")
+
+            window.grab_set()
 
         def test_ambs(self):
-            sel = self.lbamb.curselection()
+            sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
             if not sel:
                 messagebox.showinfo("Conexión", "Seleccione al menos un ambiente para probar.", parent=self.frame)
                 return
 
-            self.btn_testamb.config(style="BotonConectar.Amarillo.TButton")
+            self.btn_testamb.config(bootstyle="warning-outline")
             self.frame.update()
 
             total = len(sel)
-            self.progressbar_amb.config(style="ProgressYellow.Horizontal.TProgressbar")
+            self.progressbar_amb.config(bootstyle="warning-striped")
             self.progressbar_amb['maximum'] = total
             self.progressbar_amb['value'] = 0
             self.progressbar_amb.grid()
@@ -452,11 +504,7 @@ class usuAdminMain:
             for i, idx in enumerate(sel):
                 amb = self.ambientes[idx]
                 self.progressbar_amb['value'] = i
-                self.amb_estado.config(
-                    text=f"Probando ambiente {amb['nombre']}...",
-                    fg=COLOR_ACCION
-                )
-                # MODIFICACIÓN: pasamos self.logear_panel a probar_conexion_amb
+                self.amb_estado.config(text=f"Probando ambiente {amb['nombre']}...")
                 self.logear_panel(f"Intentando conexión al ambiente '{amb['nombre']}'")
                 self.frame.update()
                 ok, msg = probar_conexion_amb(amb, log_func=self.logear_panel)
@@ -465,38 +513,34 @@ class usuAdminMain:
                 self.estado_conex_ambs[idx] = ok
 
                 if ok:
-                    self.progressbar_amb.config(style="ProgressGreen.Horizontal.TProgressbar")
+                    self.progressbar_amb.config(bootstyle="success-striped")
                     self.amb_estado.config(
-                        text=f"Ambiente {amb['nombre']}: Conexión exitosa",
-                        fg=COLOR_RESALTADO
-                    )
+                    text=f"Ambiente {amb['nombre']}: Conexión exitosa")
                     hay_exito = True
                     self.logear_panel(f"Conexión exitosa a '{amb['nombre']}': {msg}")
                 else:
-                    self.progressbar_amb.config(style="ProgressRed.Horizontal.TProgressbar")
-                    self.amb_estado.config(
-                        text=f"Ambiente {amb['nombre']}: Conexión fallida",
-                        fg="#dc2626"
-                    )
+                    self.progressbar_amb.config(bootstyle="warning-striped")
+                    self.amb_estado.config(text=f"Ambiente {amb['nombre']}: Conexión fallida")
                     hay_fallo = True
                     self.logear_panel(f"Conexión *fallida* a '{amb['nombre']}': {msg}")
                 self.frame.update()
 
             self.progressbar_amb.grid_remove()
-            self.colorear_lbamb()
-            self.lbamb.selection_clear(0, tk.END)
+            self.refresh_amb_list()
+            for var in self.ambientes_vars:
+                var.set(False)
 
             if hay_exito and not hay_fallo:
-                self.btn_testamb.config(style="BotonConectar.Verde.TButton")
-                self.amb_estado.config(text="Todas las conexiones exitosas", fg=COLOR_RESALTADO)
+                self.btn_testamb.config(bootstyle="success-outline")
+                self.amb_estado.config(text="Todas las conexiones exitosas")
                 self.logear_panel("Prueba de ambientes: ¡todas las conexiones exitosas!")
             elif hay_exito and hay_fallo:
-                self.btn_testamb.config(style="BotonConectar.Verde.TButton")
-                self.amb_estado.config(text="Al menos un ambiente OK", fg=COLOR_RESALTADO)
+                self.btn_testamb.config(bootstyle="success-outline")
+                self.amb_estado.config(text="Al menos un ambiente OK")
                 self.logear_panel("Prueba de ambientes: al menos un ambiente OK, alguno fallido.")
             else:
-                self.btn_testamb.config(style="BotonConectar.Rojo.TButton")
-                self.amb_estado.config(text="Todas las conexiones fallidas", fg="#dc2626")
+                self.btn_testamb.config(bootstyle="danger-outline")
+                self.amb_estado.config(text="Todas las conexiones fallidas")
                 self.logear_panel("Prueba de ambientes: todas las conexiones fallidas.")
 
         def colorear_lbamb(self):
