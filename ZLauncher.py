@@ -3,13 +3,18 @@ from pantalla_inicio_sys import PantallaInicio
 from ventana_credenciales import credenciales
 from Usuario_administrador.usu_admin_main import usuAdminMain
 from Usuario_basico.usu_basico_main import usuBasicoMain
-from Usuario_administrador import extra_sp_utils  # <-- IMPORT DEL MODULO QUE PEDÍAS
+
+#llamado a los styles
+from ttkbootstrap import Style
+from styles import configurar_estilos
 
 class controladorVentanas:
     def __init__(self, root):
         self.root = root
+        style = Style(theme="litera")
+        configurar_estilos(style)
         self.ventana_actual = None
-        self.mostrar_pantalla_inicio()
+        self.mostrar_pantalla_inicio()        
 
     def limpiar_root(self):
         for widget in self.root.winfo_children():

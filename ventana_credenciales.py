@@ -3,8 +3,10 @@ from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-#Importar estilos 
-from Usuario_administrador.styles import configurar_estilos
+#importar estilos
+import ttkbootstrap as tb
+from ttkbootstrap.constants import *
+from styles import boton_creden, etiqueta_titulo, entrada_estandar
 
 #manipulacion de archivos del sistema operativo
 import os #os = Operative System?
@@ -20,6 +22,8 @@ class credenciales:
     def __init__(self, root, controlador):
         self.root = root
         self.controlador = controlador
+        
+    #Config de ventana
         self.root.title("ZetaOne")
         ventana_ancho = 250
         ventana_alto = 250
@@ -29,6 +33,7 @@ class credenciales:
         y = int((pantalla_alto / 2) - (ventana_alto / 2))
         self.root.geometry(f"{ventana_ancho}x{ventana_alto}+{x}+{y}")
         root.resizable(False, False)
+        
     #icono
         ruta = os.path.join(os.path.dirname(__file__), "imagenes_iconos", "Zeta99.ico")
         self.root.iconbitmap(ruta)
@@ -36,21 +41,22 @@ class credenciales:
     #Imagen de fondo
         
         ruta_carpeta = os.path.dirname(__file__)
-        ruta_imagen = os.path.join(ruta_carpeta, "imagenes_iconos", "ZetaOne_img_bg.jpg")
+        ruta_imagen = os.path.join(ruta_carpeta, "imagenes_iconos", "ZetaOne_bg_op2.jpg")
         self.bg_image = Image.open(ruta_imagen)
         self.bg_image = self.bg_image.resize((250, 250))  # ajusta al tamaño de la ventana
         self.bg_photo = ImageTk.PhotoImage(self.bg_image)
         self.background_label = tk.Label(self.root, image=self.bg_photo)
         self.background_label.place(x=0, y=0, relwidth=1, relheight=1)
 
+    
     #estos son los campos visibles de la ventana
 
         #titulo
-        self.lbl_titulo = tk.Label(self.root, text="CREDENCIALES", font=("Arial", 14, "bold"), bg="#EBF0F1")
+        self.lbl_titulo = etiqueta_titulo(self.root, "CREDENCIALES", font=("Arial", 14, "bold"))
         self.lbl_titulo.place(relx=0.5, y=30, anchor="center")
         
         #Usuario
-        self.entry_usuario = ttk.Entry(self.root, font=("Arial", 12))
+        self.entry_usuario = entrada_estandar(self.root)
         self.entry_usuario.place(relx=0.5, y=70, anchor="center", width=200, height=35)
         self.entry_usuario.insert(0, "Usuario")
 
@@ -66,9 +72,10 @@ class credenciales:
 
         self.entry_usuario.bind("<FocusIn>", clear_placeholder_usu)
         self.entry_usuario.bind("<FocusOut>", add_placeholder_usu)
+        self.entry_usuario.bind("<Return>", lambda event: self.iniciar_sesion())
 
         #contraseña
-        self.entry_contraseña = ttk.Entry(self.root, font=("Arial", 12), show="", foreground='black')
+        self.entry_contraseña = entrada_estandar(self.root, show="", foreground='black')
         self.entry_contraseña.place(relx=0.5, y=120, anchor="center", width=200, height=35)
         self.entry_contraseña.insert(0, "contraseña")
 
@@ -87,14 +94,16 @@ class credenciales:
         self.entry_contraseña.bind("<Return>", lambda event: self.iniciar_sesion()) 
 
         #botones
-        self.btn_iniciar = tk.Button(self.root, text="Iniciar sesión", command=self.iniciar_sesion, bg="#FAF1F0", fg="black", font=("Arial", 11), borderwidth=3, width=12, height=1)
-        self.btn_iniciar.place(relx=0.66, y=170, anchor="center")
+        
+        self.btn_iniciar = boton_creden(self.root, "Iniciar sesión", comando=self.iniciar_sesion, width=15)
+        self.btn_iniciar.place(relx=0.68, y=167, anchor="center")
 
-        self.btn_salir = tk.Button(self.root, text="salir", command=self.root.quit, bg="#FAF1F0", fg="black", font=("Arial", 11), borderwidth=3, width=6, height=1)
-        self.btn_salir.place(x=55, y=170, anchor="center")
+        self.btn_salir = boton_creden(self.root, "salir", comando=self.root.quit, width=9)
+        self.btn_salir.place(x=61, y=167, anchor="center")
 
-        self.btn_volver = tk.Button(self.root, text="cancelar", command=self.volver_inicio, bg="#FAF1F0", fg="black", font=("Arial", 11), borderwidth=3, width=21, height=1)
-        self.btn_volver.place(x=122, y=215, anchor="center")
+        self.btn_volver = boton_creden(self.root, "cancelar", comando=self.volver_inicio, width=30)
+        self.btn_volver.place(x=124, y=212, anchor="center")
+
     
     #fin de los campos visibles
     
@@ -103,6 +112,10 @@ class credenciales:
         usuario = self.entry_usuario.get()
         contraseña = self.entry_contraseña.get()
 
+        if usuario in ["", "Usuario"] or contraseña in ["", "contraseña"]:
+            messagebox.showwarning("campos incompletos","Por favor, complete todos los campos para poder acceder.")
+            return
+        
         if self.validar_usuario(usuario, contraseña):
             self.controlador.mostrar_admin()
             

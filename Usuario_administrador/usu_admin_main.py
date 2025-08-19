@@ -1,7 +1,3 @@
-# |================================================================================================================================|
-# | IMPORTANTE: Ejecurar ventana desde powersherll (para pruebas) con este comando: python -m Usuario_administrador.usu_admin_main |
-# |================================================================================================================================|
-
 #importaciones generales
 import tkinter as tk
 from tkinter import filedialog, scrolledtext, messagebox
@@ -13,7 +9,7 @@ import os
 #importaciones frame derecha (panel de archivos)
 from .handlers.explorador import explorar_sd_folder
 from .util_repetidos import quitar_repetidos
-from .styles import FUENTE_GENERAL, COLOR_ACCION
+#from styles import boton_principal, boton_accion, boton_exito, boton_rojo
 from .widgets.tooltip import ToolTip
 from .validacion_dialog import lanzar_validacion
 from .catalogacion_dialog import CatalogacionDialog
@@ -33,8 +29,6 @@ class usuAdminMain:
             self.root.title("Homologador Sybase SD - Multiambiente Validación/Catalogación")
             style = tb.Style()
             print(style.element_names())
-           
-           
 
             #tamaño de la ventana
             ventana_ancho = 1366
@@ -66,7 +60,7 @@ class usuAdminMain:
             self.amb_panel.frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=(0, 8))
 
             # Panel de Archivos (derecha)
-            self.arch_panel = usuAdminMain.ArchivosPanel(main_frame, self.amb_panel, toggle_log_callback=self.toggle_log)
+            self.arch_panel = usuAdminMain.ArchivosPanel(main_frame, controlador, self.amb_panel, toggle_log_callback=self.toggle_log)
             self.arch_panel.frame.grid(row=0, column=1, sticky="nsew", padx=(0, 0), pady=(0, 8))
 
             # Zona de log
@@ -94,11 +88,12 @@ class usuAdminMain:
     #-------------------------panel de archivos-------------------------------
 
     class ArchivosPanel:
-        def __init__(self, parent, ambientes_panel, toggle_log_callback=None):
+        def __init__(self, parent, controlador, ambientes_panel, toggle_log_callback=None, ):
             self.frame = tb.Frame(parent, bootstyle="light", padding=(3, 3))
             self.ambientes_panel = ambientes_panel
             self.toggle_log_callback = toggle_log_callback
             self.logtxt = None  # Se asigna desde el main
+            self.controlador = controlador
 
             # Barra superior
             barra_sd = tb.Frame(self.frame, bootstyle="secondary", padding=(8, 6))
@@ -122,7 +117,7 @@ class usuAdminMain:
             self.sd_label.grid(row=0, column=2, sticky="w", padx=(16, 0))
 
             self.btn_repetidos = tb.Button(
-                barra_sd, text="Programas Repetidos", command=self.ver_repetidos, width=31, bootstyle="secondary-outline"
+                barra_sd, text="Programas Repetidos", command=self.ver_repetidos, width=31, bootstyle="dark-outline-button"
             )
             self.btn_repetidos.grid(row=0, column=3, padx=(6, 6), sticky="e")
 
@@ -160,11 +155,14 @@ class usuAdminMain:
             #barra de accion
             barra_accion = tb.Frame(self.frame, bootstyle="Barra.TFrame", padding=(7, 7, 12, 7))
             barra_accion.grid(row=2, column=0, sticky="ew", pady=(14, 6))
-            tb.Button(barra_accion, text="Seleccionar Todos", command=self.seleccionar_todos, bootstyle="success-outline").pack(side="left", padx=8)
-            tb.Button(barra_accion, text="Deseleccionar", command=self.deseleccionar_todos, bootstyle="secondary-outline").pack(side="left", padx=7)
-            tb.Button(barra_accion, text="Validar Seleccionados", command=self.validar_seleccionados, bootstyle="warning-outline").pack(side="left", padx=18)
-            tb.Button(barra_accion, text="Log de Operaciones 📝", command=self.toggle_log, bootstyle="TButton").pack(side="left", padx=18)
-            tb.Button(barra_accion, text="Salir", command=self.salir, bootstyle="danger").pack(side="right", padx=18)
+            
+            #botones
+            tb.Button(barra_accion, text="Seleccionar Todos", command=self.seleccionar_todos, bootstyle="success-outline").pack(side="left", padx=8) #verder borde
+            tb.Button(barra_accion, text="Deseleccionar", command=self.deseleccionar_todos, bootstyle="secondary-outline").pack(side="left", padx=7) #gris borde
+            tb.Button(barra_accion, text="Validar Seleccionados", command=self.validar_seleccionados, bootstyle="warning-outline").pack(side="left", padx=18) #amarillo borde
+            tb.Button(barra_accion, text="Log de Operaciones 📝", command=self.toggle_log, bootstyle="TButton").pack(side="left", padx=18) #azul
+            tb.Button(barra_accion, text="Salir", command=self.salir, bootstyle="danger", width=10).pack(side="right", padx=18) #Rojo
+            tb.Button(barra_accion, text="volver", command=self.volver_creden, bootstyle="dark", width=10).pack(side="right", padx=18) #gris
 
             self.frame.columnconfigure(0, weight=1)
             self.frame.rowconfigure(1, weight=1)
@@ -197,7 +195,9 @@ class usuAdminMain:
             self.logear_panel("Aplicación finalizada a solicitud del usuario.")
             self.frame.quit()
             self.frame.winfo_toplevel().quit()
-            print("aplicacion cerrada correctamente")
+
+        def volver_creden(self):
+            self.controlador.mostrar_pantalla_inicio()
 
         def single_sd(self):
             carpeta = filedialog.askdirectory(title="Seleccionar carpeta SD única")
@@ -257,9 +257,9 @@ class usuAdminMain:
                 self.logear_panel("Se consultaron repetidos pero no había repeticiones.")
                 return
 
-            win = tk.Toplevel(self.frame)
+            win = tb.Toplevel(self.frame)
             win.title("Fuentes repetidos")
-            st = scrolledtext.ScrolledText(win, width=130, height=18, font=FUENTE_GENERAL, bg="white")
+            st = scrolledtext.ScrolledText(win, width=130, height=18)
             st.pack(fill="both", expand=True)
             for entry in self.repetidos_log:
                 key = entry['nombre_ext']
@@ -322,19 +322,20 @@ class usuAdminMain:
             #icono para el boton de probar conexión
             icon_path = os.path.join(os.path.dirname(__file__), "imagenes_iconos/zeta99.png")
             if os.path.exists(icon_path):
-                self.zeta_icon = tk.PhotoImage(file=icon_path)
+                self.zeta_icon = tb.PhotoImage(file=icon_path)
             else:
                 self.zeta_icon = None
 
-            #botones para probar conexión
+            #boton para probar conexión
             self.btn_testamb = tb.Button( 
                 self.frame,
                 text="Probar Conexión",
                 image=self.zeta_icon,
                 compound="left" if self.zeta_icon else None,
                 command=self.test_ambs,
-                bootstyle="warning-outline"
-            )
+                bootstyle="warning-outline",
+                width=10 
+               )
             self.btn_testamb.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12), padx=(5,5))
 
             self.ambientes_vars = []

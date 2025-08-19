@@ -4,6 +4,7 @@ from tkinter import ttk, messagebox
 from ventana_credenciales import credenciales
 from Usuario_basico.usu_basico_main import usuBasicoMain
 import os
+from styles import boton_principal, etiqueta_titulo
 
 class PantallaInicio: 
     def __init__(self, root, controlador=None):
@@ -25,52 +26,42 @@ class PantallaInicio:
 
         # Imagen de fondo ajustada al nuevo tamaño
         ruta_carpeta = os.path.dirname(__file__)
-        ruta_imagen = os.path.join(ruta_carpeta, "imagenes_iconos", "ZetaOne_img_bg.jpg")
+        ruta_imagen = os.path.join(ruta_carpeta, "imagenes_iconos", "ZetaOne_bg_op2.jpg")
         self.bg_image = Image.open(ruta_imagen)
         self.bg_image = self.bg_image.resize((ventana_ancho, ventana_alto))
         self.bg_photo = ImageTk.PhotoImage(self.bg_image)
         self.background_label = tk.Label(self.root, image=self.bg_photo)
+        self.background_label.image = self.bg_photo  # IMPORTANTE
         self.background_label.place(x=0, y=0, relwidth=1, relheight=1)
 
         # Título (etiqueta más grande)
-        label_bienvenida = tk.Label(
+        label_bienvenida = etiqueta_titulo(
             root,
-            text="Bienvenido a ZetaOne",
-            font=("Arial", 28, "bold"),    # Fuente más grande y negrita
-            bg="#EBF0F1"
+            "Bienvenido a ZetaOne",
+            font=("Arial", 28, "bold")   
         )
-        label_bienvenida.pack(pady=48)     # Más espacio arriba
+        label_bienvenida.pack(pady=48)     
 
         # Botones grandes con fuente grande
-        boton_font = ("Arial", 12, "bold")    # Cambia este valor para ajustar tamaño
-
-        btn_usuario = tk.Button(
+        
+        btn_usuario = boton_principal(
             root,
-            text="Usuario básico",
-            width=22,
-            height=1,
-            font=boton_font,
-            command=self.usuario_normal
+            "Usuario básico",
+            comando=self.usuario_normal,
         )
         btn_usuario.pack(pady=15)
 
-        btn_admin = tk.Button(
+        btn_admin = boton_principal(
             root,
-            text="Administrador / catalogador",
-            width=22,
-            height=1,
-            font=boton_font,
-            command=self.ir_credenciales
+            "Administrador / catalogador",
+            comando=self.ir_credenciales, width=30
         )
         btn_admin.pack(pady=15)
 
-        btn_salir = tk.Button(
+        btn_salir = boton_principal(
             root,
-            text="salir",
-            width=22,
-            height=1,
-            font=boton_font,
-            command=self.root.quit
+            "salir",
+            comando=self.root.quit, width=10
         )
         btn_salir.pack(pady=15)
 

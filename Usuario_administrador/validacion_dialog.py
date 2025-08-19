@@ -3,7 +3,7 @@ import tkinter as tk
 import datetime
 from Usuario_administrador.handlers.validacion import validar_archivos_multiambiente
 from Usuario_administrador.handlers.catalogacion import catalogar_archivos_multiambiente, mostrar_resultado_catalogacion
-from Usuario_administrador.styles import FUENTE_GENERAL, FUENTE_BOTON
+from .styles import FUENTE_GENERAL, FUENTE_BOTON
 
 def centrar_ventana(win, width, height, parent=None):
     win.update_idletasks()

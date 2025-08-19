@@ -1,5 +1,5 @@
 import tkinter as tk
-from Usuario_administrador.styles import FUENTE_GENERAL
+from ..styles import FUENTE_GENERAL
 
 class ToolTip:
     def __init__(self, widget, gettext):
