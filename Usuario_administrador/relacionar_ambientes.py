@@ -3,6 +3,11 @@ from tkinter import messagebox, ttk
 import json
 import os
 
+#estilos
+from styles import boton_accion, etiqueta_titulo, entrada_estandar, boton_comun, boton_exito
+import ttkbootstrap as tb
+from ttkbootstrap.constants import *
+
 # Nueva: ruta base a la carpeta json/
 CARPETA_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "json")
 ARCHIVO_AMBIENTES = os.path.join(CARPETA_JSON, "ambientes.json")
@@ -38,18 +43,18 @@ def gestionar_ambientes_relacionados(ambiente, master=None):
 
     win = tk.Toplevel(master)
     win.title(f"Ambientes relacionados para: {ambiente}")
-    win.geometry("520x350")
+    win.geometry("520x320")
     win.resizable(False, False)
 
     frame_main = tk.Frame(win, pady=12)
     frame_main.pack(fill=tk.BOTH, expand=True)
 
-    lbl_principal = tk.Label(frame_main, text=f"Ambiente seleccionado:", font=('Arial', 11))
+    lbl_principal = etiqueta_titulo(frame_main, texto=f"Ambiente seleccionado:")
     lbl_principal.grid(row=0, column=0, sticky='e', padx=(12,8), pady=(6,3))
-    lbl_principal_value = tk.Label(frame_main, text=ambiente, font=('Arial', 11, 'bold'), relief="sunken", borderwidth=1, width=25)
+    lbl_principal_value = etiqueta_titulo(frame_main, texto=ambiente)
     lbl_principal_value.grid(row=0, column=1, sticky='w', padx=(0,16), pady=(6,3))
 
-    tk.Label(frame_main, text="Ambiente a relacionar:", font=('Arial', 11)).grid(row=1, column=0, sticky='e', padx=(12,8), pady=(2,3))
+    etiqueta_titulo(frame_main, texto="Ambiente a relacionar:").grid(row=1, column=0, sticky='e', padx=(12,8), pady=(2,3))
     combo_ambiente = ttk.Combobox(frame_main, state="readonly", width=26)
     combo_ambiente.grid(row=1, column=1, sticky='w', padx=(0,16), pady=(2,3))
 
@@ -64,10 +69,10 @@ def gestionar_ambientes_relacionados(ambiente, master=None):
         relacionados.add(seleccionado)
         actualizar_listas()
         guardar_en_archivo()
-    btn_relacionar = tk.Button(frame_main, text="Relacionar", width=14, command=agregar_relacion)
+    btn_relacionar = tb.Button(frame_main, text="Relacionar", width=14, command=agregar_relacion, bootstyle="primary")
     btn_relacionar.grid(row=1, column=2, padx=(9,8), pady=2)
 
-    tk.Label(frame_main, text="Ambientes relacionados:", font=('Arial', 11)).grid(row=2, column=0, sticky='ne', padx=(12,6), pady=(8,2))
+    etiqueta_titulo(frame_main, texto="Ambientes relacionados:").grid(row=2, column=0, sticky='ne', padx=(12,6), pady=(8,2))
     lb_relacionados = tk.Listbox(frame_main, height=10, width=35, exportselection=False)
     lb_relacionados.grid(row=2, column=1, sticky='w', padx=(0,0), pady=(8,2))
 
@@ -80,17 +85,17 @@ def gestionar_ambientes_relacionados(ambiente, master=None):
         relacionados.discard(seleccionado)
         actualizar_listas()
         guardar_en_archivo()
-    btn_quitar = tk.Button(frame_main, text="Quitar", width=10, command=quitar_relacion)
+    btn_quitar = tb.Button(frame_main, text="Quitar", width=14, command=quitar_relacion, bootstyle="danger")
     btn_quitar.grid(row=2, column=2, padx=(9,8), pady=(8,2), sticky='n')
 
     def regresar():
         win.destroy()
 
-    frame_botones = tk.Frame(win, pady=10)
+    frame_botones = tk.Frame(win, pady=20)
     frame_botones.pack()
-    btn_regresar = tk.Button(frame_botones, text="Regresar", width=14, command=regresar)
-    btn_regresar.grid(row=0, column=0, padx=(20,18))
-    btn_cerrar = tk.Button(frame_botones, text="Salir", width=10, command=win.destroy)
+    btn_regresar = boton_comun(frame_botones, texto="Regresar", width=14, comando=regresar)
+    btn_regresar.grid(row=0, column=0, padx=(10,8))
+    btn_cerrar = boton_comun(frame_botones, texto="Salir", width=10, comando=win.destroy)
     btn_cerrar.grid(row=0, column=1, padx=(4,12))
 
     def actualizar_listas():
@@ -112,10 +117,3 @@ def gestionar_ambientes_relacionados(ambiente, master=None):
         guardar_relaciones(relaciones)
 
     actualizar_listas()
-
-# Para probar solo esta ventana (descomenta y cambia nombre si lo deseas):
-# if __name__ == '__main__':
-#     root = tk.Tk()
-#     root.withdraw()
-#     gestionar_ambientes_relacionados("SYBCOB26", master=root)
-#     root.mainloop()

@@ -9,14 +9,15 @@ import os
 #importaciones frame derecha (panel de archivos)
 from .handlers.explorador import explorar_sd_folder
 from .util_repetidos import quitar_repetidos
-#from styles import boton_principal, boton_accion, boton_exito, boton_rojo
+
+from styles import boton_principal, boton_accion, boton_exito, boton_rojo
 from .widgets.tooltip import ToolTip
 from .validacion_dialog import lanzar_validacion
 from .catalogacion_dialog import CatalogacionDialog
 
 #importaciones frame izquierdo (panel de ambientes)
 from .handlers.ambientes import cargar_ambientes, guardar_ambientes, probar_conexion_amb
-
+from .relacionar_ambientes import gestionar_ambientes_relacionados  
 # 
 
 class usuAdminMain:
@@ -44,9 +45,8 @@ class usuAdminMain:
             self.root.iconbitmap("imagenes_iconos/Zeta99.ico")
 
             #llamado a los estilos de la ventana
+              
               # Fuerza el tema clam antes de aplicar estilos personalizados
-        
-
             main_frame = tb.Frame(root, padding=12, bootstyle="light")
             main_frame.pack(fill="both", expand=True)
 
@@ -426,6 +426,7 @@ class usuAdminMain:
             window = tb.Toplevel(self.frame)
             window.title("Nuevo ambiente" if nuevo else "Editar ambiente")
             window.resizable(False, False)
+            
             fields = [
                 ("Nombre","nombre"),
                 ("IP/HOST","ip"),
@@ -474,12 +475,21 @@ class usuAdminMain:
                 self.refresh_amb_list()
                 window.destroy()
 
+            def abrir_relacionados():
+                nombre_amb = vals['nombre'].get()
+                if not nombre_amb:
+                    messagebox.showwarning("Atención", "Primero ingrese el nombre del ambiente", parent=window)
+                    return
+                gestionar_ambientes_relacionados(nombre_amb, master=window)
+
             #botones ventana emergente agregar/editar
             btn_save = tb.Button(window, text="Guardar", command=snd, bootstyle="success" )
             btn_save.grid(row=len(fields), column=0, pady=6, padx=8, sticky="we")
-            btn_salir = tb.Button(window, text="Cancelar", command=window.destroy, bootstyle="secondary")
-            btn_salir.grid(row=len(fields), column=1, pady=6, padx=8, sticky="we")
-
+            btn_relacionados = tb.Button(window, text="relacionados", command=abrir_relacionados, bootstyle="primary", width=10)
+            btn_relacionados.grid(row=len(fields), column=1, pady=6, padx=8, sticky="we")
+            btn_salir = tb.Button(window, text="Cancelar", command=window.destroy, bootstyle="secondary", width=10)
+            btn_salir.grid(row=len(fields), column=2, pady=6, padx=8, sticky="we")
+            
             window.grab_set()
 
         def test_ambs(self):

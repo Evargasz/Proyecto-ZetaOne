@@ -23,7 +23,7 @@ class controladorVentanas:
     def mostrar_pantalla_inicio(self):
         self.limpiar_root()
         PantallaInicio(self.root, self)
-# 
+        
     def mostrar_credenciales(self):
         self.limpiar_root()
         credenciales(self.root, self)
