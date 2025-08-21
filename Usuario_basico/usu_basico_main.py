@@ -1,9 +1,19 @@
+#librerias
 import tkinter as tk
-from tkinter import messagebox, Toplevel
+from tkinter import messagebox
 from PIL import Image, ImageTk
 import os
 import getpass
+
+#Base de datos
 import json
+
+#ventanas modales
+from .Autorizar_tabla import AutorizarTablaVentana
+from .usuario_no_vigente import UsuarioNoVigenteVentana
+from .Desbloquear_usuario import desbloquearUsuVentana
+
+#estilos
 from styles import etiqueta_titulo, entrada_estandar, boton_rojo, img_boton, boton_comun, boton_accion
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
@@ -34,14 +44,6 @@ class usuBasicoMain(tb.Frame):
         self.root = master
         self.master = master
         self.controlador = controlador
-
-        # Cargar ambientes desde ambientes.json
-        self.lista_de_ambientes = []
-        try:
-            with open(r'json\ambientes.json', 'r', encoding='utf-8') as f:
-                self.lista_de_ambientes = json.load(f)
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo cargar ambientes.json\n{e}")
 
         # Configuración de ventana
         self.root.title("ZetaOne || Usuraio Basico")
@@ -76,6 +78,12 @@ class usuBasicoMain(tb.Frame):
                 "desc": "Descripción...",
                 "Favoritos": False,
                 "accion": self.usar_actualizar_fecha_cont
+            },
+            {
+                "titulo": "Usuario no Vigente",
+                "desc": "nose aun",
+                "Favoritos": False,
+                "accion": self.usar_usu_no_vigente
             }
         ]
 
@@ -125,11 +133,10 @@ class usuBasicoMain(tb.Frame):
         
     #------------------------------------------frame de la derecha---------------------------------------------
     def armar_area_principal(self): #frame derecha
-        #Buscador
-
         barra_superior = tb.Frame(self.main_frame)
         barra_superior.pack(fill="x", padx=40, pady=20)
 
+            #Buscador
         self.entry_busqueda = entrada_estandar(barra_superior, font=("Arial", 14))
         self.entry_busqueda.insert(0, self.placeholder_text)
         self.entry_busqueda.pack(side="left", fill="x", expand=True, padx=(0, 0), ipady=4)
@@ -183,6 +190,7 @@ class usuBasicoMain(tb.Frame):
 
         self.mostrar_funcionalidades()
 
+        #cards 
     def mostrar_funcionalidades(self, filtro_favoritos=False):
                 
         for widget in self.cards_frame.winfo_children():
@@ -247,6 +255,7 @@ class usuBasicoMain(tb.Frame):
                 columna = 0
                 fila += 1
 
+        #otras funciones
     def salir(self):
         self.root.destroy()
 
@@ -299,105 +308,32 @@ class usuBasicoMain(tb.Frame):
         self.root.focus()
         print("esto funciona correctamente")
 
-    def abrir_modal(self, parent, ambientes_lista, callback_confirmar):
-        import getpass
-        from tkinter import ttk
-        modal = Toplevel(parent)
-        ancho, alto = 320, 160
-        modal.title("desbloquear usuario")
-        self.centrar_ventana(modal, ancho, alto)
-        modal.grab_set()
-        modal.resizable(False, False)
-
-        lbl_ambiente = etiqueta_titulo(modal, texto="Ambiente:")
-        lbl_ambiente.place(x=20, y=30)
-        # Usar nombre del ambiente para el Combobox
-        lista_nombres_ambiente = [amb['nombre'] for amb in ambientes_lista]
-        entry_ambiente = ttk.Combobox(modal, values=lista_nombres_ambiente, state='readonly')
-        entry_ambiente.place(x=100, y=30, width=180)
-
-        lbl_usuario = etiqueta_titulo(modal, texto="Usuario:")
-        lbl_usuario.place(x=20, y=70)
-        entry_usuario = entrada_estandar(modal)
-        entry_usuario.place(x=100, y=70, width=180)
-        entry_usuario.insert(0, getpass.getuser())
-
-        def on_continuar():
-            ambiente = entry_ambiente.get()
-            usuario = entry_usuario.get()
-            if not ambiente or not usuario: 
-                messagebox.showwarning("Campo/s vació/s", "Por favor complete ambos campos.")
-                return
-            ambiente_obj = next((a for a in ambientes_lista if a['nombre'] == ambiente), None)
-            if ambiente_obj is None:
-                messagebox.showerror("Ambiente no encontrado", "Por favor seleccione un ambiente válido.")
-                return
-            callback_confirmar(usuario, ambiente_obj)
-            modal.destroy()
-
-        btn_continuar = boton_accion(modal, texto="Continuar", comando=on_continuar, width=12)
-        btn_continuar.place(relx=1.0, rely=1.0, x=-40, y=-17, anchor='se')
-
-    def centrar_ventana(self, ventana, ancho, alto):
-        ventana.update_idletasks()
-        pantalla_ancho = ventana.winfo_screenwidth()
-        pantalla_alto = ventana.winfo_screenheight()
-        x = int((pantalla_ancho/2)-(ancho/2))
-        y = int((pantalla_alto/2)-(alto/2))
-        ventana.geometry(f"{ancho}x{alto}+{x}+{y}")
-
+        #Ventanas Modales (contenido de las cards)
     def usar_desbloquear_usuario(self):
-        self.abrir_modal(self.master, self.lista_de_ambientes, self.desbloquear_usuario_en_bd)
+        try:
+            with open('json/ambientes.json', 'r', encoding='utf-8') as f:
+                ambientes_lista = json.load(f)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar ambientes.json\n{e}")
+            return
+
+        def callback_confirmar(usuario, ambiente_obj):
+            # Aquí tu código cuando confirmen en la modal
+            print("Usuario a desbloquear:", usuario, "Ambiente:", ambiente_obj)
+
+        ventana_desbloquear_usu = desbloquearUsuVentana(self.root, ambientes_lista, callback_confirmar)
+        ventana_desbloquear_usu.grab_set()
+        ventana_desbloquear_usu.wait_window()
 
     def usar_autorizar_tablas(self):
-        messagebox.showinfo("funcion no implementada", "esta funcion estara disponible en breve" )
-    
+        ventana_autorizar = AutorizarTablaVentana(master=self.root)
+        ventana_autorizar.grab_set()
+        ventana_autorizar.wait_window
+
     def usar_actualizar_fecha_cont(self):
         messagebox.showinfo("funcion no implementada", "esta funcion estara disponible en breve")
     
-    def desbloquear_usuario_en_bd(self, usuario, ambiente):
-        '''
-        Construye la cadena de conexión según el driver, para Sybase ASE ODBC Driver usa PORT=,
-        para los demás (SQL Server, Sybase clásico) usa SERVER=ip,puerto
-        '''
-        import pyodbc
-        resp = messagebox.askyesno(
-            "Confirmar acción",
-            f"¿Está seguro de borrar la sesión en '{ambiente['nombre']}' para el usuario '{usuario}'?"
-        )
-        if not resp:
-            return
-
-        driver = ambiente['driver']
-        if driver == 'Sybase ASE ODBC Driver':
-            conn_str = (
-                f"DRIVER={{{driver}}};"
-                f"SERVER={ambiente['ip']};"
-                f"PORT={ambiente['puerto']};"
-                f"DATABASE={ambiente['base']};"
-                f"UID={ambiente['usuario']};"
-                f"PWD={ambiente['clave']};"
-            )
-        else:
-            conn_str = (
-                f"DRIVER={{{driver}}};"
-                f"SERVER={ambiente['ip']},{ambiente['puerto']};"
-                f"DATABASE={ambiente['base']};"
-                f"UID={ambiente['usuario']};"
-                f"PWD={ambiente['clave']};"
-            )
-
-        print("[DEBUG] Cadena de conexión:", conn_str)
-        print("[DEBUG] Drivers instalados:", pyodbc.drivers())
-        try:
-            conn = pyodbc.connect(conn_str, timeout=5)
-            cursor = conn.cursor()
-            cursor.execute("delete cobis..in_login where lo_login = ?", usuario)
-            conn.commit()
-            conn.close()
-            messagebox.showinfo(
-                "Éxito",
-                f"Sesión del usuario '{usuario}' borrada correctamente en el ambiente '{ambiente['nombre']}'."
-            )
-        except Exception as e:
-            messagebox.showerror("Error", f"Ocurrió un error: {e}")
+    def usar_usu_no_vigente (self):
+        ventana_usu_no_vig = UsuarioNoVigenteVentana(master=self.root)
+        ventana_usu_no_vig.grab_set()
+        ventana_usu_no_vig.wait_window

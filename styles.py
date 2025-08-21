@@ -44,18 +44,18 @@ def configurar_estilos(style):
         relief=[('active', 'solid')]
     )
 
-    #------------------------Usuario basico -----------------------
-        #botones 
-
 #-------------------------------------------------------------------------------------------------------------------------
 
 #acciones de botones y demas
+    #botones especificos:
 def boton_principal(master, texto, comando=None, **kwargs):
     return Button(master, text=texto, command=comando, style='PrincipalInicio.TButton', **kwargs)
 
 def boton_creden(master, texto, comando=None, **kwargs):
     return Button(master, text=texto, command=comando, style='Creden.TButton', **kwargs)
 
+    
+    #estilos predeterminados 
 def boton_accion(master, texto, comando=None, **kwargs):
     return Button(master, text=texto, command=comando, bootstyle="dark", **kwargs)
 
@@ -90,9 +90,3 @@ def boton_comun(master, texto, comando=None, **kwargs):
 # btn = Button(root, text="Botón Morado (Primary)", bootstyle="primary")
 
 # btn.pack(padx=10, pady=10)
-
-#----------------------------ventana de usuario basico---------------------------------- 
-
-#frame derecho: (panel principal)
-
-
