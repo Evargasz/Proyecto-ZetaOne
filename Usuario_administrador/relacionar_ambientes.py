@@ -4,14 +4,14 @@ import json
 import os
 
 #estilos
-from styles import boton_accion, etiqueta_titulo, entrada_estandar, boton_comun, boton_exito
+from styles import etiqueta_titulo, boton_comun
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 
 # Nueva: ruta base a la carpeta json/
 CARPETA_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "json")
-ARCHIVO_AMBIENTES = os.path.join(CARPETA_JSON, "ambientes.json")
-ARCHIVO_RELACIONES = os.path.join(CARPETA_JSON, "ambientesrelacionados.json")
+ARCHIVO_AMBIENTES = os.path.join("json/ambientes.json")
+ARCHIVO_RELACIONES = os.path.join("json/ambientesrelacionados.json")
 
 def cargar_ambientes():
     print("DEBUG ruta actual:", os.getcwd())
@@ -21,6 +21,7 @@ def cargar_ambientes():
             return json.load(f)
     else:
         print("DEBUG - No se encontró ambientes.json")
+        messagebox.showerror("No se encontró","no se encontro ambientes.json")
         return []
 
 def cargar_relaciones():
@@ -93,7 +94,7 @@ def gestionar_ambientes_relacionados(ambiente, master=None):
 
     frame_botones = tk.Frame(win, pady=20)
     frame_botones.pack()
-    btn_regresar = boton_comun(frame_botones, texto="Regresar", width=14, comando=regresar)
+    btn_regresar = boton_comun(frame_botones, texto="guardar", width=14, comando=regresar)
     btn_regresar.grid(row=0, column=0, padx=(10,8))
     btn_cerrar = boton_comun(frame_botones, texto="Salir", width=10, comando=win.destroy)
     btn_cerrar.grid(row=0, column=1, padx=(4,12))

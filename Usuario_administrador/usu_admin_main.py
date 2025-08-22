@@ -349,9 +349,10 @@ class usuAdminMain:
             #botones de accion
             botones_amb = tb.Frame(self.frame, bootstyle="Panel2.TFrame")
             botones_amb.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10,0))
-            tb.Button(botones_amb, text="➕ Agregar", command=self.add_amb, bootstyle="success-outline").grid(row=0, column=0, padx=2, pady=2, sticky='ew')
-            tb.Button(botones_amb, text="✏️ Editar", command=self.edit_amb, bootstyle="info-outline").grid(row=1, column=0, padx=2, pady=2, sticky='ew')
-            tb.Button(botones_amb, text="🗑️ Eliminar", command=self.del_amb, bootstyle="danger-outline").grid(row=2, column=0, padx=2, pady=2, sticky='ew')
+            tb.Button(botones_amb, text="➕Agregar", command=self.add_amb, bootstyle="success-outline").grid(row=2, column=0, padx=2, pady=2, sticky='ew')
+            tb.Button(botones_amb, text="✏️Editar", command=self.edit_amb, bootstyle="info-outline").grid(row=2, column=3, padx=2, pady=2, sticky='ew')
+            tb.Button(botones_amb, text="🗑️Eliminar", command=self.del_amb, bootstyle="danger-outline").grid(row=2, column=2, padx=2, pady=2, sticky='ew')
+            tb.Button(botones_amb, text="relacionar", command=self.gestionar_relacionados, bootstyle="primary-outline", width=10).grid(row=2, column=1, pady=2, padx=2, sticky="ew")
 
             self.amb_estado = tb.Label(self.frame, text="", anchor="w", bootstyle="inverse-info", font=("sagoe UI", 10, "bold"))
             self.amb_estado.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
@@ -412,6 +413,7 @@ class usuAdminMain:
         def del_amb(self):
             sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
             if not sel:
+                messagebox.showwarning("Error","debe seleccionar minimo un ambiente")
                 return
             idx = sel[0]
             ok = messagebox.askyesno("Confirma", "¿Eliminar el ambiente seleccionado?", parent=self.frame)
@@ -422,6 +424,15 @@ class usuAdminMain:
                 guardar_ambientes(self.ambientes)
                 self.refresh_amb_list()
 
+        def gestionar_relacionados(self):
+            sel= [i for i, v in enumerate(self.ambientes_vars) if v.get()]
+            if len(sel) != 1:
+                messagebox.showwarning("seleccione un ambiente", "Seleccione un solo ambiente", parent=self.frame)
+                return
+            idx = sel[0]
+            nombre_ambiente=self.ambientes[idx]['nombre']
+            gestionar_ambientes_relacionados(nombre_ambiente, master=self.frame)
+        
         def editar_amb_dialog(self, nuevo=True, editar_idx=None):
             window = tb.Toplevel(self.frame)
             window.title("Nuevo ambiente" if nuevo else "Editar ambiente")
@@ -475,22 +486,14 @@ class usuAdminMain:
                 self.refresh_amb_list()
                 window.destroy()
 
-            def abrir_relacionados():
-                nombre_amb = vals['nombre'].get()
-                if not nombre_amb:
-                    messagebox.showwarning("Atención", "Primero ingrese el nombre del ambiente", parent=window)
-                    return
-                gestionar_ambientes_relacionados(nombre_amb, master=window)
-
             #botones ventana emergente agregar/editar
             btn_save = tb.Button(window, text="Guardar", command=snd, bootstyle="success" )
             btn_save.grid(row=len(fields), column=0, pady=6, padx=8, sticky="we")
-            btn_relacionados = tb.Button(window, text="relacionados", command=abrir_relacionados, bootstyle="primary", width=10)
-            btn_relacionados.grid(row=len(fields), column=1, pady=6, padx=8, sticky="we")
             btn_salir = tb.Button(window, text="Cancelar", command=window.destroy, bootstyle="secondary", width=10)
             btn_salir.grid(row=len(fields), column=2, pady=6, padx=8, sticky="we")
             
             window.grab_set()
+        
 
         def test_ambs(self):
             sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
