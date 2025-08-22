@@ -368,6 +368,8 @@ class usuAdminMain:
             self.progressbar_amb.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
             self.progressbar_amb.grid_remove()
 
+            #logica y acciones de botones_amb
+
         def logear_panel(self, msg):
             if self.logtxt is not None:
                 self.logtxt.insert(tk.END, "[Ambientes] " + msg + "\n")
@@ -404,8 +406,8 @@ class usuAdminMain:
 
         def edit_amb(self):
             sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
-            if not sel:
-                messagebox.showerror("Editar ambiente", "Seleccione uno", parent=self.frame)
+            if len(sel) != 1:
+                messagebox.showerror("Editar ambiente", "Seleccione UN solo ambiente", parent=self.frame)
                 return
             idx = sel[0]
             self.editar_amb_dialog(nuevo=False, editar_idx=idx)
@@ -416,7 +418,7 @@ class usuAdminMain:
                 messagebox.showwarning("Error","debe seleccionar minimo un ambiente")
                 return
             idx = sel[0]
-            ok = messagebox.askyesno("Confirma", "¿Eliminar el ambiente seleccionado?", parent=self.frame)
+            ok = messagebox.askyesno("Confirmar", "¿Eliminar los ambientes seleccionados?", parent=self.frame)
             if ok:
                 self.logear_panel(f"Eliminado ambiente: {self.ambientes[idx]['nombre']}")
                 self.ambientes.pop(idx)
@@ -427,7 +429,7 @@ class usuAdminMain:
         def gestionar_relacionados(self):
             sel= [i for i, v in enumerate(self.ambientes_vars) if v.get()]
             if len(sel) != 1:
-                messagebox.showwarning("seleccione un ambiente", "Seleccione un solo ambiente", parent=self.frame)
+                messagebox.showwarning("seleccione un ambiente", "Seleccione UN solo ambiente", parent=self.frame)
                 return
             idx = sel[0]
             nombre_ambiente=self.ambientes[idx]['nombre']
@@ -490,7 +492,7 @@ class usuAdminMain:
             btn_save = tb.Button(window, text="Guardar", command=snd, bootstyle="success" )
             btn_save.grid(row=len(fields), column=0, pady=6, padx=8, sticky="we")
             btn_salir = tb.Button(window, text="Cancelar", command=window.destroy, bootstyle="secondary", width=10)
-            btn_salir.grid(row=len(fields), column=2, pady=6, padx=8, sticky="we")
+            btn_salir.grid(row=len(fields), column=1, pady=6, padx=8, sticky="we")
             
             window.grab_set()
         

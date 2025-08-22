@@ -52,7 +52,11 @@ class desbloquearUsuVentana(tk.Toplevel):
             if ambiente_obj is None:
                 messagebox.showerror("Ambiente no encontrado", "Por favor seleccione un ambiente válido.")
                 return
+            
+            self.desbloquear_usuario_en_bd
+
             callback_confirmar(usuario, ambiente_obj)
+            
             self.destroy()
 
         btn_continuar = boton_accion(self, texto="Continuar", comando=on_continuar, width=12)
@@ -76,7 +80,7 @@ class desbloquearUsuVentana(tk.Toplevel):
             f"¿Está seguro de borrar la sesión en '{ambiente['nombre']}' para el usuario '{usuario}'?"
         )
         if not resp:
-            return
+            return messagebox.showerror("Error", "ocurrio un error")
         
         def ejecutar_borrado(amb, usuario):
             driver = amb['driver']
