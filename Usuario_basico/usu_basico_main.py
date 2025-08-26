@@ -12,6 +12,7 @@ import json
 from .Autorizar_tabla import AutorizarTablaVentana
 from .usuario_no_vigente import UsuarioNoVigenteVentana
 from .Desbloquear_usuario import desbloquearUsuVentana
+from .Migracion import MigracionVentana
 
 #estilos
 from styles import etiqueta_titulo, entrada_estandar, boton_rojo, img_boton, boton_comun, boton_accion
@@ -59,7 +60,7 @@ class usuBasicoMain(tb.Frame):
         #icono
         self.root.iconbitmap("imagenes_iconos/Zeta99.ico")
 
-        # funcionalidades 
+        # funcionalidades Y contenido de las cards
         self.funcionalidades = [
             {
                 "titulo": "Desbloquear usuario",
@@ -84,6 +85,12 @@ class usuBasicoMain(tb.Frame):
                 "desc": "nose aun",
                 "Favoritos": False,
                 "accion": self.usar_usu_no_vigente
+            },
+            {
+                "titulo": "Migracion de datos",
+                "desc": "Migrar datos",
+                "Favoritos": False,
+                "accion": self.usar_migracion_de_datos
             }
         ]
 
@@ -190,7 +197,7 @@ class usuBasicoMain(tb.Frame):
 
         self.mostrar_funcionalidades()
 
-        #cards 
+        #------------------------------------------cards---------------------------------------------------------- 
     def mostrar_funcionalidades(self, filtro_favoritos=False):
                 
         for widget in self.cards_frame.winfo_children():
@@ -201,7 +208,7 @@ class usuBasicoMain(tb.Frame):
             if not funcionalidades_a_mostrar:
                 mensaje = etiqueta_titulo(
                     self.cards_frame,
-                    texto="no tienes ningun acceso rapido activo. \nMarca alguna funcionalidad y la veras aqui",
+                    texto="no tienes ningun favorito activo.\nMarca alguno y aparecera aqui",
                     font=("Arial", 12, "italic"),
                     justify="center"
                 )
@@ -255,13 +262,15 @@ class usuBasicoMain(tb.Frame):
                 columna = 0
                 fila += 1
 
-        #otras funciones
+        #---------------------------------Funciones de botones------------------------------------
+    #Navegacion
     def salir(self):
         self.root.destroy()
 
     def volver(self):
         self.controlador.mostrar_pantalla_inicio()
     
+    #Botondes de Barra de busqueda
     def accion_busqueda(self):
         txt = self.entry_busqueda.get()
         if txt == self.placeholder_text or txt.strip() == "":
@@ -284,7 +293,6 @@ class usuBasicoMain(tb.Frame):
 
     def toggle_Favoritos(self, funcionalidad):
         funcionalidad["Favoritos"] = not funcionalidad.get("Favoritos", False)
-        # ACTUALIZA tu lista de favoritos y GUARDA
         self.favoritos = [f["titulo"] for f in self.funcionalidades if f.get("Favoritos", False)]
         guardar_favoritos(self.favoritos)
         self.mostrar_funcionalidades(self.filtro_favoritos)
@@ -293,7 +301,7 @@ class usuBasicoMain(tb.Frame):
         self.filtro_favoritos = False
         self.boton_filtro_favoritos.config()
         self.mostrar_funcionalidades(filtro_favoritos=False)
-        print("esta funciona correctamente")
+        print("este boton funciona correctamente")
 
     def recargar_cards(self):
         self.entry_busqueda.delete(0, tk.END)
@@ -306,9 +314,9 @@ class usuBasicoMain(tb.Frame):
         self.entry_busqueda.focus_set()
         self.entry_busqueda.icursor(0)
         self.root.focus()
-        print("esto funciona correctamente")
+        print("este boton funciona correctamente")
 
-        #Ventanas Modales (contenido de las cards)
+    #-------------------------------------------Ventanas Modales (contenido de las cards)---------------------------------------------
     def usar_desbloquear_usuario(self):
         try:
             with open('json/ambientes.json', 'r', encoding='utf-8') as f:
@@ -337,3 +345,8 @@ class usuBasicoMain(tb.Frame):
         ventana_usu_no_vig = UsuarioNoVigenteVentana(master=self.root)
         ventana_usu_no_vig.grab_set()
         ventana_usu_no_vig.wait_window
+
+    def usar_migracion_de_datos(self):
+        ventana_mig_datos = MigracionVentana(master= self.root)
+        ventana_mig_datos.grab_set()
+        ventana_mig_datos.wait_window

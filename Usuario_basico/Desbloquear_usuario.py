@@ -1,5 +1,5 @@
 import getpass
-from tkinter import ttk, messagebox, Toplevel
+from tkinter import ttk, messagebox
 import tkinter as tk
 import os
 

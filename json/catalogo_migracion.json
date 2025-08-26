@@ -1,0 +1,7059 @@
+[
+  {
+    "grupo": "ad_tran_servicio",
+    "tablas": [
+      {
+        "tabla": "cobis..ad_tran_servicio",
+        "llave": "",
+        "join": "",
+        "condicion": "ts_tipo_transaccion = $transaccion$"
+      }
+    ]
+  },
+  {
+    "grupo": "Ad_usuario",
+    "tablas": [
+      {
+        "tabla": "cobis..ad_usuario",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "alivio_paof",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_alivio_paof",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "alternas",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_alternas_tmp",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ba_batch7",
+    "tablas": [
+      {
+        "tabla": "cobis..ba_batch",
+        "llave": "",
+        "join": "",
+        "condicion": "ba_batch between 7000 and 8000"
+      }
+    ]
+  },
+  {
+    "grupo": "batch7593",
+    "tablas": [
+      {
+        "tabla": "cob_temporal..cca_detalle_oper_co",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ca_comi_desem",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_comi_desem",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cartera..ca_comi_desem",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ca_dat_oper_bv_tmp",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_dat_oper_bv_tmp",
+        "llave": "",
+        "join": "",
+        "condicion": "bv_no_obligacion = '725039570089461'"
+      }
+    ]
+  },
+  {
+    "grupo": "ca_operacion_hi",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_operacion_his",
+        "llave": "",
+        "join": "",
+        "condicion": "oph_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "ca_prima_desem",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_prima_desem",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ca_producto",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_producto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ca_rubro_fogacafe",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_rubro_fogacafe",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ca_rubro_op_his",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_rubro_op_his",
+        "llave": "",
+        "join": "",
+        "condicion": "roh_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "ca_seg_des_inc",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_seg_des_inc",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ca_tasas",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_tasas",
+        "llave": "",
+        "join": "",
+        "condicion": "ts_operacion in (347308359,346058484)"
+      }
+    ]
+  },
+  {
+    "grupo": "ca_transaccion",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_transaccion",
+        "llave": "",
+        "join": "",
+        "condicion": "tr_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "ca_trn_oper",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_trn_oper",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "caropxp",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_abono",
+        "llave": "",
+        "join": "",
+        "condicion": "ab_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_abono_det",
+        "llave": "",
+        "join": "",
+        "condicion": "abd_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_abono_prioridad",
+        "llave": "",
+        "join": "",
+        "condicion": "ap_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_abono_renovacion",
+        "llave": "",
+        "join": "",
+        "condicion": "ar_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_abono_rubro",
+        "llave": "",
+        "join": "",
+        "condicion": "ar_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_abonos_voluntarios",
+        "llave": "",
+        "join": "",
+        "condicion": "av_operacion_activa = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_acciones",
+        "llave": "",
+        "join": "",
+        "condicion": "ac_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_actualiza_llave_tmp",
+        "llave": "",
+        "join": "",
+        "condicion": "al_operacion_activa = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_alivio_paof",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.al_banco = op.oxnh_banco",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_amortizacion",
+        "llave": "",
+        "join": "",
+        "condicion": "am_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_amortizacion_ant",
+        "llave": "",
+        "join": "",
+        "condicion": "an_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_amortizacion_can",
+        "llave": "",
+        "join": "",
+        "condicion": "amc_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_cliente_operacion",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.co_banco = op.oxnh_banco",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_cobertura_frech",
+        "llave": "",
+        "join": "",
+        "condicion": "cf_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_cond_regd",
+        "llave": "",
+        "join": "",
+        "condicion": "cr_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_control_intant",
+        "llave": "",
+        "join": "",
+        "condicion": "con_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_correccion",
+        "llave": "",
+        "join": "",
+        "condicion": "co_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_cuota_adicional",
+        "llave": "",
+        "join": "",
+        "condicion": "ca_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_desembolso",
+        "llave": "",
+        "join": "",
+        "condicion": "dm_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_det_prv_me",
+        "llave": "",
+        "join": "",
+        "condicion": "dpr_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_det_trn",
+        "llave": "",
+        "join": "",
+        "condicion": "dtr_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_detalles_garantia_d",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de.de_tramite = op.oxnh_tramite and tbl.dg_cliente = de.de_cl",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_deu_segvida",
+        "llave": "",
+        "join": "",
+        "condicion": "dt_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_devolucion_rubro",
+        "llave": "",
+        "join": "",
+        "condicion": "dr_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_diastablamanual",
+        "llave": "",
+        "join": "",
+        "condicion": "dia_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_diferidos",
+        "llave": "",
+        "join": "",
+        "condicion": "dif_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_dividendo",
+        "llave": "",
+        "join": "",
+        "condicion": "di_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_dividendo_can",
+        "llave": "",
+        "join": "",
+        "condicion": "dic_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_facturas",
+        "llave": "",
+        "join": "",
+        "condicion": "fac_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_fecha_valor_resulta",
+        "llave": "",
+        "join": "",
+        "condicion": "fvd_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_historia_tran",
+        "llave": "",
+        "join": "",
+        "condicion": "ht_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_lavado_activos",
+        "llave": "",
+        "join": "",
+        "condicion": "la_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_liquida_frech",
+        "llave": "",
+        "join": "",
+        "condicion": "lf_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_operacion",
+        "llave": "",
+        "join": "",
+        "condicion": "op_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_operacion_control",
+        "llave": "",
+        "join": "",
+        "condicion": "oc_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_operacion_subsidio",
+        "llave": "",
+        "join": "",
+        "condicion": "ss_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_operacion_xp",
+        "llave": "",
+        "join": "",
+        "condicion": "ox_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_operacion_xp_no_h",
+        "llave": "",
+        "join": "",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_otro_cargo",
+        "llave": "",
+        "join": "",
+        "condicion": "oc_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_otros_x_cobrar_xp",
+        "llave": "",
+        "join": "",
+        "condicion": "oxc_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_pagos_valor_prese",
+        "llave": "cob_cartera..ca_operacion op",
+        "join": "tbl.pvp_operacion = op.op_operacion",
+        "condicion": "op_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_prepagos_pasivas",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "pp_banco = oxnh_banco",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_prorroga",
+        "llave": "",
+        "join": "",
+        "condicion": "pr_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_reajuste",
+        "llave": "",
+        "join": "",
+        "condicion": "re_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_reajuste_det",
+        "llave": "",
+        "join": "",
+        "condicion": "red_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_relacion_ptmo",
+        "llave": "",
+        "join": "",
+        "condicion": "rp_activa = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_relacion_ptmo_his",
+        "llave": "",
+        "join": "",
+        "condicion": "(hpt_activa = $operacion$ or hpt_pasiva = $operacion$)"
+      },
+      {
+        "tabla": "cob_cartera..ca_rubro_op",
+        "llave": "",
+        "join": "",
+        "condicion": "ro_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_saldos_cartera",
+        "llave": "",
+        "join": "",
+        "condicion": "sc_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_saldos_cartera_me",
+        "llave": "",
+        "join": "",
+        "condicion": "sc_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_secuencial_atx",
+        "llave": "cob_cartera..ca_operacion,",
+        "join": "oxnh_operacion = op_operacion and oxnh_banco = sa_operacion",
+        "condicion": "op_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_secuenciales",
+        "llave": "",
+        "join": "",
+        "condicion": "se_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_seguros_base_gar",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.sg_tramite = op.oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_subsidio_sdde",
+        "llave": "",
+        "join": "",
+        "condicion": "su_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_tasas",
+        "llave": "",
+        "join": "",
+        "condicion": "ts_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_transaccion",
+        "llave": "",
+        "join": "",
+        "condicion": "tr_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_traslado_interes",
+        "llave": "",
+        "join": "",
+        "condicion": "ti_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_ultima_tasa_op",
+        "llave": "",
+        "join": "",
+        "condicion": "ut_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_valor_atx",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.vx_banco = op.oxnh_banco",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_valores",
+        "llave": "",
+        "join": "",
+        "condicion": "va_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_archivo_redescuento",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.re_tramite = op.oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificacion_cl",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de.de_tramite = op.oxnh_tramite and tbl.cl_cod_cliente =",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificacion_op",
+        "llave": "cob_cartera..ca_operacion op",
+        "join": "tbl.co_operacion = op.op_operacion and tbl.co_producto = 7",
+        "condicion": "op_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificacion_provis",
+        "llave": "cob_cartera..ca_operacion op",
+        "join": "tbl.cp_operacion = op.op_operacion",
+        "condicion": "op_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificaciones_cl",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de.de_tramite = op.oxnh_tramite and tbl.cl_cod_cliente =",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificaciones_op",
+        "llave": "cob_cartera..ca_operacion op",
+        "join": "tbl.co_operacion = op.op_operacion",
+        "condicion": "op_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_cambio_tasa_manu",
+        "llave": "",
+        "join": "",
+        "condicion": "ctm_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_cau_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.cr_tramite = op.oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_dato_cliente",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de.de_tramite = op.oxnh_tramite and tbl.dc_cliente = de.de_cl",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_dato_garantia",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "gp.gp_tramite = op.oxnh_tramite and tbl.dg_garantia =",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_dato_operacion",
+        "llave": "cob_cartera..ca_operacion op",
+        "join": "tbl.do_numero_operacion = op_operacion",
+        "condicion": "op_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_datos_tramites",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.dt_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_desembolso",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.de_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_destino_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.dt_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_det_trn",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.dtr_secuencial = tr.tr_secuencial and tr.tr_banco = oxnh_",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_deudores",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.de_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_excepciones",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ex_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_gar_anteriores",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ga_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_gar_propuesta",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.gp_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_hist_credito",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de_tramite = oxnh_tramite and tbl.ho_ente = de_cliente",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_instrucciones",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.in_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_lin_ope_moneda",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.om_linea = lin.li_numero and lin.li_num_banco =",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_lin_reservado",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.lr_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_linea",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.li_num_banco = op.oxnh_lin_credito",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_linea",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.li_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_modif_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.mt_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_op_renovar",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.or_num_operacion= oxnh_banco",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_op_retanqueo",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "or_tramite  = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_req_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.rr_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_rub_renovar",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "rr_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_ruta_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.rt_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_secuencia",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.se_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.tr_tramite = lin.li_tramite and lin.li_num_banco =",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.tr_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_trans_carta_log",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.tc_tramite = op.oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_transaccion",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.tr_banco = oxnh_banco",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito..cr_valor_variables",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.vv_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_credito_his..cr_ruta_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.rt_tramite = oxnh_tramite",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_custodia..cu_cliente_garantia",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "gp_tramite = oxnh_tramite and tbl.cg_codigo_externo =",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_custodia..cu_cliente_garantia",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "oxnh_tramite = gp_tramite and gp_garantia = cg_codigo_externo",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_custodia..cu_custodia",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "gp_tramite = oxnh_tramite and tbl.cu_codigo_externo =",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_custodia..cu_item_custodia",
+        "llave": "cob_credito..cr_gar_propuesta",
+        "join": "op.oxnh_tramite = gp.gp_tramite and gp.gp_garantia =",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cobis..cl_cliente",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.cl_cliente = oxnh_cliente",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cobis..cl_det_producto",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "cl_cliente = oxnh_cliente and tbl.dp_det_producto =",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cobis..cl_direccion",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.di_ente = oxnh_cliente",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cobis..cl_ente",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.en_ente = oxnh_cliente",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cobis..cl_mercado_objetivo_cliente",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.mo_ente = oxnh_cliente",
+        "condicion": "oxnh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cobis..cl_telefono",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.te_ente = oxnh_cliente",
+        "condicion": "oxnh_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "carteriza",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_carteriza_sobregiro",
+        "llave": "",
+        "join": "",
+        "condicion": "cs_estado_cateriza = 'I' and cs_cliente > 0"
+      }
+    ]
+  },
+  {
+    "grupo": "cb_relparam",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_relparam",
+        "llave": "",
+        "join": "",
+        "condicion": "re_empresa = 1 and re_producto = 7"
+      }
+    ]
+  },
+  {
+    "grupo": "cc_cta_gerencia",
+    "tablas": [
+      {
+        "tabla": "cob_cuentas..cc_cta_gerencia",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ce_linea_credito",
+    "tablas": [
+      {
+        "tabla": "cob_comext..ce_linea_credito",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ce_linea_credito_mes",
+    "tablas": [
+      {
+        "tabla": "cob_comext..ce_linea_credito_mes",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ce_uso_lc",
+    "tablas": [
+      {
+        "tabla": "cob_comext..ce_uso_lc",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "cierre",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_calificacion_op",
+        "llave": "",
+        "join": "",
+        "condicion": "co_operacion in(110095434,191156369)"
+      },
+      {
+        "tabla": "cob_credito..cr_calificaciones_op",
+        "llave": "",
+        "join": "",
+        "condicion": "co_operacion in(110095434,191156369) and co_tcalificacion = 'RIESGO'"
+      }
+    ]
+  },
+  {
+    "grupo": "ciudad",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_ciudad",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "cl",
+    "tablas": [
+      {
+        "tabla": "cob_temporal..cca_oper_conv_libra",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "cl_cab_embargo",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_cab_embargo",
+        "llave": "",
+        "join": "",
+        "condicion": "ca_autorizante = ('cacostav') and ca_fecha >= '03/01/2014'"
+      }
+    ]
+  },
+  {
+    "grupo": "cl_catalogo",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_catalogo",
+        "llave": "",
+        "join": "",
+        "condicion": "tabla = 2730"
+      }
+    ]
+  },
+  {
+    "grupo": "cl_ciudad",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_ciudad",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "cl_det_embargo",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_det_embargo",
+        "llave": "",
+        "join": "",
+        "condicion": "de_fecha >= '03/03/2014'"
+      }
+    ]
+  },
+  {
+    "grupo": "cl_extend_ente",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_extend_ente",
+        "llave": "",
+        "join": "",
+        "condicion": "ee_ente = 14232854"
+      }
+    ]
+  },
+  {
+    "grupo": "cl_moneda",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_moneda",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "cli_tot_AHO",
+    "tablas": [
+      {
+        "tabla": "cob_ahorros..ah_acumulador",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.ac_cta_banco = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_ciudad_deposito",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.cd_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_ctabloqueada",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.cb_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_cuenta",
+        "llave": "",
+        "join": "",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_his_bloqueo",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hb_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_his_cierre",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hc_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_his_inmovilizadas",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hi_cuenta = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_programado",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.pr_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_recalculo_interes",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.ri_cuenta = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_talonarios",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.tn_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_tran_monet",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.tm_cta_banco = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_tran_servicio",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.ts_cta_banco = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_val_suspenso",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.vs_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      { 
+        "tabla": "cob_ahorros_his..ah_his_movimiento",
+        "llave": "cob_ahorros..ah_cuenta(index i_ah_estado)",
+        "join": "tbl.hm_cta_banco = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros_his..ah_his_servicio",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hs_cta_banco = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros_his..ah_saldo_diario",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.sd_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      }
+    ]
+  },
+  {
+    "grupo": "cliente",
+    "tablas": [
+      {
+        "tabla": "cob_ahorros..ah_cuenta",
+        "llave": "",
+        "join": "",
+        "condicion": "ah_cliente = $ente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_his_bloqueo",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "hb_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $ente$"
+      },
+      {
+        "tabla": "cob_credito..cr_referenciacion",
+        "llave": "",
+        "join": "",
+        "condicion": "re_ente = $ente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_ctacte",
+        "llave": "",
+        "join": "",
+        "condicion": "cc_cliente = $ente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_sobregiro",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "cc_ctacte = sb_cuenta",
+        "condicion": "cc_cliente = $ente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_uso_sobregiro",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "cc_ctacte = us_cuenta",
+        "condicion": "cc_cliente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_act_natjur",
+        "llave": "",
+        "join": "",
+        "condicion": "tn_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_balance",
+        "llave": "",
+        "join": "",
+        "condicion": "ba_cliente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_cab_embargo",
+        "llave": "",
+        "join": "",
+        "condicion": "ca_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_credito_info_econo",
+        "llave": "",
+        "join": "",
+        "condicion": "ie_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_credito_solicitud",
+        "llave": "",
+        "join": "",
+        "condicion": "cs_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_credito_verificacion",
+        "llave": "",
+        "join": "",
+        "condicion": "cv_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_det_embargo",
+        "llave": "",
+        "join": "",
+        "condicion": "de_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_det_producto",
+        "llave": "",
+        "join": "",
+        "condicion": "dp_cliente_ec = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_direccion",
+        "llave": "",
+        "join": "",
+        "condicion": "di_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_ente",
+        "llave": "",
+        "join": "",
+        "condicion": "en_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_extend_ente",
+        "llave": "",
+        "join": "",
+        "condicion": "ee_ente    = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_funcionario",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.fu_nomina = en_ced_ruc",
+        "condicion": "en_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_hijos",
+        "llave": "",
+        "join": "",
+        "condicion": "hi_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_instancia",
+        "llave": "",
+        "join": "",
+        "condicion": "in_ente_i = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_instancia",
+        "llave": "",
+        "join": "",
+        "condicion": "in_ente_d = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_mercado",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.me_ced_ruc = en_ced_ruc",
+        "condicion": "en_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_mercado_objetivo_cliente",
+        "llave": "",
+        "join": "",
+        "condicion": "mo_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_origen_fondos",
+        "llave": "",
+        "join": "",
+        "condicion": "of_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_producto_credito",
+        "llave": "",
+        "join": "",
+        "condicion": "pc_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_propiedad",
+        "llave": "",
+        "join": "",
+        "condicion": "pr_persona = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_telefono",
+        "llave": "",
+        "join": "",
+        "condicion": "te_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_traslado_natjur",
+        "llave": "",
+        "join": "",
+        "condicion": "cn_ente = $ente$"
+      }
+    ]
+  },
+  {
+    "grupo": "cliente_gtia",
+    "tablas": [
+      {
+        "tabla": "cob_custodia..cu_cliente_garantia",
+        "llave": "",
+        "join": "",
+        "condicion": "cg_ente = 2775555"
+      }
+    ]
+  },
+  {
+    "grupo": "clientes_tot",
+    "tablas": [
+      {
+        "tabla": "",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cartera..ca_abono",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ab_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_abono_det",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.abd_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_abono_prioridad",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ap_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_abono_rubro",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ar_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_acciones",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ac_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_actualiza_llave_tmp",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.al_operacion_activa = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_amortizacion",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.am_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_amortizacion_ant",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.an_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_cliente_operacion",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.co_banco = op.oxnh_banco",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_control_intant",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.con_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_correccion",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.co_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_cuota_adicional",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ca_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_desembolso",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.dm_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_det_trn",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.dtr_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_detalles_garantia_d",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de.de_tramite = oxnh_tramite and tbl.dg_cliente = de.de_clien",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_diastablamanual",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.dia_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_dividendo",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.di_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_historia_tran",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ht_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_operacion",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.op_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_operacion_xp",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ox_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_otro_cargo",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.oc_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_pagos_valor_prese",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.pvp_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_reajuste",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.re_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_reajuste_det",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.red_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_relacion_ptmo",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.rp_activa = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_rubro_op",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ro_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_secuenciales",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.se_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_seguros_base_gar",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.sg_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_tasas",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ts_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_transaccion",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.tr_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_valor_atx",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.vx_banco = op.oxnh_banco",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_archivo_redescuento",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.re_tramite = op.oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificacion_cl",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de.de_tramite = op.oxnh_tramite and tbl.cl_cod_cliente =",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificacion_op",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.co_operacion = op.oxnh_operacion and tbl.co_producto = 7",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificacion_op",
+        "llave": "",
+        "join": "",
+        "condicion": "co_producto = 58 and co_cod_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificacion_provis",
+        "llave": "cob_credito..cr_calificacion_op",
+        "join": "tbl.cp_operacion = co_operacion and tbl.cp_producto =",
+        "condicion": "co_producto = 58 and co_cod_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificacion_provis",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.cp_operacion = op.oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificaciones_cl",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de.de_tramite = op.oxnh_tramite and tbl.cl_cod_cliente =",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_calificaciones_op",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.co_operacion = op.oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_cau_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.cr_tramite = op.oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_dato_cliente",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de.de_tramite = op.oxnh_tramite and tbl.dc_cliente =",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_dato_garantia",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "gp.gp_tramite = op.oxnh_tramite and tbl.dg_garantia =",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_dato_operacion",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.do_numero_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_dato_operacion",
+        "llave": "",
+        "join": "",
+        "condicion": "do_codigo_producto = 58 and do_tipo_reg = 'D' and do_codigo_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_datos_tramites",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.dt_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_desembolso",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.de_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_destino_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.dt_tramite =oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_det_trn",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.dtr_secuencial = tr.tr_secuencial and tr.tr_banco = oxnh_",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_deudores",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.de_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_excepciones",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ex_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_gar_anteriores",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ga_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_gar_propuesta",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.gp_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_hist_credito",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de.de_tramite = oxnh_tramite and tbl.ho_ente = de_cliente",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_instrucciones",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.in_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_lin_ope_moneda",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.om_linea = lin.li_numero and lin.li_num_banco =",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_lin_reservado",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.lr_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_linea",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.li_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_linea",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.li_num_banco = op.oxnh_lin_credito",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_modif_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.mt_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_op_renovar",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.or_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_req_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.rr_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_ruta_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.rt_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_secuencia",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.se_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_tramite",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.tr_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_transaccion",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.tr_banco = oxnh_banco",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_valor_variables",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.vv_tramite = oxnh_tramite",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_ciudad_deposito",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.cd_cuenta = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_cta_asociada",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.ca_cta_principal = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_cta_gerencia",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.cg_cuenta = cc_cta_banco",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_ctabloqueada",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.cb_cuenta = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_ctacte",
+        "llave": "",
+        "join": "",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_cheque",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.cq_cuenta = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_chequera",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.ch_cuenta = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_chequera_inicial",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.ci_cta_banco = cc_cta_banco",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_chq_beneficiario",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.cb_cuenta = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_his_bloqueo",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.hb_ctacte = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_his_cierre",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.hc_cuenta = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_his_inmovilizadas",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.hi_cuenta = cc_cta_banco",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_recalculo_interes",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.ri_cuenta = cc_cta_banco",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_sobregiro",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.sb_cuenta = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_tesoro_nacional",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.tn_cuenta = cc_cta_banco and tn_tipo_cta = 1",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_tesoro_nacional",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.tn_cuenta = ah_cta_banco and tn_tipo_cta = 3",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_tran_monet",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.tm_cta_banco = cc_cta_banco",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_tran_servicio",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.ts_cta_banco = cc_cta_banco",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_uso_sobregiro",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.us_cuenta = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas_his..cc_his_disponible",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.hd_cuenta = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cuentas_his..cc_his_movimiento",
+        "llave": "cob_cuentas..cc_ctacte(index",
+        "join": "tbl.hm_cta_banco = cc_cta_banco",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_custodia..cu_cliente_garantia",
+        "llave": "",
+        "join": "",
+        "condicion": "cg_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_custodia..cu_cliente_garantia",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "gp_tramite = oxnh_tramite and tbl.cg_codigo_externo =",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_custodia..cu_custodia",
+        "llave": "cob_custodia..cu_cliente_garanti",
+        "join": "tbl.cu_codigo_externo = cg_codigo_externo",
+        "condicion": "cg_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_custodia..cu_item_custodia",
+        "llave": "cob_custodia..cu_cliente_garanti",
+        "join": "tbl.ic_codigo_externo = cg_codigo_externo",
+        "condicion": "cg_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_beneficiario",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.be_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_cancelacion",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.ca_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_condicion",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.cd_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_conversion",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.cv_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_det_condicion",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.dc_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_det_pago",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.dp_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_embargo",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.em_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_emision_cheque",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.ec_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_endoso_cond",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.ed_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_endoso_prop",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.ep_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_fusfra",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.ff_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_historia",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.hi_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_mov_monet",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.mm_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_npreimpreso",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.np_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_operacion",
+        "llave": "",
+        "join": "",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_pignoracion",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.pi_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_prorroga_aut",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.pa_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_renovacion",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.re_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_pfijo..pf_retencion",
+        "llave": "cob_pfijo..pf_operacion",
+        "join": "tbl.rt_operacion = op_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_remesas..pd_transferidos",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.tf_cuenta = cc_cta_banco",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_remesas..re_cam_pendiente",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.cp_cuenta = cc_ctacte",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_remesas..re_camara",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.ca_cuenta = cc_cta_banco",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_remesas..re_cobro_grav",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.ci_cuenta = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_remesas..re_cta_extracto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_cuentasxcobrar",
+        "llave": "cob_sidac..sid_registros_padre",
+        "join": "tbl.cc_empresa = rp_empresa and tbl.cc_cuenta  =",
+        "condicion": "rp_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sidac..sid_registros_hijos",
+        "llave": "cob_sidac..sid_registros_padre",
+        "join": "tbl.rh_empresa = rp_empresa and tbl.rh_submodulo =",
+        "condicion": "rp_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sidac..sid_registros_padre",
+        "llave": "",
+        "join": "",
+        "condicion": "rp_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_cliente",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de_tramite = oxnh_tramite and tbl.cl_cliente = de_cliente",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_cliente",
+        "llave": "cob_cuentas..cc_ctacte,",
+        "join": "dp_cuenta = cc_cta_banco and dp_producto = 3 and",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_cliente",
+        "llave": "cob_ahorros..ah_cuenta,",
+        "join": "dp_cuenta = ah_cta_banco and dp_producto = 4 and",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_det_producto",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de_tramite = oxnh_tramite and cl_cliente = de_cliente and",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_det_producto",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "tbl.dp_cuenta = cc_cta_banco and dp_producto = 3",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_det_producto",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.dp_cuenta = ah_cta_banco and dp_producto = 4",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_direccion",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de_tramite = oxnh_tramite and tbl.di_ente = de_cliente",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_direccion",
+        "llave": "cob_cuentas..cc_ctacte,",
+        "join": "dp_cuenta = cc_cta_banco and dp_producto = 3 and",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_direccion",
+        "llave": "cob_ahorros..ah_cuenta,",
+        "join": "dp_cuenta = ah_cta_banco and dp_producto = 4 and",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_ente",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de_tramite = oxnh_tramite and tbl.en_ente = de_cliente",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_ente",
+        "llave": "cob_cuentas..cc_ctacte,",
+        "join": "dp_cuenta = cc_cta_banco and dp_producto = 3 and",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_ente",
+        "llave": "cob_ahorros..ah_cuenta,",
+        "join": "dp_cuenta = ah_cta_banco and dp_producto = 4 and",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_mercado_objetivo_cliente",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de_tramite = oxnh_tramite and tbl.mo_ente = de_cliente",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_telefono",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "de_tramite = oxnh_tramite and tbl.te_ente = de_cliente",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_telefono",
+        "llave": "cob_cuentas..cc_ctacte,",
+        "join": "dp_cuenta = cc_cta_banco and dp_producto = 3 and",
+        "condicion": "cc_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cobis..cl_telefono",
+        "llave": "cob_ahorros..ah_cuenta,",
+        "join": "dp_cuenta = ah_cta_banco and dp_producto = 4 and",
+        "condicion": "ah_cliente = $codigo cliente$"
+      }
+    ]
+  },
+  {
+    "grupo": "clientes_tot_aho",
+    "tablas": [
+      {
+        "tabla": "cob_ahorros..ah_acumulador",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.ac_cta_banco = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_ciudad_deposito",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.cd_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_ctabloqueada",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.cb_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_cuenta",
+        "llave": "",
+        "join": "",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_his_bloqueo",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hb_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_his_cierre",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hc_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_his_inmovilizadas",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hi_cuenta = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_programado",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.pr_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_recalculo_interes",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.ri_cuenta = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_talonarios",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.tn_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_tran_monet",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.tm_cta_banco = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_tran_servicio",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.ts_cta_banco = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_val_suspenso",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.vs_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros_his..ah_his_servicio",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hs_cta_banco = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros_his..ah_saldo_diario",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.sd_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      }
+    ]
+  },
+  {
+    "grupo": "clientes_tot_his",
+    "tablas": [
+      {
+        "tabla": "cob_ahorros_his..ah_his_movimiento",
+        "llave": "cob_ahorros..ah_cuenta(index",
+        "join": "tbl.hm_cta_banco = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_acciones_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ach_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_amortizacion_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.amh_operacion = oxnh_operacion and tbl.amh_secuencial>0",
+        "condicion": "oxnh_cliente = $codigo cliente$ and amh_secuencial>0"
+      },
+      {
+        "tabla": "cob_cartera..ca_correccion_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.coh_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_cuota_adicional_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.cah_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_dividendo_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.dih_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_operacion_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.oph_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_operacion_xp_no_h",
+        "llave": "",
+        "join": "",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_rubro_op_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.roh_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_acciones_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.ach_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_amortizacion_hi",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.amh_operacion = oxnh_operacion and tbl.amh_secuencial>0",
+        "condicion": "oxnh_cliente = $codigo cliente$ and tbl.amh_secuencial>0"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_correccion_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.coh_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_cuota_adicional",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.cah_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_dividendo_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.dih_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_operacion_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.oph_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_rubro_op_his",
+        "llave": "cob_cartera..ca_operacion_xp_n",
+        "join": "tbl.roh_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $codigo cliente$"
+      }
+    ]
+  },
+  {
+    "grupo": "clientes_totSB",
+    "tablas": [
+      {
+        "tabla": "cob_sbancarios..sb_aplica_pagcob",
+        "llave": "cob_sbancarios..sb_operacion",
+        "join": "tbl.ap_cod_operacion = op_cod_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sbancarios..sb_clientes",
+        "llave": "cob_sbancarios..sb_operacion",
+        "join": "tbl.cl_cod_cliente = op_cod_cliente and op_tipo_cod = 'E'",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sbancarios..sb_datos_pagcob",
+        "llave": "cob_sbancarios..sb_operacion",
+        "join": "tbl.dp_cod_operacion = op_cod_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sbancarios..sb_detalle_pagcob",
+        "llave": "cob_sbancarios..sb_operacion",
+        "join": "tbl.pc_cod_operacion = op_cod_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sbancarios..sb_documentos",
+        "llave": "cob_sbancarios..sb_operacion",
+        "join": "tbl.do_cod_operacion = op_cod_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sbancarios..sb_entidades_ext",
+        "llave": "",
+        "join": "",
+        "condicion": "ee_cod_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sbancarios..sb_excepciones",
+        "llave": "cob_sbancarios..sb_operacion",
+        "join": "tbl.ex_cod_operacion = op_cod_operacion",
+        "condicion": "op_ente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sbancarios..sb_operacion",
+        "llave": "",
+        "join": "",
+        "condicion": "op_cod_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sbancarios..sb_pagopostal_pe",
+        "llave": "cob_sbancarios..sb_operacion",
+        "join": "tbl.pp_cod_operacion = op_cod_operacion",
+        "condicion": "op_cod_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sbancarios..sb_productos_neg",
+        "llave": "cob_sbancarios..sb_operacion",
+        "join": "tbl.pn_cod_operacion = op_cod_operacion",
+        "condicion": "op_cod_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sbancarios..sb_rubros_product",
+        "llave": "cob_sbancarios..sb_operacion",
+        "join": "tbl.rp_cod_operacion = op_cod_operacion",
+        "condicion": "op_cod_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_sbancarios..sb_series_neg",
+        "llave": "cob_sbancarios..sb_operacion",
+        "join": "tbl.sn_cod_operacion = op_cod_operacion",
+        "condicion": "op_cod_cliente = $codigo cliente$"
+      }
+    ]
+  },
+  {
+    "grupo": "cobach",
+    "tablas": [
+      {
+        "tabla": "cob_ach..ach_planilla_transaccion",
+        "llave": "",
+        "join": "",
+        "condicion": "pt_planilla = 10658 and pt_ente_orig = 2206789"
+      }
+    ]
+  },
+  {
+    "grupo": "compra_cartera",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_control_compra_car",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "concepto",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_concepto",
+        "llave": "",
+        "join": "",
+        "condicion": "co_concepto in ('SUBCOMP', 'SUBPPAL')"
+      }
+    ]
+  },
+  {
+    "grupo": "concodato",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_concordato",
+        "llave": "",
+        "join": "",
+        "condicion": "cn_cliente = $ente$"
+      }
+    ]
+  },
+  {
+    "grupo": "Condicion_firmas",
+    "tablas": [
+      {
+        "tabla": "firmas..fi_condicion",
+        "llave": "",
+        "join": "",
+        "condicion": "co_producto = 'AHO' and co_cuenta = '000700000060'"
+      }
+    ]
+  },
+  {
+    "grupo": "conta",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_det_perfil",
+        "llave": "",
+        "join": "",
+        "condicion": "dp_producto = 7"
+      },
+      {
+        "tabla": "cob_conta..cb_perfil",
+        "llave": "",
+        "join": "",
+        "condicion": "pe_producto = 7"
+      },
+      {
+        "tabla": "cob_conta..cb_relofi",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta..cb_relparam",
+        "llave": "",
+        "join": "",
+        "condicion": "re_producto = 7"
+      }
+    ]
+  },
+  {
+    "grupo": "contr_corrida",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_control_corridas",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "convenio_libranza",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_convenio_libranza",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "convenios",
+    "tablas": [
+      {
+        "tabla": "cob_custodia..cu_convenio",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "convenios_tarifas",
+    "tablas": [
+      {
+        "tabla": "cob_cuentas..cc_convenios",
+        "llave": "",
+        "join": "",
+        "condicion": "cv_codigo = 1886"
+      }
+    ]
+  },
+  {
+    "grupo": "corte",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_corte",
+        "llave": "",
+        "join": "",
+        "condicion": "co_periodo = $año$"
+      }
+    ]
+  },
+  {
+    "grupo": "cotizacion",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_cotizacion",
+        "llave": "",
+        "join": "",
+        "condicion": "ct_moneda = 1 and ct_fecha >= '05/01/2014'"
+      }
+    ]
+  },
+  {
+    "grupo": "cotizaciones",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_cotizacion",
+        "llave": "",
+        "join": "",
+        "condicion": "ct_moneda = 2 and ct_fecha > '07/15/2012'"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_calif_op",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_calificacion_op",
+        "llave": "",
+        "join": "",
+        "condicion": "co_operacion in(81756,81776)"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_cobranza",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_cobranza",
+        "llave": "",
+        "join": "",
+        "condicion": "co_cliente = 8496271"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_corresp_sib",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_corresp_sib",
+        "llave": "",
+        "join": "",
+        "condicion": "tabla = $tabla$"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_dato_cliente",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_dato_cliente",
+        "llave": "",
+        "join": "",
+        "condicion": "dc_cliente  = 2208680"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_dato_op",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_dato_operacion",
+        "llave": "",
+        "join": "",
+        "condicion": "do_codigo_cliente = $cliente$"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_etapa",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_etapa",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "cr_lin_ope_moneda",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_lin_ope_moneda",
+        "llave": "",
+        "join": "",
+        "condicion": "om_linea = $linea$"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_linea",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_linea",
+        "llave": "",
+        "join": "",
+        "condicion": "li_numero = $linea$"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_op_renovar",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_op_renovar",
+        "llave": "",
+        "join": "",
+        "condicion": "or_tramite = 12387879"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_pasos",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_pasos",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_truta = 190"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_regla",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_regla",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "cr_renovar",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_op_renovar",
+        "llave": "",
+        "join": "",
+        "condicion": "or_tramite"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_tramite",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_tramite",
+        "llave": "",
+        "join": "",
+        "condicion": "tr_tramite = $tramite$"
+      }
+    ]
+  },
+  {
+    "grupo": "cr_truta",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_truta",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ct_sasiento_his",
+    "tablas": [
+      {
+        "tabla": "cob_exogena..ct_sasiento_his",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ct_scomprobante_his",
+    "tablas": [
+      {
+        "tabla": "cob_exogena..ct_scomprobante_his",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "cta_aho",
+    "tablas": [
+      {
+        "tabla": "cob_ahorros..ah_cuenta",
+        "llave": "",
+        "join": "",
+        "condicion": "ah_cta_banco = $cuenta$"
+      }
+    ]
+  },
+  {
+    "grupo": "ctas_jose",
+    "tablas": [
+      {
+        "tabla": "cob_cuentas..cc_ctacte",
+        "llave": "",
+        "join": "",
+        "condicion": "cc_cta_banco = '348820000696'"
+      },
+      {
+        "tabla": "cob_cuentas..cc_tran_monet",
+        "llave": "",
+        "join": "",
+        "condicion": "tm_cta_banco= '348820000696'"
+      },
+      {
+        "tabla": "cob_cuentas_his..cc_his_movimiento",
+        "llave": "",
+        "join": "",
+        "condicion": "hm_cta_banco = '348820000696'"
+      }
+    ]
+  },
+  {
+    "grupo": "cu_conv",
+    "tablas": [
+      {
+        "tabla": "cob_custodia..cu_convenio",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "cuentabacconta",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_banco",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "cuentas",
+    "tablas": [
+      {
+        "tabla": "cob_ahorros..ah_cuenta",
+        "llave": "",
+        "join": "",
+        "condicion": "ah_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_his_bloqueo",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hb_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_ctacte",
+        "llave": "",
+        "join": "",
+        "condicion": "cc_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_sobregiro",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "cc_ctacte = sb_cuenta",
+        "condicion": "cc_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_uso_sobregiro",
+        "llave": "cob_cuentas..cc_ctacte",
+        "join": "cc_ctacte = us_cuenta",
+        "condicion": "cc_cliente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_cliente",
+        "llave": "",
+        "join": "",
+        "condicion": "cl_cliente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_direccion",
+        "llave": "",
+        "join": "",
+        "condicion": "di_ente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_ente",
+        "llave": "",
+        "join": "",
+        "condicion": "en_ente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_telefono",
+        "llave": "",
+        "join": "",
+        "condicion": "te_ente = $cliente$"
+      }
+    ]
+  },
+  {
+    "grupo": "cuentas_his",
+    "tablas": [
+      {
+        "tabla": "cob_cuentas_his..cc_his_servicio",
+        "llave": "",
+        "join": "",
+        "condicion": "hs_tipo_transaccion in (32,86) and hs_tsfecha = '11/04/2014' and hs_oficina = 3630"
+      }
+    ]
+  },
+  {
+    "grupo": "Cuentas_pepe",
+    "tablas": [
+      {
+        "tabla": "cob_cuentas..cc_ctacte",
+        "llave": "",
+        "join": "",
+        "condicion": "cc_cta_banco = $banco$"
+      }
+    ]
+  },
+  {
+    "grupo": "cust",
+    "tablas": [
+      {
+        "tabla": "cob_custodia..cu_custodia",
+        "llave": "",
+        "join": "",
+        "condicion": "cu_codigo_externo in ('01505521A001301','015056100002470')"
+      }
+    ]
+  },
+  {
+    "grupo": "custodia",
+    "tablas": [
+      {
+        "tabla": "cob_custodia..cu_cliente_garantia",
+        "llave": "",
+        "join": "",
+        "condicion": "cg_codigo_externo = '024601110000242'"
+      },
+      {
+        "tabla": "cob_custodia..cu_custodia",
+        "llave": "",
+        "join": "",
+        "condicion": "cu_codigo_externo = '024601110000242'"
+      },
+      {
+        "tabla": "cob_custodia..cu_exclusion",
+        "llave": "",
+        "join": "",
+        "condicion": "ex_codigo_externo = '024601110000242'"
+      },
+      {
+        "tabla": "cob_custodia..cu_item_custodia",
+        "llave": "",
+        "join": "",
+        "condicion": "ic_codigo_externo = '024601110000242'"
+      },
+      {
+        "tabla": "cob_custodia..cu_noavaluo",
+        "llave": "",
+        "join": "",
+        "condicion": "na_cod_externo= '024601110000242'"
+      }
+    ]
+  },
+  {
+    "grupo": "chequera",
+    "tablas": [
+      {
+        "tabla": "cob_cuentas..cc_ctacte",
+        "llave": "",
+        "join": "",
+        "condicion": "cc_cta_banco = '339130000013'"
+      },
+      {
+        "tabla": "cob_cuentas..cc_cheque",
+        "llave": "",
+        "join": "",
+        "condicion": "cq_cuenta = 387 and cq_cheque in(664166,664167)"
+      },
+      {
+        "tabla": "cob_cuentas..cc_chequera",
+        "llave": "",
+        "join": "",
+        "condicion": "ch_cuenta = 387"
+      }
+    ]
+  },
+  {
+    "grupo": "datooper",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_dato_operacion",
+        "llave": "",
+        "join": "",
+        "condicion": "do_numero_operacion_banco = '$oper$'"
+      }
+    ]
+  },
+  {
+    "grupo": "default_topera",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_default_toperacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "dest_esp",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_dest_esp",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "det_producto_no_cobis",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_det_producto_no_cobis",
+        "llave": "",
+        "join": "",
+        "condicion": "dp_codigo_producto = 58 and dp_codigo_cliente = 4129325"
+      }
+    ]
+  },
+  {
+    "grupo": "deudores",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_deudores",
+        "llave": "",
+        "join": "",
+        "condicion": "de_cliente = $cliente$"
+      }
+    ]
+  },
+  {
+    "grupo": "dias_feriados",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_dias_feriados",
+        "llave": "",
+        "join": "",
+        "condicion": "df_fecha < '06/01/2001'"
+      }
+    ]
+  },
+  {
+    "grupo": "diferidos",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_diferidos",
+        "llave": "",
+        "join": "",
+        "condicion": "dif_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_diferidos_his",
+        "llave": "",
+        "join": "",
+        "condicion": "difh_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "dos_rangos",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_tablas_dos_rangos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "Elkin",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_operacion_tmp",
+        "llave": "",
+        "join": "",
+        "condicion": "opt_operacion = 260221199"
+      }
+    ]
+  },
+  {
+    "grupo": "error928",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_abonos_voluntarios",
+        "llave": "tempdb..erradas_09212009",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "tempdb..erradas_09212009",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "errores928",
+    "tablas": [
+      {
+        "tabla": "tempdb..erradas_09212009",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "errorlog",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_errorlog",
+        "llave": "",
+        "join": "",
+        "condicion": "er_fecha_proc = '04/30/2013' and er_error = 710025"
+      }
+    ]
+  },
+  {
+    "grupo": "estado",
+    "tablas": [
+      {
+        "tabla": "cob_caretra..ca_estado",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "estado_man",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_estados_man",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "etapa",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_etapa",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "etapa_estacion",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_etapa_estacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "fasecolda",
+    "tablas": [
+      {
+        "tabla": "cob_custodia..cu_fasecolda",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "fecha_promedio",
+    "tablas": [
+      {
+        "tabla": "cob_cuentas..cc_fecha_promedio",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "fi_cat_condman",
+    "tablas": [
+      {
+        "tabla": "firmas..fi_cat_condman",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "fi_condicion_aux",
+    "tablas": [
+      {
+        "tabla": "firmas..fi_condicion_aux",
+        "llave": "",
+        "join": "",
+        "condicion": "co_fecha_inicio = '08/19/2014'"
+      }
+    ]
+  },
+  {
+    "grupo": "fi_nombre_bin",
+    "tablas": [
+      {
+        "tabla": "firmas..fi_nombre_bin",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "fi_nov_tarjetas",
+    "tablas": [
+      {
+        "tabla": "cob_temporal..fi_nov_tarjetas",
+        "llave": "",
+        "join": "",
+        "condicion": "nt_fecha = '07112014'"
+      }
+    ]
+  },
+  {
+    "grupo": "fi_pendientes_cargue",
+    "tablas": [
+      {
+        "tabla": "cob_temporal..fi_pendientes_cargue",
+        "llave": "",
+        "join": "",
+        "condicion": "pc_fecha = '08/19/2014'"
+      }
+    ]
+  },
+  {
+    "grupo": "fi_rechazos_cargue",
+    "tablas": [
+      {
+        "tabla": "cob_temporal..fi_rechazos_cargue",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "firmas_mig",
+    "tablas": [
+      {
+        "tabla": "firmas..firmas_mig",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "frech",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_cobertura_frech",
+        "llave": "",
+        "join": "",
+        "condicion": "cf_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera..ca_liquida_frech",
+        "llave": "",
+        "join": "",
+        "condicion": "lf_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_cobertura_frech",
+        "llave": "",
+        "join": "",
+        "condicion": "cfh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_liquida_frech_h",
+        "llave": "",
+        "join": "",
+        "condicion": "lfh_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "fvalor",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_fecha_valor_resulta",
+        "llave": "",
+        "join": "",
+        "condicion": "fvd_operacion in (59904689,60681309,77386339)"
+      }
+    ]
+  },
+  {
+    "grupo": "gar",
+    "tablas": [
+      {
+        "tabla": "cob_custodia..cu_avaluo_garantia",
+        "llave": "",
+        "join": "",
+        "condicion": "ag_cod_externo = '$codigo$'"
+      },
+      {
+        "tabla": "cob_custodia..cu_cliente_garantia",
+        "llave": "",
+        "join": "",
+        "condicion": "cg_codigo_externo = '$codigo$'"
+      },
+      {
+        "tabla": "cob_custodia..cu_custodia",
+        "llave": "",
+        "join": "",
+        "condicion": "cu_codigo_externo = '$codigo$'"
+      },
+      {
+        "tabla": "cob_custodia..cu_item_custodia",
+        "llave": "",
+        "join": "",
+        "condicion": "ic_codigo_externo = '$codigo$'"
+      }
+    ]
+  },
+  {
+    "grupo": "gar_cli",
+    "tablas": [
+      {
+        "tabla": "cob_custodia..cu_cliente_garantia",
+        "llave": "",
+        "join": "",
+        "condicion": "cg_ente = $cliente$"
+      }
+    ]
+  },
+  {
+    "grupo": "garantia",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_gar_propuesta",
+        "llave": "",
+        "join": "",
+        "condicion": "gp_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_custodia..cu_custodia",
+        "llave": "cob_credito..cr_gar_propuesta",
+        "join": "cu_codigo_externo = gp_garantia",
+        "condicion": "gp_tramite = $tramite$"
+      }
+    ]
+  },
+  {
+    "grupo": "Garantia_Doris",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_gar_propuesta",
+        "llave": "",
+        "join": "",
+        "condicion": "gp_tramite=58413027"
+      },
+      {
+        "tabla": "cob_custodia..cu_cliente_garantia",
+        "llave": "",
+        "join": "",
+        "condicion": "cg_ente =2174233"
+      },
+      {
+        "tabla": "cob_custodia..cu_custodia",
+        "llave": "",
+        "join": "",
+        "condicion": "cu_codigo_externo in ('06650521A006506','066506100013450')"
+      }
+    ]
+  },
+  {
+    "grupo": "ge",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_abonos_voluntarios",
+        "llave": "",
+        "join": "",
+        "condicion": "av_operacion_activa = 62513899"
+      }
+    ]
+  },
+  {
+    "grupo": "german",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_dato_operacion",
+        "llave": "",
+        "join": "",
+        "condicion": "do_codigo_cliente = $ente$"
+      }
+    ]
+  },
+  {
+    "grupo": "GMF",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_cond_regd",
+        "llave": "",
+        "join": "",
+        "condicion": "cr_operacion in (156651149,155019009,155861854,155672319)"
+      }
+    ]
+  },
+  {
+    "grupo": "gtias_gral",
+    "tablas": [
+      {
+        "tabla": "cob_temporal..ca_garantias_gral",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "his_amor",
+    "tablas": [
+      {
+        "tabla": "cob_cartera_his..ca_amortizacion_hi",
+        "llave": "",
+        "join": "",
+        "condicion": "amh_operacion = 788122636"
+      }
+    ]
+  },
+  {
+    "grupo": "his_amortizacion",
+    "tablas": [
+      {
+        "tabla": "cob_cartera_his..ca_amortizacion_hi",
+        "llave": "",
+        "join": "",
+        "condicion": "amh_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "his_cuota",
+    "tablas": [
+      {
+        "tabla": "cob_cartera_his..ca_cuota_adicional",
+        "llave": "",
+        "join": "",
+        "condicion": "cah_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "his_dividendo",
+    "tablas": [
+      {
+        "tabla": "cob_cartera_his..ca_dividendo_his",
+        "llave": "",
+        "join": "",
+        "condicion": "dih_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "his_operacion",
+    "tablas": [
+      {
+        "tabla": "cob_cartera_his..ca_operacion_his",
+        "llave": "",
+        "join": "",
+        "condicion": "oph_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_operacion_xp_",
+        "llave": "",
+        "join": "",
+        "condicion": "oxh_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "his_otrosxcobrar",
+    "tablas": [
+      {
+        "tabla": "cob_cartera_his..ca_otros_x_cobrar",
+        "llave": "",
+        "join": "",
+        "condicion": "oxch_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "his_relacion_ptmo",
+    "tablas": [
+      {
+        "tabla": "cob_cartera_his..ca_relacion_ptmo_",
+        "llave": "",
+        "join": "",
+        "condicion": "hpt_activa = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "his_rubro_op",
+    "tablas": [
+      {
+        "tabla": "cob_cartera_his..ca_rubro_op_his",
+        "llave": "",
+        "join": "",
+        "condicion": "roh_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "historias_central",
+    "tablas": [
+      {
+        "tabla": "cob_cartera_his..ca_abono_det_his",
+        "llave": "",
+        "join": "",
+        "condicion": "abdh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_abono_his",
+        "llave": "",
+        "join": "",
+        "condicion": "abh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_abono_priorida",
+        "llave": "",
+        "join": "",
+        "condicion": "aph_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_abono_rubro_his",
+        "llave": "",
+        "join": "",
+        "condicion": "arh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_acciones_his",
+        "llave": "",
+        "join": "",
+        "condicion": "ach_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_acciones_old_h",
+        "llave": "",
+        "join": "",
+        "condicion": "ach_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_amortizacion_hi",
+        "llave": "",
+        "join": "",
+        "condicion": "amh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_cobertura_frech",
+        "llave": "",
+        "join": "",
+        "condicion": "cfh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_cormon_his",
+        "llave": "",
+        "join": "",
+        "condicion": "cmh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_correccion_his",
+        "llave": "",
+        "join": "",
+        "condicion": "coh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_correccion_old",
+        "llave": "",
+        "join": "",
+        "condicion": "coh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_cuota_adicional",
+        "llave": "",
+        "join": "",
+        "condicion": "cah_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_diferidos_his",
+        "llave": "",
+        "join": "",
+        "condicion": "difh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_diferidos_old_h",
+        "llave": "",
+        "join": "",
+        "condicion": "difh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_dividendo_his",
+        "llave": "",
+        "join": "",
+        "condicion": "dih_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_dividendo_old_",
+        "llave": "",
+        "join": "",
+        "condicion": "dih_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_liquida_frech_h",
+        "llave": "",
+        "join": "",
+        "condicion": "lfh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_operacion_his",
+        "llave": "",
+        "join": "",
+        "condicion": "oph_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_operacion_old_",
+        "llave": "",
+        "join": "",
+        "condicion": "oph_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_operacion_xp_",
+        "llave": "",
+        "join": "",
+        "condicion": "oxh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_otros_x_cobrar",
+        "llave": "",
+        "join": "",
+        "condicion": "oxch_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_relacion_ptmo_",
+        "llave": "",
+        "join": "",
+        "condicion": "hpt_activa = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_rubro_op_his",
+        "llave": "",
+        "join": "",
+        "condicion": "roh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_rubro_op_old_h",
+        "llave": "",
+        "join": "",
+        "condicion": "roh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_tasas_his",
+        "llave": "",
+        "join": "",
+        "condicion": "tsh_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_traslado_intere",
+        "llave": "",
+        "join": "",
+        "condicion": "tih_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_traslado_intere",
+        "llave": "",
+        "join": "",
+        "condicion": "tih_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_ultima_tasa_op",
+        "llave": "",
+        "join": "",
+        "condicion": "uth_operacion = $operacion$"
+      },
+      {
+        "tabla": "cob_cartera_his..ca_valores_his",
+        "llave": "",
+        "join": "",
+        "condicion": "vah_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "historicos",
+    "tablas": [
+      {
+        "tabla": "cob_cartera_his..ca_amortizacion_hi",
+        "llave": "",
+        "join": "",
+        "condicion": "amh_operacion = 112869524"
+      }
+    ]
+  },
+  {
+    "grupo": "HomologaTabla",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_catalogo",
+        "llave": "cobis..cl_tabla",
+        "join": "tbl.tabla = codigo",
+        "condicion": "tabla = 'ca_tipo_doc_seg'"
+      }
+    ]
+  },
+  {
+    "grupo": "icr",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_incentivo",
+        "llave": "",
+        "join": "",
+        "condicion": "in_ins_proceso = $tramicr$"
+      },
+      {
+        "tabla": "cob_credito..cr_maestro_incentivo",
+        "llave": "",
+        "join": "",
+        "condicion": "mi_tramite_icr = $tramicr$"
+      },
+      {
+        "tabla": "cob_credito..cr_prorroga",
+        "llave": "",
+        "join": "",
+        "condicion": "pr_incentivo = $tramicr$"
+      },
+      {
+        "tabla": "cob_credito..cr_reconsideracion",
+        "llave": "",
+        "join": "",
+        "condicion": "re_incentivo = $tramicr$"
+      },
+      {
+        "tabla": "cob_credito..cr_requerimiento",
+        "llave": "",
+        "join": "",
+        "condicion": "re_ins_proceso = $tramicr$"
+      },
+      {
+        "tabla": "cob_credito..cr_tramite",
+        "llave": "cob_credito..cr_incentivo",
+        "join": "tr_tramite = in_tramite",
+        "condicion": "in_ins_proceso = $tramicr$"
+      }
+    ]
+  },
+  {
+    "grupo": "ics",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_pla_cobranzas",
+        "llave": "",
+        "join": "",
+        "condicion": "pl_identity_code = 'CC10021197'"
+      },
+      {
+        "tabla": "cob_temporal..ca_cobrz_referencias",
+        "llave": "",
+        "join": "",
+        "condicion": "re_identity_code = 'CC10021197'"
+      }
+    ]
+  },
+  {
+    "grupo": "imagenes_tarifario",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_imagenes_tarifario",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "impresión_lote",
+    "tablas": [
+      {
+        "tabla": "cob_sbancarios..sb_impresion_lotes",
+        "llave": "",
+        "join": "",
+        "condicion": "il_idlote in(234283,234284) and il_area_origen = 7"
+      }
+    ]
+  },
+  {
+    "grupo": "item_custodia",
+    "tablas": [
+      {
+        "tabla": "cob_custodia..cu_item_custodia",
+        "llave": "",
+        "join": "",
+        "condicion": "ic_codigo_externo = '013011120000208'"
+      }
+    ]
+  },
+  {
+    "grupo": "juzgados",
+    "tablas": [
+      {
+        "tabla": "cob_sbancarios..sb_juzgados",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "libranza",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_convenio_libranza",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "lin_agrup",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_lin_agrup",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "maestro_datos",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_maestro_datos",
+        "llave": "",
+        "join": "",
+        "condicion": "mo_fecha_de_proceso = '01/30/2015' and mo_numero_de_operacion"
+      }
+    ]
+  },
+  {
+    "grupo": "maestro_saldos",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_maestro_saldos",
+        "llave": "",
+        "join": "",
+        "condicion": "mo_fecha_de_proceso = '01/30/2015' and mo_numero_de_operacion"
+      }
+    ]
+  },
+  {
+    "grupo": "mig_cliente",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_balance",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.ba_cliente = en_ente",
+        "condicion": "en_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_cliente",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.cl_cliente = en_ente",
+        "condicion": "en_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_det_producto",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.dp_cliente_ec = en_ente",
+        "condicion": "en_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_direccion",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.di_ente = en_ente",
+        "condicion": "en_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_ente",
+        "llave": "",
+        "join": "",
+        "condicion": "en_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_funcionario",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.en_oficial = fu_funcionario",
+        "condicion": "en_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_oficina",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.of_filial = en_filial and of_oficina = en_oficina",
+        "condicion": "en_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_refinh",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.in_ced_ruc = en_ced_ruc",
+        "condicion": "en_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_telefono",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.te_ente = en_ente",
+        "condicion": "en_ente = $ente$"
+      }
+    ]
+  },
+  {
+    "grupo": "mig_ente",
+    "tablas": [
+      {
+        "tabla": "cob_ahorros..ah_cuenta",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.ah_cliente = en_ente",
+        "condicion": "ah_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_operacion",
+        "llave": "cobis..cl_ente,",
+        "join": "tbl.oxnh_cliente = en_ente and op_operacion = oxnh_operacion",
+        "condicion": "oxnh_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_cartera..ca_operacion_xp_no_h",
+        "llave": "cobis..cl_ente,",
+        "join": "tbl.oxnh_cliente = en_ente and oxnh_tramite = tr_tramite",
+        "condicion": "oxnh_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_dato_operacion",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.do_codigo_cliente = en_ente",
+        "condicion": "do_codigo_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_deudores",
+        "llave": "cobis..cl_ente,",
+        "join": "tbl.de_cliente = en_ente and tr_tramite = de_tramite",
+        "condicion": "de_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_gar_propuesta",
+        "llave": "cobis..cl_ente,",
+        "join": "tbl.tr_cliente = en_ente and gp_tramite =tr_tramite",
+        "condicion": "tr_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_linea",
+        "llave": "cobis..cl_ente,",
+        "join": "tbl.li_cliente = en_ente and tr_tramite = li_tramite",
+        "condicion": "li_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_ruta_tramite",
+        "llave": "cobis..cl_ente,",
+        "join": "tbl.tr_cliente = en_ente and rt_tramite = tr_tramite",
+        "condicion": "tr_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_credito..cr_tramite",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.tr_cliente = en_ente",
+        "condicion": "tr_cliente = $cliente$"
+      },
+      {
+        "tabla": "cob_cuentas..cc_ctacte",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.cc_cliente = en_ente",
+        "condicion": "cc_cliente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_balance",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.ba_cliente = en_ente",
+        "condicion": "ba_cliente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_cliente",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.cl_cliente = en_ente",
+        "condicion": "cl_cliente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_det_producto",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.dp_cliente_ec = en_ente",
+        "condicion": "dp_cliente_ec = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_direccion",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.di_ente = en_ente",
+        "condicion": "di_ente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_ente",
+        "llave": "",
+        "join": "",
+        "condicion": "en_ente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_funcionario",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.en_oficial = fu_funcionario",
+        "condicion": "en_ente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_oficina",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.of_filial = en_filial and of_oficina = en_oficina",
+        "condicion": "en_ente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_refinh",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.in_ced_ruc = en_ced_ruc",
+        "condicion": "en_ente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_telefono",
+        "llave": "cobis..cl_ente",
+        "join": "tbl.te_ente = en_ente",
+        "condicion": "en_ente = $cliente$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migracion_tarjeta_Atm",
+    "tablas": [
+      {
+        "tabla": "cob_atm..tm_tarjeta_virtual",
+        "llave": "",
+        "join": "",
+        "condicion": "tv_codigo = '4497440193001567'"
+      }
+    ]
+  },
+  {
+    "grupo": "migrar _vigencia_usuario",
+    "tablas": [
+      {
+        "tabla": "cobis..ad_vigencia_usuario_rol",
+        "llave": "",
+        "join": "",
+        "condicion": "vu_login = $login$"
+      }
+    ]
+  },
+  {
+    "grupo": "migrar_alterna",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_operacion_alterna",
+        "llave": "",
+        "join": "",
+        "condicion": "oa_operacion_alterna=304963919"
+      }
+    ]
+  },
+  {
+    "grupo": "migrar_ca_rubro",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_rubro",
+        "llave": "",
+        "join": "",
+        "condicion": "ru_toperacion in('1430106501') and ru_concepto = 'IVACOMILIB'"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_campana",
+    "tablas": [
+      {
+        "tabla": "cob_atm..tm_det_tar_campana",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_catalogo de tabla",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_catalogo",
+        "llave": "",
+        "join": "",
+        "condicion": "tabla = $#Tabla$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_catalogo_ATM",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_catalogo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_Conta",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_comprobante",
+        "llave": "",
+        "join": "",
+        "condicion": "co_empresa = 1 and co_fecha_tran = $Fecha$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_Conta_as",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_asiento",
+        "llave": "",
+        "join": "",
+        "condicion": "as_empresa = 1 and as_fecha_tran = $Fecha$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_cuenta",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_cuenta",
+        "llave": "",
+        "join": "",
+        "condicion": "cu_cuenta = $cuenta$"
+      },
+      {
+        "tabla": "cob_conta..cb_plan_general",
+        "llave": "",
+        "join": "",
+        "condicion": "pg_cuenta = $cuenta$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_direccion de ente",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_direccion",
+        "llave": "",
+        "join": "",
+        "condicion": "di_ente = $Ente$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_Error_conaut",
+    "tablas": [
+      {
+        "tabla": "cob_ccontable..cco_error_conaut",
+        "llave": "",
+        "join": "",
+        "condicion": "ec_fecha_conta >= $Fecha$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_etapa_estacion",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_etapa_estacion",
+        "llave": "",
+        "join": "",
+        "condicion": "ee_etapa = 203"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_feriados",
+    "tablas": [
+      {
+        "tabla": "cob_cuentas..cc_dias_laborables",
+        "llave": "",
+        "join": "",
+        "condicion": "dl_fecha >= '09/01/2024' and dl_fecha <= '09/30/2024'"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_formato_631",
+    "tablas": [
+      {
+        "tabla": "cob_sit..sit_detalle_formato_631",
+        "llave": "",
+        "join": "",
+        "condicion": "sd3_fecha between '05/01/2022' and '05/02/2022'"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_HcuadreCart",
+    "tablas": [
+      {
+        "tabla": "cob_ccontable..cco_error_conaut",
+        "llave": "cob_comext..ce_scomprobante",
+        "join": "convert(int, ec_tran_modulo) = sc_comprobante",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_ccontable..cco_error_conaut",
+        "llave": "cob_comext..ce_scomprobante",
+        "join": "sc_perfil = ec_perfil",
+        "condicion": "ec_producto = 9"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_indicador",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_indicador_mensual",
+        "llave": "",
+        "join": "",
+        "condicion": "im_fecha_corte between '01/31/2025' and '06/30/2025'"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_LC_leasing",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_default_toperacion",
+        "llave": "",
+        "join": "",
+        "condicion": "dt_toperacion in ('1430211101','1430211201','1430211301')"
+      },
+      {
+        "tabla": "cob_cartera..ca_rubro",
+        "llave": "",
+        "join": "",
+        "condicion": "ru_toperacion in ('1430211101','1430211201','1430211301')"
+      },
+      {
+        "tabla": "cob_credito..cr_toperacion",
+        "llave": "",
+        "join": "",
+        "condicion": "to_toperacion in ('1430211101','1430211201','1430211301')"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_Metodologia",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_prov_ind_metodolog",
+        "llave": "",
+        "join": "",
+        "condicion": "pi_fecha_corte between '01/31/2025' and '06/30/2025'"
+      }
+    ]
+  },
+  {
+    "grupo": "migrar_municipios_credito",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_municipios_geografi",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_para realce tarjetas",
+    "tablas": [
+      {
+        "tabla": "cob_atm..tm_param_pref_bin",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "migrar_parametro",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_nemonico = $nemonico$"
+      }
+    ]
+  },
+  {
+    "grupo": "migrar_pasos_credito",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_pasos",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_truta = 203"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_Pizarra",
+    "tablas": [
+      {
+        "tabla": "cobis..te_tpizarra",
+        "llave": "",
+        "join": "",
+        "condicion": "pi_fecha_inicio >=$fecha$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_procedimiento",
+    "tablas": [
+      {
+        "tabla": "cobis..ad_procedure",
+        "llave": "",
+        "join": "",
+        "condicion": "pd_procedure = $Codigo_sp$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_Proceso_Batch",
+    "tablas": [
+      {
+        "tabla": "cobis..ba_batch",
+        "llave": "",
+        "join": "",
+        "condicion": "ba_batch = $batch$"
+      },
+      {
+        "tabla": "cobis..ba_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_batch = $batch$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_Proceso_Batch1",
+    "tablas": [
+      {
+        "tabla": "cobis..ba_sarta_batch",
+        "llave": "",
+        "join": "",
+        "condicion": "sb_sarta = 1005"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_sb_balance",
+    "tablas": [
+      {
+        "tabla": "cob_conta_super..sb_balance",
+        "llave": "",
+        "join": "",
+        "condicion": "ba_periodo=2024 and ba_corte =182"
+      }
+    ]
+  },
+  {
+    "grupo": "migrar_sec_funci",
+    "tablas": [
+      {
+        "tabla": "cobis..ad_sec_funcio",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_status_proceso",
+    "tablas": [
+      {
+        "tabla": "cobis..ad_status_proceso",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "migrar_tabla_catalogo",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_catalogo",
+        "llave": "",
+        "join": "",
+        "condicion": "tabla = $# Tabla$"
+      },
+      {
+        "tabla": "cobis..cl_tabla",
+        "llave": "",
+        "join": "",
+        "condicion": "codigo= $# Tabla$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_tasas_referencial",
+    "tablas": [
+      {
+        "tabla": "cobis..te_tasas_referenciales",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_tm_tarjeta",
+    "tablas": [
+      {
+        "tabla": "cob_atm..tm_tarjeta",
+        "llave": "",
+        "join": "",
+        "condicion": "ta_cliente in  (1599105, 10228768, 1977451, 9938984)"
+      }
+    ]
+  },
+  {
+    "grupo": "migrar_trans_de_rol",
+    "tablas": [
+      {
+        "tabla": "cobis..ad_pro_transaccion",
+        "llave": "",
+        "join": "",
+        "condicion": "pt_transaccion = $Transaccion$"
+      },
+      {
+        "tabla": "cobis..ad_tr_autorizada",
+        "llave": "",
+        "join": "",
+        "condicion": "ta_transaccion = $Transaccion$"
+      },
+      {
+        "tabla": "cobis..cl_ttransaccion",
+        "llave": "",
+        "join": "",
+        "condicion": "tn_trn_code = $Transaccion$"
+      }
+    ]
+  },
+  {
+    "grupo": "Migrar_valor_referencial",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_valor_referencial",
+        "llave": "",
+        "join": "",
+        "condicion": "vr_fecha_vig  >= '01/01/2025'"
+      }
+    ]
+  },
+  {
+    "grupo": "moneda",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_moneda",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "nodo_oficina",
+    "tablas": [
+      {
+        "tabla": "cobis..ad_nodo_oficina",
+        "llave": "",
+        "join": "",
+        "condicion": "nl_oficina = 820"
+      }
+    ]
+  },
+  {
+    "grupo": "norma_prod",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_norma_prod",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "odt_funcionario",
+    "tablas": [
+      {
+        "tabla": "cobis..ad_funcionario_pin",
+        "llave": "",
+        "join": "",
+        "condicion": "fp_login  in('LCOLLAZO','SAUPEDRA','hde cast','CHECK CONFIG')"
+      },
+      {
+        "tabla": "cobis..ad_usuario",
+        "llave": "",
+        "join": "",
+        "condicion": "us_login in('LCOLLAZO','SAUPEDRA','hde cast','CHECK CONFIG')"
+      },
+      {
+        "tabla": "cobis..ad_usuario_rol",
+        "llave": "",
+        "join": "",
+        "condicion": "ur_login in('LCOLLAZO','SAUPEDRA','hde cast','CHECK CONFIG')"
+      },
+      {
+        "tabla": "cobis..ad_vigencia_usuario_rol",
+        "llave": "",
+        "join": "",
+        "condicion": "vu_login in('LCOLLAZO','SAUPEDRA','hde cast','CHECK CONFIG')"
+      },
+      {
+        "tabla": "cobis..cl_funcionario",
+        "llave": "",
+        "join": "",
+        "condicion": "fu_login in('LCOLLAZO','SAUPEDRA','hde cast','CHECK CONFIG')"
+      }
+    ]
+  },
+  {
+    "grupo": "ofi_pagadoras",
+    "tablas": [
+      {
+        "tabla": "cob_sbancarios..sb_ofi_pagadoras",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "oficial",
+    "tablas": [
+      {
+        "tabla": "cobis..cc_oficial",
+        "llave": "",
+        "join": "",
+        "condicion": "oc_oficial = $oficial$"
+      },
+      {
+        "tabla": "cobis..cl_funcionario",
+        "llave": "",
+        "join": "",
+        "condicion": "fu_funcionario = $oficial$"
+      }
+    ]
+  },
+  {
+    "grupo": "ope_xp_his",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_operacion_xp_his",
+        "llave": "",
+        "join": "",
+        "condicion": "oxnh_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "operacion_his",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_operacion_his",
+        "llave": "",
+        "join": "",
+        "condicion": "oph_operacion = 43808179"
+      }
+    ]
+  },
+  {
+    "grupo": "parametrizacion",
+    "tablas": [
+      {
+        "tabla": "cob_conta_super..sb_columnas",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_configurar_rep",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_contaduria_co",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_control",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_cuenta_ord",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_cuentas_conta",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_dian_codigos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_dian_cta_cod",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_encab_pie",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_entidades_pu",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_equivalencias",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_filas",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_informacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_informacion_s",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_parametros",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_periodicidad",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_relzona",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_select",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_subctas",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_tipo_saldo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_conta_super..sb_where",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_atribucion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_autorizacion_cobran",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_cau_etapa",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_comision",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_condicion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_corresp_sib",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_costos_produccion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_dato_toperacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_def_variables",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_destino_economico",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_estacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_estado_dias",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_etapa",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_etapa_estacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_etapa_estado",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_imp_documento",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_miembros",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_norma_prod",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_param_calif",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_param_calif_aso",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_param_gar",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_param_suspension",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_pasos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_periodo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_regla",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_req_estado",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_req_etapa",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_tarifa_honorarios",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_tarifa_honorarios_F",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_tcalificacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_tel_abogado",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_texcepcion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_tinstruccion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_tipocob_estado",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_toperacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_credito..cr_truta",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_centro_canje",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_concepto_imp",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_conceptos_impues",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_concobertura",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_concodbar1",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_concodbar2",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_condetrefer",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_congeneral",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_conreferencias",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_contarifas",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_convenios",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_conversion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_convigencias",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_ofi_centro",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_ofi_safe",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_oficinas_diancobis",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_prioridad_cargue",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_rangos_sob",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_recaudo_rubro",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_rel_tran_proc",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cuentas..cc_tchequera",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_custodia..cu_almacenera",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_custodia..cu_cambios_estado",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_custodia..cu_clase_vehiculo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_custodia..cu_estados_garantia",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_custodia..cu_inspector",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_custodia..cu_item",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_custodia..cu_tipo_custodia",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_custodia..cu_tran_cust",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pfijo..pf_auxiliar_tip",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pfijo..pf_conversion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pfijo..pf_fpago",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pfijo..pf_limite",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pfijo..pf_monto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pfijo..pf_plazo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pfijo..pf_ppago",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pfijo..pf_tasa",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pfijo..pf_tasa_variable",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pfijo..pf_tipo_deposito",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pfijo..pf_tranperfil",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_basico",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_cambio_costo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_cambio_val_contr",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_costo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_limite",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_mercado",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_pro_bancario",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_pro_final",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_rango",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_servicio_contr",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_servicio_dis",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_servicio_per",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_tipo_rango",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_tran_servicio",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..pe_var_servicio",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_accion_nd",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_autelectronicos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_banco",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_bcocedente",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_camara_definitiva",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_campo_impuesto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_ciudad_retencion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_codbar_impuesto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_codigo_barras",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_detalle_cbarras",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_fpago_impuesto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_gcontribuyente",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_grupo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_grupo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_nombre_bcogirado",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_ofi_banco",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_saldo_contable",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_tran_contable",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_transito",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_trn_causa_atm",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_trn_causa_atm",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_remesas..re_trn_grupo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_autorizantes_cot",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_autorizantes_exc",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_bloqueos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_cupos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_docs_entrega",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_forma_homologa",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_homol_forma_c",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_homol_forma_p",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_instrumentos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_juzgados",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_meses",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_numlet",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_ofi_pagadoras",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_oficina_enteext",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_oficina_mercado",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_perfil_contable",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_plant_implot",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_prioridad_db_cr",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_productos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_rangos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_rangos_rubros",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_rubros",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_rubros_asoc",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_subtipos_cc",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_subtipos_ins",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_tipo_juzg",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_tipos_doc",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sbancarios..sb_tres_mil",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_clase_facturas",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_clasificacion_bienes",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_conc_movtos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_conc_noconsolida",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_conc_traslada",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_conceptos_pago",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_condiciones",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_definicion_cxp",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_equivalencias",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_parametros_campos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_producto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_regimen_fiscal",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_tipos_bienes",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_tipos_mvto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_sidac..sid_vencimientos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_base_datos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_catalogo_icono",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_horario",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_icono",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_interface",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_mapa",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_nivel",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_nivel_mapa",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_nodo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_nodo_nivel",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_nodo_oficina",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_pro_instalado",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_pro_rol",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_pro_transaccion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_protocolo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_rol",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_ruta",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_sis_operativo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_terminal",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_tipo_horario",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_tlink",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_tr_autorizada",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_usuario",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_vigencia",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..ad_x25_config",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_ayuda_contexto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_ayuda_funcionalidad",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_ayuda_herramienta",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_contexto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_contexto_func",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_etiqueta_funcionalidad",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_func_rol",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_funcionalidad",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_herr_rol",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_herramienta",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_nombre_contexto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_nombre_herramienta",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_prereq_func",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..aw_tr_func",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cc_oficial",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_at_relacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_banco_rem",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_catalogo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_catalogo_pro",
+        "llave": "",
+        "join": "",
+        "condicion": "cp_producto=\"ADM\""
+      },
+      {
+        "tabla": "cobis..cl_catalogo_pro",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_categoria",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_ciudad",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_cuenta",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_default",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_departamento",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_distributivo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_errores",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_filial",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_forma_homologa",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_funcionario",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_medios_depar",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_medios_funcio",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_medios_ofi",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_mobj_subtipo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_moneda",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_nat_jur",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_oficina",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_pais",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"ADM\" and  pa_nemonico <> \"SRVR\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"MIS\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"CTE\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"AHO\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"FIR\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"CON\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"REM\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"PFI\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"ATM\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"GAR\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"CRE\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"SUP\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"SBA\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"SAC\""
+      },
+      {
+        "tabla": "cobis..cl_parametro",
+        "llave": "",
+        "join": "",
+        "condicion": "pa_producto = \"BON\""
+      },
+      {
+        "tabla": "cobis..cl_parroquia",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_pro_moneda",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_pro_oficina",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_provincia",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_rango_actividad",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_rango_empleo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_relacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_sectoreco",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_seqnos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_servicio_bandom",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_suc_correo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_suc_correo",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_tabla",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_tbalance",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_telefono_of",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_tplan",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_trn_atrib",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_ttransaccion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..pa_lote",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..pa_tablas_lote",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..te_caracteristicas_tasa",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..te_pizarra",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..te_pizarra",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..te_tasas_referenciales",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..te_tasas_referenciales",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "pasos",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_pasos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "pe_mov_dia_rtipo4",
+    "tablas": [
+      {
+        "tabla": "cob_temporal..pe_mov_dia_rtipo4",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "perfiles",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_det_perfil",
+        "llave": "",
+        "join": "",
+        "condicion": "dp_empresa = 1 and dp_producto = 7"
+      },
+      {
+        "tabla": "cob_conta..cb_perfil",
+        "llave": "",
+        "join": "",
+        "condicion": "pe_empresa = 1 and pe_producto = 7"
+      }
+    ]
+  },
+  {
+    "grupo": "Periodo",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_periodo",
+        "llave": "",
+        "join": "",
+        "condicion": "pe_periodo = $año$  and pe_empresa = 1"
+      }
+    ]
+  },
+  {
+    "grupo": "pizarra",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_valor_referencial",
+        "llave": "",
+        "join": "",
+        "condicion": "vr_tipo in ('IBRMV','IBRTV','IBRSV') and vr_fecha_vig >= '01/01/2020'"
+      },
+      {
+        "tabla": "cobis..te_tpizarra",
+        "llave": "",
+        "join": "",
+        "condicion": "pi_fecha_inicio >= '01/01/2020' and pi_referencia in ('IBRMV','IBRTV','IBRSV')"
+      }
+    ]
+  },
+  {
+    "grupo": "planillas",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_consec_plantilla",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_def_plantilla",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "plantilla_tarifario",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_plantilla_tarifario",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ppasiva",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_prepagos_pasivas",
+        "llave": "",
+        "join": "",
+        "condicion": "pp_fecha_generacion = '02/27/2012'"
+      }
+    ]
+  },
+  {
+    "grupo": "prepago",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_consultas_prepagos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "prepagos_pasivas",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_prepagos_pasivas",
+        "llave": "",
+        "join": "",
+        "condicion": "pp_banco = '726079100077598' and pp_codigo_prepago = '11'"
+      }
+    ]
+  },
+  {
+    "grupo": "prodno_cobis",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_det_producto_no_cobis",
+        "llave": "",
+        "join": "",
+        "condicion": "dp_codigo_cliente = 5781281"
+      }
+    ]
+  },
+  {
+    "grupo": "Producto",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_producto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "producto_orig",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_producto orig",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "prorroga",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_prorroga",
+        "llave": "",
+        "join": "",
+        "condicion": "pr_operacion = $operacion$"
+      }
+    ]
+  },
+  {
+    "grupo": "prueba",
+    "tablas": [
+      {
+        "tabla": "cob_cartera_his..ca_operacion_xp_",
+        "llave": "",
+        "join": "",
+        "condicion": "oxh_operacion = 151312469"
+      }
+    ]
+  },
+  {
+    "grupo": "prueba1",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_ente",
+        "llave": "",
+        "join": "",
+        "condicion": "en_ente = 6545410"
+      }
+    ]
+  },
+  {
+    "grupo": "re_trans_nopermitidas",
+    "tablas": [
+      {
+        "tabla": "cob_remesas..re_trans_nopermitidas",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "Redescuento",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_archivo_redescuento",
+        "llave": "",
+        "join": "",
+        "condicion": "re_fecha_redes = '02/16/2011'"
+      }
+    ]
+  },
+  {
+    "grupo": "reg_fiscal",
+    "tablas": [
+      {
+        "tabla": "cob_conta..cb_regimen_fiscal",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "regla_icr",
+    "tablas": [
+      {
+        "tabla": "cob_pac..bpl_condition_rule",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pac..bpl_rule",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_pac..bpl_rule_version",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "relacion",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_relacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "retanqueo",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_op_retanqueo",
+        "llave": "",
+        "join": "",
+        "condicion": "or_tramite = $tramite$"
+      }
+    ]
+  },
+  {
+    "grupo": "rubro_fcafe",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_rubro_fogacafe",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "rubro_subtasacon",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_rubro_subtasacon",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "rubros",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_rubro",
+        "llave": "",
+        "join": "",
+        "condicion": "ru_toperacion in ('2210127201','2210228501','2210127101')"
+      }
+    ]
+  },
+  {
+    "grupo": "ruta_tramite",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_ruta_tramite",
+        "llave": "",
+        "join": "",
+        "condicion": "rt_tramite = $tramite$"
+      }
+    ]
+  },
+  {
+    "grupo": "sb_impresion_lotes",
+    "tablas": [
+      {
+        "tabla": "cob_sbancarios..sb_impresion_lotes",
+        "llave": "",
+        "join": "",
+        "condicion": "il_idlote = 232127"
+      }
+    ]
+  },
+  {
+    "grupo": "seg_desempleo",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_comi_desem",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cartera..ca_prima_desem",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cartera..ca_seg_des_inc",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "segmentos",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_param_segmentacion",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cobis..cl_segmento_subseg",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "sidacH",
+    "tablas": [
+      {
+        "tabla": "cob_sidac..sid_registros_hijos",
+        "llave": "",
+        "join": "",
+        "condicion": "rh_cuenta = $cta$"
+      }
+    ]
+  },
+  {
+    "grupo": "sidacP",
+    "tablas": [
+      {
+        "tabla": "cob_sidac..sid_registros_padre",
+        "llave": "",
+        "join": "",
+        "condicion": "rp_ente = $ente$"
+      }
+    ]
+  },
+  {
+    "grupo": "sit_por_cliente",
+    "tablas": [
+      {
+        "tabla": "cob_sidac..sid_registros_padre",
+        "llave": "",
+        "join": "",
+        "condicion": "rp_ente = $cliente$"
+      },
+      {
+        "tabla": "cob_sidac..sid_tran_monet",
+        "llave": "",
+        "join": "",
+        "condicion": "tm_ente = $cliente$"
+      },
+      {
+        "tabla": "cob_sit..sit_carga_movimientos",
+        "llave": "",
+        "join": "",
+        "condicion": "cm_ente = $cliente$"
+      },
+      {
+        "tabla": "cob_sit..sit_certif_gmf_cobis",
+        "llave": "",
+        "join": "",
+        "condicion": "cg_ente = $cliente$"
+      },
+      {
+        "tabla": "cob_sit..sit_certif_nocobis",
+        "llave": "",
+        "join": "",
+        "condicion": "sc_ente = $cliente$"
+      },
+      {
+        "tabla": "cob_sit..sit_certificados_cl",
+        "llave": "",
+        "join": "",
+        "condicion": "cl_ente = $cliente$"
+      },
+      {
+        "tabla": "cob_sit..sit_rendimientos",
+        "llave": "",
+        "join": "",
+        "condicion": "re_ente = $cliente$"
+      },
+      {
+        "tabla": "cob_sit..sit_rendimientos_cotitular",
+        "llave": "",
+        "join": "",
+        "condicion": "rco_ente_tit = $cliente$"
+      },
+      {
+        "tabla": "cob_sit..sit_sasiento_2021",
+        "llave": "",
+        "join": "",
+        "condicion": "sa_ente = $cliente$"
+      },
+      {
+        "tabla": "cob_sit..sit_sasiento_tmp",
+        "llave": "",
+        "join": "",
+        "condicion": "sa_ente = $cliente$"
+      },
+      {
+        "tabla": "cobis..cl_ente",
+        "llave": "",
+        "join": "",
+        "condicion": "en_ente = $cliente$"
+      }
+    ]
+  },
+  {
+    "grupo": "sit_por_cliente_cert",
+    "tablas": [
+      {
+        "tabla": "cob_sit..sit_fechas_certificados",
+        "llave": "",
+        "join": "",
+        "condicion": "fc_anno = $Año$"
+      }
+    ]
+  },
+  {
+    "grupo": "sol_cred",
+    "tablas": [
+      {
+        "tabla": "cobis..cl_credito_info_econo",
+        "llave": "",
+        "join": "",
+        "condicion": "ie_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_credito_solicitud",
+        "llave": "",
+        "join": "",
+        "condicion": "cs_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_credito_verificacion",
+        "llave": "",
+        "join": "",
+        "condicion": "cv_ente = $ente$"
+      },
+      {
+        "tabla": "cobis..cl_producto_credito",
+        "llave": "",
+        "join": "",
+        "condicion": "pc_ente = $ente$"
+      }
+    ]
+  },
+  {
+    "grupo": "subclase",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_datos_subclase_cca",
+        "llave": "",
+        "join": "",
+        "condicion": "sc_tramite=58336500"
+      }
+    ]
+  },
+  {
+    "grupo": "Tablas_2_rangos",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_tablas_dos_rangos",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "tablas_rubros",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_campos_tablas_rub",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "tarifario_det",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_pl_tarifario_det",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "tasa_cartelera",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_tasa_cartelera",
+        "llave": "",
+        "join": "",
+        "condicion": "tc_programa='LECDPPRALI'"
+      }
+    ]
+  },
+  {
+    "grupo": "Tasas",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_tasa_valor",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cartera..ca_valor",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cartera..ca_valor_det",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      },
+      {
+        "tabla": "cob_cartera..ca_valor_referencial",
+        "llave": "",
+        "join": "",
+        "condicion": "vr_fecha_vig >= '01/01/2025'"
+      },
+      {
+        "tabla": "cobis..te_tpizarra",
+        "llave": "",
+        "join": "",
+        "condicion": "pi_fecha_inicio >= '01/01/2025'"
+      }
+    ]
+  },
+  {
+    "grupo": "tasas1",
+    "tablas": [
+      {
+        "tabla": "cobis..te_ttasas_referenciales",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "tipo_cus",
+    "tablas": [
+      {
+        "tabla": "cob_custodia..cu_tipo_custodia",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "tmp_fogacafe",
+    "tablas": [
+      {
+        "tabla": "cob_temporal..tmp_fogacafe",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "tramites",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_archivo_redescuent",
+        "llave": "",
+        "join": "",
+        "condicion": "re_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_cau_tramite",
+        "llave": "",
+        "join": "",
+        "condicion": "cr_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_datos_tramites",
+        "llave": "",
+        "join": "",
+        "condicion": "dt_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_desembolso",
+        "llave": "",
+        "join": "",
+        "condicion": "de_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_destino_tramite",
+        "llave": "",
+        "join": "",
+        "condicion": "dt_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_deudores",
+        "llave": "",
+        "join": "",
+        "condicion": "de_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_excepciones",
+        "llave": "",
+        "join": "",
+        "condicion": "ex_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_gar_anteriores",
+        "llave": "",
+        "join": "",
+        "condicion": "ga_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_gar_propuesta",
+        "llave": "",
+        "join": "",
+        "condicion": "gp_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_instrucciones",
+        "llave": "",
+        "join": "",
+        "condicion": "in_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_modif_tramite",
+        "llave": "",
+        "join": "",
+        "condicion": "mt_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_op_renovar",
+        "llave": "",
+        "join": "",
+        "condicion": "or_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_op_retanqueo",
+        "llave": "",
+        "join": "",
+        "condicion": "or_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_rub_renovar",
+        "llave": "",
+        "join": "",
+        "condicion": "rr_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_ruta_tramite",
+        "llave": "",
+        "join": "",
+        "condicion": "rt_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_secuencia",
+        "llave": "",
+        "join": "",
+        "condicion": "se_tramite = $tramite$"
+      },
+      {
+        "tabla": "cob_credito..cr_tramite",
+        "llave": "",
+        "join": "",
+        "condicion": "tr_tramite = $tramite$"
+      }
+    ]
+  },
+  {
+    "grupo": "TranferATM",
+    "tablas": [
+      {
+        "tabla": "cob_atm..tm_genarch_tranfees",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "transacciones_rol",
+    "tablas": [
+      {
+        "tabla": "cobis..ad_tr_autorizada",
+        "llave": "",
+        "join": "",
+        "condicion": "ta_rol = $Rol$"
+      }
+    ]
+  },
+  {
+    "grupo": "traslado_cartera",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_traslados_cartera",
+        "llave": "",
+        "join": "",
+        "condicion": "trc_operacion in (36372,215517,76837,3555174,20894994,65034879,59465304,66771984,67333704)"
+      }
+    ]
+  },
+  {
+    "grupo": "ult_tasa",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_ultima_tasa_op",
+        "llave": "",
+        "join": "",
+        "condicion": "ut_operacion = $op"
+      }
+    ]
+  },
+  {
+    "grupo": "valor_ref",
+    "tablas": [
+      {
+        "tabla": "cob_cartera..ca_valor_referencial",
+        "llave": "",
+        "join": "",
+        "condicion": "vr_tipo like 'LIBOR%' and vr_fecha_vig > '01/01/2014'"
+      }
+    ]
+  },
+  {
+    "grupo": "ve_producto",
+    "tablas": [
+      {
+        "tabla": "cobis..ve_producto",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "ve_version_dll",
+    "tablas": [
+      {
+        "tabla": "cobis..ve_version_dll",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  },
+  {
+    "grupo": "zona_esp",
+    "tablas": [
+      {
+        "tabla": "cob_credito..cr_zona_esp",
+        "llave": "",
+        "join": "",
+        "condicion": ""
+      }
+    ]
+  }
+]

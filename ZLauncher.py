@@ -3,6 +3,7 @@ from pantalla_inicio_sys import PantallaInicio
 from ventana_credenciales import credenciales
 from Usuario_administrador.usu_admin_main import usuAdminMain
 from Usuario_basico.usu_basico_main import usuBasicoMain
+from Usuario_basico.migrar_tabla import migrar_tabla, consultar_tabla_e_indice  
 
 #llamado a los styles
 from ttkbootstrap import Style
