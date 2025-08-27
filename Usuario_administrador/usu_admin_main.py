@@ -10,8 +10,10 @@ import os
 from .handlers.explorador import explorar_sd_folder
 from .util_repetidos import quitar_repetidos
 
+#Importacion de estilos
 from styles import boton_principal, boton_accion, boton_exito, boton_rojo
 from .widgets.tooltip import ToolTip
+
 from .validacion_dialog import lanzar_validacion
 from .catalogacion_dialog import CatalogacionDialog
 

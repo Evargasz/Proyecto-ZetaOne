@@ -48,6 +48,7 @@ class MigracionVentana(tk.Toplevel):
             return
 
         self._armar_interfaz()
+    
 
     # --- NUEVOS MÉTODOS AUXILIARES ---
     def reset_inputs(self, *entries):
@@ -80,12 +81,13 @@ class MigracionVentana(tk.Toplevel):
         etiqueta_titulo(panel_superior, texto="Ambiente origen:").grid(row=1, column=0, sticky="e", pady=8)
         self.combo_amb_origen = ttk.Combobox(panel_superior, values=self.nombres_ambientes, state="readonly", width=28)
         self.combo_amb_origen.grid(row=1, column=1, pady=8, sticky="w")
-        self.combo_amb_origen.set(self.nombres_ambientes[0])
+        self.combo_amb_origen.set("Selecciona un ambiente")
 
         etiqueta_titulo(panel_superior, texto="Ambiente destino:").grid(row=2, column=0, sticky="e")
         self.combo_amb_destino = ttk.Combobox(panel_superior, values=self.nombres_ambientes, state="readonly", width=28)
         self.combo_amb_destino.grid(row=2, column=1, pady=2, sticky="w")
-        self.combo_amb_destino.set(self.nombres_ambientes[0])
+        self.combo_amb_destino.set("Selecciona un ambiente")
+        
 
         main_panel = tk.Frame(self)
         main_panel.pack(fill='x', padx=35, pady=(2, 0))
@@ -167,6 +169,29 @@ class MigracionVentana(tk.Toplevel):
 
         self.toggle_tipo()
 
+        self.combo_amb_origen.bind("<<ComboboxSelected>>", lambda e: self.actualizar_combos_ambientes("origen"))
+        self.combo_amb_destino.bind("<<ComboboxSelected>>", lambda e: self.actualizar_combos_ambientes("destino"))
+
+        self.actualizar_combos_ambientes("origen")
+
+    def actualizar_combos_ambientes(self, changed_combo):
+        origen_sel = self.combo_amb_origen.get()
+        destino_sel = self.combo_amb_destino.get()
+
+        #actualizar combo destino si cambio origen
+        if changed_combo == "origen":
+            values_dest = [amb for amb in self.nombres_ambientes if amb != origen_sel] 
+            
+            if destino_sel == "origen":
+                self.combo_amb_destino.set(values_dest[0] if values_dest else '')
+            self.combo_amb_destino["values"] = values_dest
+
+        elif changed_combo == "destino":
+            values_ori = [amb for amb in self.nombres_ambientes if amb != destino_sel]
+            if origen_sel == destino_sel:
+                self.combo_amb_origen.set(values_ori [0] if values_ori else '')
+            self.combo_amb_origen["values"] = values_ori
+                
     def limpiar_tabla(self):
         self.reset_inputs(self.entry_tabla_origen, self.entry_where, self.entry_db_origen)
         self.info_tabla_origen = None
@@ -194,9 +219,12 @@ class MigracionVentana(tk.Toplevel):
             f.write(mensaje)
 
     def update_progress(self, percent):
-        self.progress["value"] = percent
-        self.progress_lbl["text"] = f"{percent}%"
-        self.update_idletasks()
+        #evitar que baje el progreso si el valor nuevo es menor
+        last = self.progress["value"]
+        if percent > last or percent == 0 or percent == 100:
+            self.progress["value"] = percent
+            self.progress_lbl["text"] = f"{percent}%"
+            self.update_idletasks()
 
     def error_migracion(self, msg):
         messagebox.showerror("Error en migración", msg)
@@ -320,6 +348,7 @@ class MigracionVentana(tk.Toplevel):
         nombre_destino = self.combo_amb_destino.get()
 
         if not tabla_origen or not base or not nombre_origen or not nombre_destino:
+            self.update_progress(10)
             self.error_migracion("Debe ingresar todos los campos requeridos.")
             return
 
@@ -327,16 +356,21 @@ class MigracionVentana(tk.Toplevel):
         amb_origen = next((a for a in self.ambientes if a["nombre"] == nombre_origen), None)
         amb_destino = next((a for a in self.ambientes if a["nombre"] == nombre_destino), None)
         if not amb_origen or not amb_destino:
+            self.update_progress(20)
             self.error_migracion('No se encontró el ambiente seleccionado.')
             return
 
         if not self.info_tabla_origen:
-            self.update_progress(20)
+            self.update_progress(25)
             self.error_migracion("Debe consultar primero la estructura y clave primaria de la tabla.")
             return
 
-        self.log(f"Iniciando migración tabla '{base}..{tabla_origen}' de {nombre_origen} a {nombre_destino}...")
         self.update_progress(25)
+
+        self.log(f"Iniciando migración tabla '{base}..{tabla_origen}' de {nombre_origen} a {nombre_destino}...")
+
+        def progress_fase_migracion(p):
+            self.update_progress(25 + (p*0.7))
 
         resultado_migracion = migrar_tabla(
             tabla_origen,
@@ -344,7 +378,7 @@ class MigracionVentana(tk.Toplevel):
             amb_origen,
             amb_destino,
             log_func=self.log,
-            progress_func=self.update_progress,
+            progress_func=progress_fase_migracion,
             abort_func=self.error_migracion,
             columnas=self.info_tabla_origen['columnas'],
             clave_primaria=self.info_tabla_origen['clave_primaria'],

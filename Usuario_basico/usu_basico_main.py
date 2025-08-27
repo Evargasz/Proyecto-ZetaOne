@@ -47,7 +47,7 @@ class usuBasicoMain(tb.Frame):
         self.controlador = controlador
 
         # Configuración de ventana
-        self.root.title("ZetaOne || Usuraio Basico")
+        self.root.title("ZetaOne || Usuario Basico")
         ventana_ancho = 790
         ventana_alto = 600
         pantalla_ancho = self.root.winfo_screenwidth()

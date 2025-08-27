@@ -239,7 +239,7 @@ def migrar_tabla(
         cuantos_destino = cur_dest.fetchone()[0]
         cur_dest.close()
         conn_dest.close()
-        progress(20)
+        progress(0)
     except Exception as e:
         abort(f"[{tabla_simple}] Error consultando cantidad de registros en destino: {e}")
         return {"insertados": 0, "omitidos": 0}
@@ -252,7 +252,6 @@ def migrar_tabla(
         sql = f"SELECT {cols_list} FROM {tabla_simple}"
         if where:
             sql += f" WHERE {where}"
-        progress(30)
         cur_ori.execute(sql)
         filas = cur_ori.fetchall()
         colnames = [d[0] for d in cur_ori.description]
@@ -289,7 +288,6 @@ def migrar_tabla(
             return {"insertados": 0, "omitidos": 0}
 
     # Para el caso cuando la tabla destino TIENE datos (incremental)
-    progress(40)
     try:
         conn_dest = pyodbc.connect(conn_str_dest, timeout=8)
         cur_dest = conn_dest.cursor()
@@ -324,7 +322,6 @@ def migrar_tabla(
         progress(100)
         return {"insertados": 0, "omitidos": omitidos}
 
-    progress(50)
     try:
         conn_dest = pyodbc.connect(conn_str_dest, timeout=8)
         cur_dest = conn_dest.cursor()
@@ -338,7 +335,7 @@ def migrar_tabla(
                 cur_dest.executemany(sqlin, batch)
                 conn_dest.commit()
                 total_insertados += len(batch)
-                percent = 50 + int(50 * min(i + lotes, total) / total)
+                percent = int(100 * min(i + lotes, total) / total)
                 progress(percent)
             except Exception as e:
                 conn_dest.rollback()
