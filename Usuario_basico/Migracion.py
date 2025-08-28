@@ -200,11 +200,17 @@ class MigracionVentana(tk.Toplevel):
             self.combo_amb_origen: {"state": "readonly"},
             self.combo_amb_destino: {"state": "readonly"},
         })
+        self.limpiar_consola()
 
     def limpiar_grupo(self):
         self.combo_grupo.set('')
         for entry in self.variables_inputs.values():
             entry.delete(0, tk.END)
+    
+    def limpiar_consola(self):
+        self.log_box.config(state='normal')
+        self.log_box.delete('1.0', tk.END)
+        self.log_box.config(state='disabled')
 
     def log(self, msg):
         from datetime import datetime
@@ -254,6 +260,30 @@ class MigracionVentana(tk.Toplevel):
 
     def on_salir(self):
         self.destroy()
+
+    # DESHABILITAR BOTONES DURANTE LA MIGRACION
+    def deshabilitar_controles_tabla(self):
+        #botones
+        self.btn_consultar.config(state="disabled")
+        self.btn_limpiar_tabla.config(state="disabled")
+        self.btn_migrar.config(state="disabled")
+
+        #inputs:
+        self.entry_db_origen.config(state="disabled")
+        self.entry_tabla_origen.config(state="disabled")
+        self.entry_where.config(state="disabled")
+    
+    #HABILITAR
+    def habilitar_controles_tabla(self):
+        #botones
+        self.btn_consultar.config(state="normal")
+        self.btn_limpiar_tabla.config(state="normal")
+        self.btn_migrar.config(state="normal")
+
+        #inputs:
+        self.entry_db_origen.config(state="normal")
+        self.entry_tabla_origen.config(state="normal")
+        self.entry_where.config(state="normal")
 
     def on_grupo_change(self, event):
         for widget in self.var_frame.winfo_children():
@@ -315,6 +345,9 @@ class MigracionVentana(tk.Toplevel):
             })
 
     def on_migrar(self):
+        #deshabilitar botones
+        self.deshabilitar_controles_tabla()
+
         tabla = self.entry_tabla_origen.get().strip()
         base = self.entry_db_origen.get().strip()
         amb_ori = self.combo_amb_origen.get()
@@ -393,7 +426,9 @@ class MigracionVentana(tk.Toplevel):
         else:
             self.log("Migración tabla a tabla finalizada.\n")
             messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!")
-
+        
+        self.habilitar_controles_tabla()
+        
     def do_migrar_grupo(self):
         grupo_nombre = self.combo_grupo.get()
         nombre_origen = self.combo_amb_origen.get()
