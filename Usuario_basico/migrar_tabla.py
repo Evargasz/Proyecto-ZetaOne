@@ -151,7 +151,8 @@ def migrar_tabla(
     abort_func=None,
     columnas=None,
     clave_primaria=None,
-    base_usuario=None
+    base_usuario=None,
+    cancelar_func=None
 ):
     print("------ INICIO DE FUNCIÓN MIGRAR_TABLA ------")
     log = log_func if log_func else print
@@ -272,6 +273,12 @@ def migrar_tabla(
                 lotes = 3000
                 total = len(insertables)
                 for i in range(0, total, lotes):
+                    if cancelar_func and cancelar_func():
+                        conn_dest.rollback()
+                        abort(f"[{tabla_simple}] cancelado por el usuario. Todas las inserciones fueron deshechas")
+                        log(f"[{tabla_simple}] Migracion cancelada por el usuario. Revirtiendo cambios.")
+                        return {"insertados": total_insertados, "omitidos": omitidos}
+
                     batch = insertables[i:i + lotes]
                     try:
                         sqlin = f"INSERT INTO {tabla_simple} ({','.join(colnames)}) VALUES ({','.join(['?' for _ in colnames])})"
@@ -289,83 +296,3 @@ def migrar_tabla(
     log(f"[{tabla_simple}] Migración finalizada. Insertados: {total_insertados}, Omitidos por duplicado: {omitidos}")
     progress(100)
     return {"insertados": total_insertados, "omitidos": omitidos}
-
-# ==================== VENTANA MIGRACION CON BOTONES BLOQUEADOS ====================
-
-class MigracionVentana(tk.Frame):
-    def __init__(self, master, *args, **kwargs):
-        super().__init__(master, *args, **kwargs)
-        self.btnConsultar = tk.Button(self, text="Consultar", command=self.on_consultar)
-        self.btnConsultar.pack()
-        self.btnLimpiar = tk.Button(self, text="Limpiar", command=self.on_limpiar)
-        self.btnLimpiar.pack()
-        self.btnMigrar = tk.Button(self, text="Migrar", command=self.on_click_migrar)
-        self.btnMigrar.pack()
-        # ... el resto de tu init ...
-        # Define self.tabla, self.amb_origen, self.amb_destino, self.where, self.base_usuario según tu lógica.
-
-    def on_consultar(self):
-        resultado = consultar_tabla_e_indice(
-            self.tabla,
-            self.amb_origen,
-            self.amb_destino,
-            self.log_func,
-            self.abort_func,
-            where=self.where,
-            base_usuario=self.base_usuario
-        )
-        # ... procesar resultado y mostrar mensajes ...
-
-    def limpiar_consola(self):
-        self.log_box.config(state='normal')
-        self.log_box.delete('1.0', tk.END)
-        self.log_box.config(state='disabled')
-    
-    def limpiar_campos(self):
-        self.entry_tabla.delete(0, tk.END)
-        self.entry_where.delete(0, tk.END)
-        self.entry_base.delete(0, tk.END)
-
-    def on_limpiar(self):
-        self.limpiar_campos
-        self.limpiar_consola
-        print("si limpia la consola xd")
-        pass
-
-    def on_click_migrar(self):
-        self.after(0, self._deshabilitar_botones)
-        threading.Thread(target=self._ejecutar_migracion, daemon=True).start()
-
-    def _deshabilitar_botones(self):
-        self.btnConsultar.config(state='disabled')
-        self.btnLimpiar.config(state='disabled')
-        self.btnMigrar.config(state='disabled')
-
-    def _habilitar_botones(self):
-        self.btnConsultar.config(state='normal')
-        self.btnLimpiar.config(state='normal')
-        self.btnMigrar.config(state='normal')
-
-    def _ejecutar_migracion(self):
-        try:
-            resultado = migrar_tabla(
-                self.tabla, self.where,
-                self.amb_origen, self.amb_destino,
-                log_func=self.log_func,
-                progress_func=self.progress_func,
-                abort_func=self.abort_func,
-                # Puedes pasar columnas, clave_primaria, base_usuario, etc.
-            )
-            self.after(0, lambda: self._mostrar_mensaje_exito(resultado))
-        except Exception as e:
-            self.after(0, lambda: self._mostrar_mensaje_error(str(e)))
-        finally:
-            self.after(0, self._habilitar_botones)
-
-    def _mostrar_mensaje_exito(self, resultado):
-        messagebox.showinfo("Migración finalizada",
-            f"Insertados: {resultado.get('insertados', 0)}\nOmitidos: {resultado.get('omitidos', 0)}"
-        )
-
-    def _mostrar_mensaje_error(self, mensaje):
-        messagebox.showerror("Error de migración", mensaje)

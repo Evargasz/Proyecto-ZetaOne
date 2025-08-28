@@ -24,6 +24,8 @@ class MigracionVentana(tk.Toplevel):
         self.tablas_con_errores = []
         self.info_tabla_origen = None
 
+        self.cancelar_migracion = False
+
         base_script = os.path.dirname(os.path.abspath(__file__))
         base_raiz = os.path.dirname(base_script)
         json_dir = os.path.join(base_raiz, "json")
@@ -136,15 +138,27 @@ class MigracionVentana(tk.Toplevel):
         self.var_frame = tk.Frame(self.frame_grupo)
         self.var_frame.grid(row=1, column=0, columnspan=3, pady=8, sticky="w")
 
+
+        #APARTADO DE OPCIONES MIGRAR
+
         frame_migrar = tk.Frame(self)
-        frame_migrar.pack(pady=(13,0))
+        frame_migrar.pack(pady=(13,0), anchor="center")
+
         self.btn_migrar = boton_exito(
             frame_migrar, texto="Migrar",
             comando=self.on_migrar,
             state="disabled",
             width=18
         )
-        self.btn_migrar.pack()
+        self.btn_migrar.pack(side="left", padx=(0, 8))
+
+        self.btn_cancelar = boton_rojo(
+            frame_migrar, texto="Cancelar",
+            comando=self.cancelar_op,
+            state="disabled",
+            width=18
+        )
+        self.btn_cancelar.pack(side="left", padx=(0, 8))
 
         self.progress = tb.Progressbar(
             self,
@@ -285,6 +299,12 @@ class MigracionVentana(tk.Toplevel):
         self.entry_tabla_origen.config(state="normal")
         self.entry_where.config(state="normal")
 
+    #boton cancelar
+    def cancelar_op(self):
+        self.cancelar_migracion = True
+        self.log("Cancelando migracion. Espera un momento...")
+        self.btn_cancelar.config(state="disabled")
+
     def on_grupo_change(self, event):
         for widget in self.var_frame.winfo_children():
             widget.destroy()
@@ -344,9 +364,13 @@ class MigracionVentana(tk.Toplevel):
                 self.btn_migrar: {"state": "disabled", "bootstyle": "dark"},
             })
 
+        #----------------ACCIÓN DE MIGRAR-------------------
+
     def on_migrar(self):
         #deshabilitar botones
         self.deshabilitar_controles_tabla()
+        self.btn_cancelar.config(state="normal")
+        self.cancelar_migracion = False
 
         tabla = self.entry_tabla_origen.get().strip()
         base = self.entry_db_origen.get().strip()
@@ -428,7 +452,8 @@ class MigracionVentana(tk.Toplevel):
             messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!")
         
         self.habilitar_controles_tabla()
-        
+        self.btn_cancelar.config(state="disabled")
+      
     def do_migrar_grupo(self):
         grupo_nombre = self.combo_grupo.get()
         nombre_origen = self.combo_amb_origen.get()
