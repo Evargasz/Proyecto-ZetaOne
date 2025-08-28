@@ -12,6 +12,7 @@ from ttkbootstrap.constants import *
 
 from Usuario_basico.migrar_tabla import migrar_tabla, consultar_tabla_e_indice
 from Usuario_basico.migrar_grupo import migrar_grupo
+from Usuario_basico.historialConsultas import HistorialConsultasVen
 
 class MigracionVentana(tk.Toplevel):
     def __init__(self, master=None):
@@ -100,9 +101,19 @@ class MigracionVentana(tk.Toplevel):
         self.frame_tabla.grid_columnconfigure(1, weight=1)
         self.frame_tabla.grid_columnconfigure(2, weight=0)
 
+
+
         etiqueta_titulo(self.frame_tabla, texto="Base de datos:").grid(row=0, column=0, sticky="e")
         self.entry_db_origen = entrada_estandar(self.frame_tabla, width=24)
         self.entry_db_origen.grid(row=0, column=1, sticky="w", padx=(4, 20), pady=4)
+
+        self.btn_historial = boton_accion(
+            self.frame_tabla,
+            texto="Historial",
+            comando=self.mostrar_ven_historial,
+            width=22
+        )
+        self.btn_historial.grid(row=0, column=2, padx=(8,2), pady=0, sticky="nwe")
 
         etiqueta_titulo(self.frame_tabla, texto="Tabla:").grid(row=1, column=0, sticky="e")
         self.entry_tabla_origen = entrada_estandar(self.frame_tabla, width=24)
@@ -132,6 +143,7 @@ class MigracionVentana(tk.Toplevel):
         self.combo_grupo = ttk.Combobox(self.frame_grupo, values=[g["grupo"] for g in self.catalogo], width=33, state="readonly")
         self.combo_grupo.grid(row=0, column=1)
         self.combo_grupo.bind('<<ComboboxSelected>>', self.on_grupo_change)
+
         self.btn_limpiar_grupo = boton_rojo(self.frame_grupo, texto="Limpiar", cursor='hand2', comando=self.limpiar_grupo)
         self.btn_limpiar_grupo.grid(row=0, column=2, padx=(12,0), ipadx=12, ipady=5)
 
@@ -275,6 +287,17 @@ class MigracionVentana(tk.Toplevel):
     def on_salir(self):
         self.destroy()
 
+    #VENTANA MODAL DE HISTORIAL
+    def mostrar_ven_historial(self):
+        def rellenar_campos(base, tabla, where):
+            self.entry_db_origen.delete(0, tk.END)
+            self.entry_db_origen.insert(0, base)
+            self.entry_tabla_origen.delete(0, tk.END)
+            self.entry_tabla_origen.insert(0, tabla)
+            self.entry_where.delete(0, tk.END)
+            self.entry_where.insert(0, where)
+        HistorialConsultasVen(self, callback_usar=rellenar_campos)
+
     # DESHABILITAR BOTONES DURANTE LA MIGRACION
     def deshabilitar_controles_tabla(self):
         #botones
@@ -350,11 +373,22 @@ class MigracionVentana(tk.Toplevel):
         )
         if resultado:
             self.info_tabla_origen = resultado
-            self.set_widgets_state({
-                self.btn_migrar: {"state": "normal", "bootstyle": "primary"},
-                self.combo_amb_origen: {"state": "disabled"},
-                self.combo_amb_destino: {"state": "disabled"},
-            })
+            try:
+                from historialConsultas import cargar_historial, guardar_historial
+            except ImportError:
+                from .historialConsultas import cargar_historial, guardar_historial
+            consulta = {"base": base, "tabla": tabla, "where": where}
+            historial = cargar_historial()
+            if consulta not in historial:
+                historial.insert(0, consulta)  # Insertar más reciente arriba
+                historial = historial[:10]     # Mantener los 20 últimos, opcional
+                guardar_historial(historial)
+                
+                self.set_widgets_state({
+                    self.btn_migrar: {"state": "normal", "bootstyle": "primary"},
+                    self.combo_amb_origen: {"state": "disabled"},
+                    self.combo_amb_destino: {"state": "disabled"},
+                })
             self.log(
                 f"Tabla lista para migrar. Clave primaria: {resultado['clave_primaria']}, "
                 f"Total registros: {resultado['nregs']}"
@@ -363,6 +397,8 @@ class MigracionVentana(tk.Toplevel):
             self.set_widgets_state({
                 self.btn_migrar: {"state": "disabled", "bootstyle": "dark"},
             })
+
+       
 
         #----------------ACCIÓN DE MIGRAR-------------------
 
