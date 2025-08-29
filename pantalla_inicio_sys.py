@@ -11,8 +11,8 @@ class PantallaInicio:
         self.root = root
         self.controlador = controlador
         self.root.title("ZetaOne")
-        ventana_ancho = 500
-        ventana_alto = 450
+        ventana_ancho = 400
+        ventana_alto = 350
         pantalla_ancho = self.root.winfo_screenwidth()
         pantalla_alto = self.root.winfo_screenheight()
         x = int((pantalla_ancho / 2) - (ventana_ancho / 2 ))
@@ -32,15 +32,7 @@ class PantallaInicio:
         self.bg_photo = ImageTk.PhotoImage(self.bg_image)
         self.background_label = tk.Label(self.root, image=self.bg_photo)
         self.background_label.image = self.bg_photo  # IMPORTANTE
-        self.background_label.place(x=0, y=0, relwidth=1, relheight=1)
-
-        # Título (etiqueta más grande)
-        label_bienvenida = etiqueta_titulo(
-            root,
-            "Bienvenido a ZetaOne",
-            font=("Arial", 28, "bold")   
-        )
-        label_bienvenida.pack(pady=48)     
+        self.background_label.place(x=0, y=0, relwidth=1, relheight=1)   
 
         # Botones grandes con fuente grande
         
@@ -49,7 +41,7 @@ class PantallaInicio:
             "Usuario básico",
             comando=self.usuario_normal,
         )
-        btn_usuario.pack(pady=15)
+        btn_usuario.pack(pady=(120, 15))
 
         btn_admin = boton_principal(
             root,

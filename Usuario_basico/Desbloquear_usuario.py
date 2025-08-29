@@ -2,23 +2,26 @@ import getpass
 from tkinter import ttk, messagebox
 import tkinter as tk
 import os
-
 import json
 
-#estilos
+# 🔵 AGREGADO: Para importar 'styles' desde la carpeta superior
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# estilos
 from styles import etiqueta_titulo, entrada_estandar, boton_accion
 from ttkbootstrap.constants import *
 
 class desbloquearUsuVentana(tk.Toplevel):
     def __init__(self, parent, ambientes_lista, callback_confirmar, master=None):
-            #iniciadores
+        # iniciadores
         super().__init__(parent)
         self.title("desbloquear usuario")
         self.protocol("WM_DELETE_WINDOW", self.on_salir)
 
-            #configuracion de ventana
+        # configuracion de ventana
         ventana_ancho = 320
-        ventana_alto = 160
+        ventana_alto = 200
         pantalla_ancho = self.winfo_screenwidth()
         pantalla_alto = self.winfo_screenheight()
         x = int((pantalla_ancho / 2) - (ventana_ancho / 2))
@@ -27,61 +30,84 @@ class desbloquearUsuVentana(tk.Toplevel):
         self.resizable(False, False)
         print("esta funcion si abre")
 
-            #Interfaz visual
+        # Interfaz visual
         lbl_ambiente = etiqueta_titulo(self, texto="Ambiente:")
         lbl_ambiente.place(x=20, y=20)
-        
-            # Usar nombre del ambiente para el Combobox
+
         lista_nombres_ambiente = [amb['nombre'] for amb in ambientes_lista]
-        entry_ambiente = ttk.Combobox(self, values=lista_nombres_ambiente, state='readonly')
-        entry_ambiente.place(x=100, y=20, width=180)
+        self.entry_ambiente = ttk.Combobox(self, values=lista_nombres_ambiente, state='readonly')
+        self.entry_ambiente.place(x=100, y=20, width=180)
 
         lbl_usuario = etiqueta_titulo(self, texto="Usuario:")
         lbl_usuario.place(x=20, y=60)
-        entry_usuario = entrada_estandar(self)
-        entry_usuario.place(x=100, y=60, width=180)
-        entry_usuario.insert(0, getpass.getuser())
+        self.entry_usuario = entrada_estandar(self)
+        self.entry_usuario.place(x=100, y=60, width=180)
+        self.entry_usuario.insert(0, getpass.getuser())
 
-        def on_continuar():
-            ambiente = entry_ambiente.get()
-            usuario = entry_usuario.get()
-            if not ambiente or not usuario: 
-                messagebox.showwarning("Campo/s vació/s", "Por favor complete ambos campos.")
-                return
-            ambiente_obj = next((a for a in ambientes_lista if a['nombre'] == ambiente), None)
-            if ambiente_obj is None:
-                messagebox.showerror("Ambiente no encontrado", "Por favor seleccione un ambiente válido.")
-                return
-            
-            self.desbloquear_usuario_en_bd
+        self.btn_continuar = boton_accion(self, texto="Continuar", comando=self.on_continuar, width=12)
+        self.btn_continuar.place(relx=1.0, rely=1.0, x=-200, y=-27, anchor='se')
 
-            callback_confirmar(usuario, ambiente_obj)
-            
-            self.destroy()
+        self.btn_salir = boton_accion(self, "Salir", comando=self.on_salir, width=12)
+        self.btn_salir.place(relx=1.0, rely=1.0, x=-40, y=-27, anchor='se')
 
-        btn_continuar = boton_accion(self, texto="Continuar", comando=on_continuar, width=12)
-        btn_continuar.place(relx=1.0, rely=1.0, x=-200, y=-27, anchor='se')
+        # Progress bar (rueda de progreso, oculta inicialmente)
+        self.progress = ttk.Progressbar(self, mode="indeterminate")
+        self.progress.place(x=60, y=110, width=200, height=14)
+        self.progress.lower()  # queda invisible/trasera
 
-        btn_salir = boton_accion(self, "Salir", comando=self.on_salir, width=12)
-        btn_salir.place(relx=1.0, rely=1.0, x=-40, y=-27, anchor='se')
+        # referencias
+        self.ambientes_lista = ambientes_lista
+        self.callback_confirmar = callback_confirmar
+
+    def bloquear_campos(self, bloquear=True):
+        # Bloquea o desbloquea los widgets
+        state = "disabled" if bloquear else "normal"
+        self.entry_ambiente.config(state=state)
+        self.entry_usuario.config(state=state)
+        self.btn_continuar.config(state=state)
+        self.btn_salir.config(state=state)
+
+    def on_continuar(self):
+        ambiente = self.entry_ambiente.get()
+        usuario = self.entry_usuario.get()
+        if not ambiente or not usuario: 
+            messagebox.showwarning("Campo/s vacío/s", "Por favor complete ambos campos.")
+            return
+        ambiente_obj = next((a for a in self.ambientes_lista if a['nombre'] == ambiente), None)
+        if ambiente_obj is None:
+            messagebox.showerror("Ambiente no encontrado", "Por favor seleccione un ambiente válido.")
+            return
+
+        # BLOQUEAR y mostrar la rueda de progreso
+        self.bloquear_campos(True)
+        self.progress.lift()
+        self.progress.start(10)
+
+        # Ejecutar el desbloqueo en la cola de eventos (permite animación)
+        self.after(200, lambda: self.desbloquear_y_terminar(usuario, ambiente_obj))
+
+    def desbloquear_y_terminar(self, usuario, ambiente_obj):
+        self.desbloquear_usuario_en_bd(usuario, ambiente_obj)
+        self.progress.stop()
+        self.progress.lower()
+        self.bloquear_campos(False)
+        # callback si quieres mantenerlo. Finalmente, cerrar
+        if self.callback_confirmar:
+            self.callback_confirmar(usuario, ambiente_obj)
+        self.destroy()
 
     def on_salir(self):
         self.destroy()
 
-        #logica
     def desbloquear_usuario_en_bd(self, usuario, ambiente):
-        '''
-        Construye la cadena de conexión según el driver, para Sybase ASE ODBC Driver usa PORT=,
-        para los demás (SQL Server, Sybase clásico) usa SERVER=ip,puerto
-        '''
         import pyodbc
         resp = messagebox.askyesno(
             "Confirmar acción",
             f"¿Está seguro de borrar la sesión en '{ambiente['nombre']}' para el usuario '{usuario}'?"
         )
         if not resp:
-            return messagebox.showerror("Error", "ocurrio un error")
-        
+            return messagebox.showinfo("Cancelado", "Acción cancelada por el usuario.")
+
         def ejecutar_borrado(amb, usuario):
             driver = amb['driver']
             if driver == 'Sybase ASE ODBC Driver':
@@ -124,12 +150,9 @@ class desbloquearUsuVentana(tk.Toplevel):
             carpeta_json = os.path.join(proyecto_base, "json")
             ruta_rel = os.path.join(carpeta_json, "ambientesrelacionados.json")
             ruta_ambientes = os.path.join(carpeta_json, "ambientes.json")
-                        # DEBUG prints de rutas y cwd
             print(f"[DEBUG] cwd: {os.getcwd()}")
             print(f"[DEBUG] ruta_rel: {ruta_rel}")
             print(f"[DEBUG] ruta_ambientes: {ruta_ambientes}")
-
-            # Verificación de existencia de archivos
             print(f"[DEBUG] Existe ambientesrelacionados.json: {os.path.exists(ruta_rel)}")
             print(f"[DEBUG] Existe ambientes.json: {os.path.exists(ruta_ambientes)}")
 
@@ -138,7 +161,6 @@ class desbloquearUsuVentana(tk.Toplevel):
                     relaciones = json.load(f)
                 print(f"[DEBUG] JSON ambientesrelacionados.json: {relaciones}")
 
-                # Normalización de nombre
                 ambiente_nombre = ambiente['nombre'].strip().casefold()
                 print(f"[DEBUG] Ambiente principal: {ambiente['nombre']!r}")
                 print(f"[DEBUG] Ambiente principal normalizado: {ambiente_nombre!r}")
@@ -159,7 +181,7 @@ class desbloquearUsuVentana(tk.Toplevel):
                             rel_amb = ambientes_dict[rel_nombre_norm]
                             exito, error = ejecutar_borrado(rel_amb, usuario)
                             if exito:
-                                mensaje_final += f"Sesión del usuario '{usuario}' también eliminada en el ambiente relacionado '{rel_nombre.strip()}'.\n"
+                                mensaje_final += f"Sesión del usuario '{usuario}' también borrada en el ambiente relacionado '{rel_nombre.strip()}'.\n"
                             else:
                                 mensaje_final += f"[ERROR] al eliminar en relacionado '{rel_nombre.strip()}': {error}\n"
                         else:

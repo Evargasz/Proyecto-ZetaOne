@@ -8,13 +8,15 @@ import getpass
 #Base de datos
 import json
 
-#ventanas modales
-from .Autorizar_tabla import AutorizarTablaVentana
-from .usuario_no_vigente import UsuarioNoVigenteVentana
-from .Desbloquear_usuario import desbloquearUsuVentana
-from .Migracion import MigracionVentana
+#ventanas modales (importes absolutos de Usuario_basico)
+from Usuario_basico.Autorizar_tabla import AutorizarTablaVentana
+from Usuario_basico.usuario_no_vigente import UsuarioNoVigenteVentana
+from Usuario_basico.Desbloquear_usuario import desbloquearUsuVentana
+from Usuario_basico.Migracion import MigracionVentana
+from Usuario_basico.Modificaciones_varias import ModificacionesVariasVentana
+from Usuario_basico.Actualizafechaconta import ActualizaFechaContabilidadVentana
 
-#estilos
+#estilos (styles.py está en la raíz)
 from styles import etiqueta_titulo, entrada_estandar, boton_rojo, img_boton, boton_comun, boton_accion
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
@@ -48,7 +50,7 @@ class usuBasicoMain(tb.Frame):
 
         # Configuración de ventana
         self.root.title("ZetaOne || Usuario Basico")
-        ventana_ancho = 790
+        ventana_ancho = 820
         ventana_alto = 600
         pantalla_ancho = self.root.winfo_screenwidth()
         pantalla_alto = self.root.winfo_screenheight()
@@ -63,26 +65,26 @@ class usuBasicoMain(tb.Frame):
         # funcionalidades Y contenido de las cards
         self.funcionalidades = [
             {
-                "titulo": "Desbloquear usuario",
-                "desc": "Borrar usuario de un ambiente...",
+                "titulo": "Borrar sesion de usuario",
+                "desc": "Libera sesion usuario registrado anteriormente",
                 "Favoritos": False,
                 "accion": self.usar_desbloquear_usuario
             },
             {
                 "titulo": "Autorizar tablas",
-                "desc": "Autoriza ciertas tablas en BD.",
+                "desc": "Autoriza tabla a usuario consulta.",
                 "Favoritos": False,
                 "accion": self.usar_autorizar_tablas
             },
             {
                 "titulo": "Actualizar fecha de contabilidad",
-                "desc": "Descripción...",
+                "desc": "Actualiza estado de corte contable",
                 "Favoritos": False,
                 "accion": self.usar_actualizar_fecha_cont
             },
             {
                 "titulo": "Usuario no Vigente",
-                "desc": "nose aun",
+                "desc": "Cambia estado de usuario a V",
                 "Favoritos": False,
                 "accion": self.usar_usu_no_vigente
             },
@@ -91,6 +93,12 @@ class usuBasicoMain(tb.Frame):
                 "desc": "Migrar datos",
                 "Favoritos": False,
                 "accion": self.usar_migracion_de_datos
+            },
+            {
+                "titulo": "Modificaciones varias",
+                "desc": "Modificar datos básicos",
+                "Favoritos": False,
+                "accion": self.usar_modificaciones_varias
             }
         ]
 
@@ -102,8 +110,6 @@ class usuBasicoMain(tb.Frame):
         self.texto_busqueda = ""
         self.placeholder_text = "¿Qué deseas hacer?"
     
-       
-
         # Variables de control del filtro
         self.filtro_favoritos = False
         self.color_boton_activo = "#20ABFC"
@@ -143,7 +149,7 @@ class usuBasicoMain(tb.Frame):
         barra_superior = tb.Frame(self.main_frame)
         barra_superior.pack(fill="x", padx=40, pady=20)
 
-            #Buscador
+        #Buscador
         self.entry_busqueda = entrada_estandar(barra_superior, font=("Arial", 14))
         self.entry_busqueda.insert(0, self.placeholder_text)
         self.entry_busqueda.pack(side="left", fill="x", expand=True, padx=(0, 0), ipady=4)
@@ -197,7 +203,6 @@ class usuBasicoMain(tb.Frame):
 
         self.mostrar_funcionalidades()
 
-        #------------------------------------------cards---------------------------------------------------------- 
     def mostrar_funcionalidades(self, filtro_favoritos=False):
                 
         for widget in self.cards_frame.winfo_children():
@@ -262,7 +267,7 @@ class usuBasicoMain(tb.Frame):
                 columna = 0
                 fila += 1
 
-        #---------------------------------Funciones de botones------------------------------------
+    #---------------------------------Funciones de botones------------------------------------
     #Navegacion
     def salir(self):
         self.root.destroy()
@@ -326,7 +331,6 @@ class usuBasicoMain(tb.Frame):
             return
 
         def callback_confirmar(usuario, ambiente_obj):
-            # Aquí tu código cuando confirmen en la modal
             print("Usuario a desbloquear:", usuario, "Ambiente:", ambiente_obj)
 
         ventana_desbloquear_usu = desbloquearUsuVentana(self.root, ambientes_lista, callback_confirmar)
@@ -336,17 +340,31 @@ class usuBasicoMain(tb.Frame):
     def usar_autorizar_tablas(self):
         ventana_autorizar = AutorizarTablaVentana(master=self.root)
         ventana_autorizar.grab_set()
-        ventana_autorizar.wait_window
+        ventana_autorizar.wait_window()
 
     def usar_actualizar_fecha_cont(self):
-        messagebox.showinfo("funcion no implementada", "esta funcion estara disponible en breve")
+        ventana_actualiza = ActualizaFechaContabilidadVentana(master=self.root)
+        ventana_actualiza.grab_set()
+        ventana_actualiza.wait_window()
     
     def usar_usu_no_vigente (self):
         ventana_usu_no_vig = UsuarioNoVigenteVentana(master=self.root)
         ventana_usu_no_vig.grab_set()
-        ventana_usu_no_vig.wait_window
+        ventana_usu_no_vig.wait_window()
 
     def usar_migracion_de_datos(self):
         ventana_mig_datos = MigracionVentana(master= self.root)
         ventana_mig_datos.grab_set()
-        ventana_mig_datos.wait_window
+        ventana_mig_datos.wait_window()
+
+    def usar_modificaciones_varias(self):
+        try:
+            with open('json/ambientes.json', 'r', encoding='utf-8') as f:
+                ambientes_lista = json.load(f)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar ambientes.json\n{e}")
+            return
+
+        ventana_modificaciones = ModificacionesVariasVentana(self.root, ambientes_lista)
+        ventana_modificaciones.grab_set()
+        ventana_modificaciones.wait_window()

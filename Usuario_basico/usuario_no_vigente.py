@@ -5,11 +5,10 @@ import os
 import json
 import pyodbc
 
-#estilos
+# estilos
 from styles import etiqueta_titulo, entrada_estandar, boton_accion
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
-
 
 class UsuarioNoVigenteVentana(tk.Toplevel):
     def __init__(self, master=None):
@@ -61,10 +60,10 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
         self.progress = ttk.Progressbar(self, mode="indeterminate")
         self.progress.place(x=30, y=110, width=340)
 
-        btn_actualizar = boton_accion(self, "Actualizar", comando=self.enviar_update_usuario)
-        btn_actualizar.place(x=70, y=145, width=100)
-        btn_salir = boton_accion(self, "Salir", comando=self.on_salir)
-        btn_salir.place(x=220, y=145, width=100)
+        self.btn_actualizar = boton_accion(self, "Actualizar", comando=self.enviar_update_usuario)
+        self.btn_actualizar.place(x=70, y=145, width=100)
+        self.btn_salir = boton_accion(self, "Salir", comando=self.on_salir)
+        self.btn_salir.place(x=220, y=145, width=100)
 
     def on_salir(self):
         self.destroy()
@@ -76,113 +75,133 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
             messagebox.showwarning("Campos requeridos", "Elija un ambiente e ingrese un usuario.")
             return
 
+        # Determinar ambientes afectados (principal y relacionados)
         ambientes_a_afectar = [ambiente_seleccionado]
-        # Incluye ambientes relacionados si existen
         if ambiente_seleccionado in self.ambientes_rel:
             ambientes_a_afectar.extend(self.ambientes_rel[ambiente_seleccionado])
 
-        # Obtiene los diccionarios de cada ambiente
-        ambientes_dic = {}
-        for a in self.ambientes:
-            if a["nombre"] in ambientes_a_afectar:
-                ambientes_dic[a["nombre"]] = a
+        # Obtener datos de conexión de cada ambiente
+        ambientes_dic = {a["nombre"]: a for a in self.ambientes if a["nombre"] in ambientes_a_afectar}
+        if not ambientes_dic:
+            messagebox.showerror("Error", "No se encontró información de los ambientes seleccionados.")
+            return
 
+        # 1. Consulta previa: Muestra cuántos registros serán afectados
+        consulta_resultados = self.consulta_resumen_ambientes(ambientes_a_afectar, ambientes_dic, usuario)
+        if not consulta_resultados:
+            messagebox.showerror("Sin conexión", "No se pudo consultar el estado de ningún ambiente. Verifique su conexión.")
+            return
+
+        resumen = ""
+        total_afectados = 0
+        for nombre_amb, res in consulta_resultados.items():
+            if res['estado'] == "ok":
+                resumen += f"{nombre_amb}: Encontrado(s) {res['no_vigentes']} usuario(s) no vigentes\n"
+                total_afectados += res['no_vigentes']
+            else:
+                resumen += f"{nombre_amb}: {res['mensaje']}\n"
+
+        if total_afectados == 0:
+            messagebox.showinfo(
+                "No hay cambios",
+                "No se encontraron usuarios no vigentes para actualizar en los ambientes seleccionados."
+            )
+            return
+
+        if not messagebox.askyesno(
+            "Confirmar actualización",
+            f"Se actualizarán los siguientes ambientes para usuario '{usuario}':\n\n{resumen}\n¿Desea continuar?"
+        ):
+            return
+
+        # 2. Ejecutar los updates en hilo aparte
         self.progress.start()
+        self._deshabilitar_ui(True)
         threading.Thread(
             target=self._actualizar_multi_amb,
-            args=(ambientes_a_afectar, ambientes_dic, usuario),
+            args=(ambientes_a_afectar, ambientes_dic, usuario, consulta_resultados),
             daemon=True
         ).start()
 
-    def _actualizar_multi_amb(self, ambientes_a_afectar, ambientes_dic, usuario):
-        estados_por_ambiente = {}
-        try:
-            # 1. Consultar en todos los ambientes primero
-            for nombre_amb in ambientes_a_afectar:
-                amb = ambientes_dic.get(nombre_amb)
-                if not amb:
-                    estados_por_ambiente[nombre_amb] = ("info_ambiente", 0, None)
-                    continue
-                try:
-                    driver = amb['driver']
-                    if driver == 'Sybase ASE ODBC Driver':
-                        conn_str = (
-                            f"DRIVER={{{driver}}};"
-                            f"SERVER={amb['ip']};"
-                            f"PORT={amb['puerto']};"
-                            f"DATABASE={amb['base']};"
-                            f"UID={amb['usuario']};"
-                            f"PWD={amb['clave']};"
-                        )
-                    else:
-                        conn_str = (
-                            f"DRIVER={{{driver}}};"
-                            f"SERVER={amb['ip']},{amb['puerto']};"
-                            f"DATABASE={amb['base']};"
-                            f"UID={amb['usuario']};"
-                            f"PWD={amb['clave']};"
-                        )
-                    conn = pyodbc.connect(conn_str, timeout=5)
-                    cursor = conn.cursor()
-                    # Conteo de registros a modificar
-                    query_revisar = "SELECT COUNT(*) FROM cobis..ad_usuario WHERE us_login = ? AND us_estado <> 'V'"
-                    cursor.execute(query_revisar, usuario)
-                    count_no_vigente = cursor.fetchone()[0]
-                    estados_por_ambiente[nombre_amb] = ("ok", count_no_vigente, conn_str)
-                    cursor.close()
-                    conn.close()
-                except Exception as e:
-                    estados_por_ambiente[nombre_amb] = ("error_conexion", 0, str(e))
-            # 2. Verificar si se pudo conectar al menos a un ambiente
-            hay_conexion = any(
-                estados_por_ambiente[amb][0] == "ok"
-                for amb in ambientes_a_afectar
-            )
-            if not hay_conexion:
-                self.after(0, lambda: messagebox.showerror(
-                    "Sin conexión",
-                    "No se pudo conectar a ningún ambiente. Verifique su VPN o la disponibilidad de los ambientes."
-                ))
-                self.after(0, self.progress.stop)
-                return
-            # 3. Analizar si en al menos uno hay registros a actualizar
-            existe_para_actualizar = any(
-                estados_por_ambiente[amb][0] == "ok" and estados_por_ambiente[amb][1] > 0
-                for amb in ambientes_a_afectar
-            )
-            if not existe_para_actualizar:
-                self.after(0, lambda: messagebox.showinfo(
-                    "Sin registros", "No hay registros para actualizar en ningún ambiente disponible."
-                ))
-                self.after(0, self.progress.stop)
-                return
-            # 4. Hacer UPDATE solo en los ambientes donde la consulta fue exitosa
-            resultados = []
-            for nombre_amb in ambientes_a_afectar:
-                estado, reg_a_afectar, conn_info = estados_por_ambiente[nombre_amb]
-                if estado == "info_ambiente":
-                    resultados.append(f"{nombre_amb}: No se encontró información del ambiente.")
-                    continue
-                if estado == "error_conexion":
-                    resultados.append(f"{nombre_amb}: Error de conexión -> {conn_info}")
-                    continue
-                try:
-                    conn = pyodbc.connect(conn_info, timeout=5)
-                    cursor = conn.cursor()
-                    query = "UPDATE cobis..ad_usuario SET us_estado = 'V' WHERE us_login = ? AND us_estado <> 'V'"
-                    cursor.execute(query, usuario)
-                    conn.commit()
-                    cursor.close()
-                    conn.close()
-                    resultados.append(f"{nombre_amb}: Ok (Filas actualizadas: {reg_a_afectar})")
-                except Exception as e:
-                    resultados.append(f"{nombre_amb}: Error al actualizar -> {e}")
-            result_msg = "\n".join(resultados)
-            self.after(0, lambda: messagebox.showinfo("Resultados", result_msg))
-            self.after(0, self.progress.stop)
-        except Exception as e:
-            self.after(0, self.progress.stop)
-            self.after(0, lambda: messagebox.showerror("Error grave", f"Ocurrió un error inesperado:\n{e}"))
+    def consulta_resumen_ambientes(self, ambientes_a_afectar, ambientes_dic, usuario):
+        resultado = {}
+        for nombre_amb in ambientes_a_afectar:
+            amb = ambientes_dic.get(nombre_amb)
+            if not amb:
+                resultado[nombre_amb] = {"estado": "error", "mensaje": "No hay info del ambiente."}
+                continue
+            try:
+                driver = amb.get('driver', "")
+                if driver == 'Sybase ASE ODBC Driver':
+                    conn_str = (
+                        f"DRIVER={{{driver}}};"
+                        f"SERVER={amb['ip']};"
+                        f"PORT={amb['puerto']};"
+                        f"DATABASE={amb['base']};"
+                        f"UID={amb['usuario']};"
+                        f"PWD={amb['clave']};"
+                    )
+                else:
+                    conn_str = (
+                        f"DRIVER={{{driver}}};"
+                        f"SERVER={amb['ip']},{amb['puerto']};"
+                        f"DATABASE={amb['base']};"
+                        f"UID={amb['usuario']};"
+                        f"PWD={amb['clave']};"
+                    )
+                conn = pyodbc.connect(conn_str, timeout=5)
+                cursor = conn.cursor()
+                query_revisar = "SELECT COUNT(*) FROM cobis..ad_usuario WHERE us_login = ? AND us_estado <> 'V'"
+                cursor.execute(query_revisar, usuario)
+                count_no_vigente = cursor.fetchone()[0]
+                cursor.close()
+                conn.close()
+                resultado[nombre_amb] = {"estado": "ok", "no_vigentes": count_no_vigente, "conn_str": conn_str}
+            except Exception as e:
+                resultado[nombre_amb] = {"estado": "error", "mensaje": "Revise la conexión al ambiente."}
+        return resultado
+
+    def _actualizar_multi_amb(self, ambientes_a_afectar, ambientes_dic, usuario, consulta_resultados):
+        resultados = []
+        for nombre_amb in ambientes_a_afectar:
+            res = consulta_resultados.get(nombre_amb)
+            if not res or res['estado'] != "ok" or res.get("no_vigentes", 0) == 0:
+                # No hay nada que actualizar o hubo error en consulta
+                if res and res['estado'] == "error":
+                    resultados.append(f"{nombre_amb}: {res['mensaje']}")
+                continue
+            amb = ambientes_dic[nombre_amb]
+            conn_str = res['conn_str']
+            try:
+                conn = pyodbc.connect(conn_str, timeout=5)
+                cursor = conn.cursor()
+                query = "UPDATE cobis..ad_usuario SET us_estado = 'V' WHERE us_login = ? AND us_estado <> 'V'"
+                cursor.execute(query, usuario)
+                conn.commit()
+                cursor.close()
+                conn.close()
+                # USAMOS EL no_vigentes del SELECT correcto
+                resultados.append(f"{nombre_amb}: Actualizado correctamente ({res.get('no_vigentes', 0)} usuario/s).")
+            except Exception as e:
+                resultados.append(f"{nombre_amb}: Revise la conexión al ambiente.")
+        # Mostrar resultados y desbloquear UI
+        resumen = "\n".join(resultados) or "No hubo cambios."
+        self.after(0, self.progress.stop)
+        self.after(0, self._habilitar_ui)
+        if any("Actualizado correctamente" in line for line in resultados):
+            self.after(0, lambda: messagebox.showinfo("Resultado", resumen))
+        else:
+            self.after(0, lambda: messagebox.showerror("Resultado", resumen))
+
+    def _deshabilitar_ui(self, state):
+        state_str = "disabled" if state else "normal"
+        self.cmb_ambiente.configure(state=state_str)
+        self.ent_usuario.configure(state=state_str)
+        self.btn_actualizar.configure(state=state_str)
+        self.btn_salir.configure(state=state_str)
+
+    def _habilitar_ui(self):
+        self._deshabilitar_ui(False)
 
 if __name__ == "__main__":
     root = tk.Tk()
