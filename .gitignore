@@ -1,5 +1,5 @@
-# Ignora carpetas de pycache y archivos compilados de Python
-__pycache__
+# Python cache y archivos temporales
+__pycache__/
 *.pyc
 *.pyo
 
@@ -9,18 +9,15 @@ __pycache__
 env/
 venv/
 
-#archivos de usuario/temporales
+# Archivos de usuario
 Favoritos.json
 
+# Ignora todo lo de la carpeta json, excepto los archivos base
 json/*
+!json/catalogo_migracion.json
+!json/usuarios.json
+!json/ambientes.json
 
-#archivos que no se ignoran:
-!json/catalogo_migracion
-!json/usuarios
-!json/ambientes
-
-
-json/ambientesrelacionados.json
-
-#historial de usuario
+# Otras excepciones específicas (si lo deseas)
 json/HistorialConsultas.json
+json/ambientesrelacionados.json
