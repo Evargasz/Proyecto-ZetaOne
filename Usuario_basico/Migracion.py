@@ -393,6 +393,8 @@ class MigracionVentana(tk.Toplevel):
         self.entry_db_origen.config(state="disabled")
         self.entry_tabla_origen.config(state="disabled")
         self.entry_where.config(state="disabled")
+        self.btn_cancelar.config(state="normal")
+        self.btn_historial.config(state="disabled")
     
     def habilitar_controles_tabla(self):
         self.btn_consultar.config(state="normal")
@@ -401,11 +403,13 @@ class MigracionVentana(tk.Toplevel):
         self.entry_db_origen.config(state="normal")
         self.entry_tabla_origen.config(state="normal")
         self.entry_where.config(state="normal")
+        self.btn_cancelar.config(state="disabled")
+        self.btn_historial.config(state="normal")
 
     def cancelar_op(self):
         self.cancelar_migracion = True
         self.log("Cancelando migracion. Espera un momento...")
-        self.btn_cancelar.config(state="disabled")
+        self.btn_cancelar.config(state="normal")
 
     def on_grupo_change(self, event):
         for widget in self.var_frame.winfo_children():
@@ -460,6 +464,7 @@ class MigracionVentana(tk.Toplevel):
         self.btn_limpiar_grupo["state"] = st
         self.btn_consultar["state"] = st
         self.btn_limpiar_tabla["state"] = st
+        self.btn_cancelar["state"] = st
 
     def on_consultar_tabla(self):
         self.info_tabla_origen = None
@@ -486,8 +491,14 @@ class MigracionVentana(tk.Toplevel):
         if errores:
             self.error_migracion("Debe ingresar: " + ", ".join(errores))
             return
-        amb_origen = next(a for a in self.ambientes if a["nombre"] == nombre_origen)
-        amb_destino = next(a for a in self.ambientes if a["nombre"] == nombre_destino)
+        amb_origen = next((a for a in self.ambientes if a["nombre"] == nombre_origen), None)
+        if not amb_origen:
+            self.error_migracion("Debes seleccionar un ambiente de origen válido.")
+            return
+        amb_destino = next((a for a in self.ambientes if a["nombre"] == nombre_destino), None)
+        if not amb_destino:
+            self.error_migracion("Debes seleccionar un ambiente de destino válido.")
+            return
         resultado = consultar_tabla_e_indice(
             tabla, amb_origen, amb_destino, self.log, self.error_migracion, where=where, base_usuario=base
         )
@@ -502,9 +513,48 @@ class MigracionVentana(tk.Toplevel):
             )
         else:
             self.btn_migrar["state"] = "disabled"
-            self.btn_migrar["bootstyle"] = "gray"
+            # self.btn_migrar["bootstyle"] = "success"
+
 
     def on_migrar(self):
+        #ventana modal de confirmacion de migracion
+        def dialogo_confirmacion_migracion(parent, titulo, encabezado, pares, fuente=("Arial", 16)):
+            win = tk.Toplevel(parent)
+            win.title(titulo)
+            win.grab_set()
+            win.resizable(False, False)
+            frame = ttk.Frame(win, padding=18)
+            frame.pack()
+
+            #encabezado
+            etiqueta_titulo(frame, texto=encabezado).pack(anchor="w", pady=(0,12))
+            #listado de variables
+            for clave, valor in pares:
+                fila = tk.Frame(frame)
+                fila.pack(anchor="w", pady=2)
+                etiqueta_titulo(fila, texto=clave+":").pack(side="left")
+                etiqueta_titulo(fila,
+                                texto=valor,
+                                font=("Arial", 15, "bold"),
+                                bootsyle="info"
+                            ).pack(side="left", padx=5)
+            
+            #botones
+            resp = {"ok": False}
+            botones = tk.Frame(frame)
+            botones.pack(pady=(14,0))
+            def ok(): resp["ok"] = True; win.destroy()
+            def canc(): win.destroy
+            boton_accion(botones, texto="si, migrar", comando=ok).pack(side="left", padx=5)
+            boton_accion(botones, texto="cancelar", comando=canc). pack(side="left")
+            #centrar la ventana
+            parent.update_idletasks()
+            x = parent.winfo_rootx() + 50
+            y = parent.winfo_rooty() + 70
+            win.geometry(f"+{x}+{y}")
+            win.wait_window()
+            return resp["ok"]
+        
         errores = self.validar_campos_obligatorios()
         if self.tipo_var.get() == "tabla":
             self.entry_tabla_origen.config(bootstyle="light" if not self.entry_tabla_origen.get().strip() else "white")
@@ -517,31 +567,21 @@ class MigracionVentana(tk.Toplevel):
             return
 
         if self.tipo_var.get() == "tabla":
-            tabla = self.entry_tabla_origen.get().strip()
-            base = self.entry_db_origen.get().strip()
-            amb_ori = self.combo_amb_origen.get()
-            amb_dest = self.combo_amb_destino.get()
-            mensaje = (
-                f"¿Está seguro de iniciar la migración?\n\n"
-                f"Ambiente origen: {amb_ori}\n"
-                f"Ambiente destino: {amb_dest}\n"
-                f"Base de datos: {base}\n"
-                f"Tabla: {tabla}\n"
-            )
-        else:
-            grupo = self.combo_grupo.get()
-            amb_ori = self.combo_amb_origen.get()
-            amb_dest = self.combo_amb_destino.get()
-            mensaje = (
-                f"¿Está seguro de iniciar la migración?\n\n"
-                f"Ambiente origen: {amb_ori}\n"
-                f"Ambiente destino: {amb_dest}\n"
-                f"Grupo: {grupo}\n"
-            )
-            if self.variables_inputs:
-                for var, entry in self.variables_inputs.items():
-                    mensaje += f"Valor para ${var}$: {entry.get().strip()}\n"
-        respuesta = messagebox.askyesno("Confirmar migración", mensaje)
+            pares = [
+                ("Ambiente origen", self.combo_amb_origen.get()),
+                ("Ambiente destino", self.combo_amb_destino.get()),
+                ("Base de datos", self.entry_db_origen.get().strip()),
+                ("Tabla", self.entry_tabla_origen.get().strip())
+            ]
+            encabezado = "¿Estas seguro de iniciar la migracion?\n"
+
+        respuesta = dialogo_confirmacion_migracion(
+            self,
+            titulo="confirmar migracion",
+            encabezado=encabezado,
+            pares=pares
+        )
+
         if not respuesta:
             return
 
@@ -575,7 +615,10 @@ class MigracionVentana(tk.Toplevel):
             self.error_migracion('Nombre de tabla o base no válido.')
             return
         self.update_progress(15)
-        amb_origen = next(a for a in self.ambientes if a["nombre"] == nombre_origen)
+        amb_origen = next((a for a in self.ambientes if a["nombre"] == nombre_origen), None)
+        if not amb_origen:
+            self.error_migracion("Debes seleccionar un ambiente de origen válido.")
+            return
         amb_destino = next(a for a in self.ambientes if a["nombre"] == nombre_destino)
         if not self.info_tabla_origen:
             self.update_progress(25)
@@ -597,6 +640,16 @@ class MigracionVentana(tk.Toplevel):
             clave_primaria=self.info_tabla_origen['clave_primaria'],
             base_usuario=base
         )
+        try:
+            from Usuario_basico.historialConsultas import guardar_historial, cargar_historial
+            historial = cargar_historial()
+            nuevo = {"base": base, "tabla": tabla_origen, "condicion (where)": where}
+            if nuevo not in historial:
+                historial.insert(0, nuevo)
+                historial = historial[:10]
+                guardar_historial(historial)
+        except Exception as e:
+            self.log(f"No se pudo guardar en el historial: {e}", nivel="warning")
         self.update_progress(100)
         if resultado_migracion and resultado_migracion.get("insertados", 0) == 0:
             messagebox.showinfo("Sin migración", "No existen datos para migrar (todos duplicados o sin registros).")
@@ -605,7 +658,7 @@ class MigracionVentana(tk.Toplevel):
             self.log("Migración tabla a tabla finalizada.", nivel="success")
             messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!")
         self.habilitar_controles_tabla()
-        self.btn_cancelar.config(state="disabled")
+        self.btn_cancelar.config(state="normal")
 
     def do_migrar_grupo(self):
         grupo_nombre = self.combo_grupo.get()
@@ -619,7 +672,10 @@ class MigracionVentana(tk.Toplevel):
             self.error_migracion("No se encontró el grupo seleccionado en el catálogo.")
             return
         variables = {var: entry.get().strip() for var, entry in self.variables_inputs.items()} if self.variables_inputs else {}
-        amb_origen = next(a for a in self.ambientes if a["nombre"] == nombre_origen)
+        amb_origen = next((a for a in self.ambientes if a["nombre"] == nombre_origen), None)
+        if not amb_origen:
+            self.error_migracion("Debes seleccionar un ambiente de origen válido.")
+            return
         amb_destino = next(a for a in self.ambientes if a["nombre"] == nombre_destino)
         self.log(f"Iniciando migración de grupo '{grupo_nombre}' de {nombre_origen} a {nombre_destino}...", nivel="info")
         migrar_grupo(

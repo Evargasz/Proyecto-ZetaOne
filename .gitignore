@@ -3,11 +3,21 @@ __pycache__
 *.pyc
 *.pyo
 
+# Entornos virtuales
+.env
+.venv/
+env/
+venv/
+
+#archivos de usuario/temporales
 Favoritos.json
 
 
+#archivos que no se ignoran:
 
-*ambientesrelacionados.json
 
-cositas_guardadas
 
+json/ambientesrelacionados.json
+
+#historial de usuario
+json/HistorialConsultas.json

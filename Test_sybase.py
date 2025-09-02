@@ -32,3 +32,6 @@ finally:
         conn.close()
     except:
         pass
+
+import platform
+print(platform.architecture())
