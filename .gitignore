@@ -12,9 +12,12 @@ venv/
 #archivos de usuario/temporales
 Favoritos.json
 
+json/*
 
 #archivos que no se ignoran:
-
+!json/catalogo_migracion
+!json/usuarios
+!json/ambientes
 
 
 json/ambientesrelacionados.json
