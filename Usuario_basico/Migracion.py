@@ -414,6 +414,19 @@ class MigracionVentana(tk.Toplevel):
         self.btn_historial.config(state="normal")
 
     def cancelar_op(self):
+
+        if not self.cancelar_migracion:
+            messagebox.showinfo("No hay nada que cancelar","No hay ninguna migración corriendo para cancelar.")
+            return
+        
+        respuesta = messagebox.askyesno(
+            "confirmar",
+            "¿Seguro que quieres cancelar la migracion en curso?\n Se perderan TODOS los datos"
+        )
+        if not respuesta:
+            self.log("Cancelación abortada por el usuario.")
+            return
+        
         self.cancelar_migracion = True
         self.log("Cancelando migracion. Espera un momento...")
         self.btn_cancelar.config(state="normal")
@@ -600,7 +613,7 @@ class MigracionVentana(tk.Toplevel):
         self.habilitar_botones(False)
 
         def restaurar():
-            self.habilitar_botones(True)
+            self.habilitar_controles_tabla()
             self.btn_migrar["state"] = "normal"
             self.btn_cancelar["state"] = "normal"
             self.cancelar_migracion = False
@@ -610,6 +623,8 @@ class MigracionVentana(tk.Toplevel):
             self.btn_cancelar["state"] = "normal"
             threading.Thread(target=lambda: [self.do_migrar_tabla(), restaurar()], daemon=True).start()
         else:
+            self.deshabilitar_controles_tabla()
+            self.btn_cancelar["state"] = "normal"
             threading.Thread(target=lambda: [self.do_migrar_grupo(), restaurar()], daemon=True).start()
 
     def do_migrar_tabla(self):
