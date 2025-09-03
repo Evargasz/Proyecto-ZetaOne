@@ -154,6 +154,9 @@ def migrar_tabla(
     base_usuario=None,
     cancelar_func=None
 ):
+    import pyodbc
+    import traceback
+
     print("------ INICIO DE FUNCIÓN MIGRAR_TABLA ------")
     log = log_func if log_func else print
     progress = progress_func if progress_func else lambda x: None
@@ -162,17 +165,26 @@ def migrar_tabla(
     tabla_simple = tabla.split('.')[-1]
     columnas_ori = columnas
     pk_cols = clave_primaria
+
     if not columnas_ori or pk_cols is None:
         conn_str_ori = _build_conn_str(amb_origen)
         columnas_ori = columnas_ori or columnas_tabla(conn_str_ori, tabla_simple)
         pk_cols = pk_cols or pk_tabla(conn_str_ori, tabla_simple, is_sybase)
+
     if base_usuario:
         amb_origen = amb_origen.copy()
         amb_destino = amb_destino.copy()
         amb_origen['base'] = base_usuario
         amb_destino['base'] = base_usuario
+
     conn_str_ori = _build_conn_str(amb_origen)
     conn_str_dest = _build_conn_str(amb_destino)
+
+    # Chequeo rápido de cancelación
+    if cancelar_func and cancelar_func():
+        abort(f"[{tabla_simple}] Migración cancelada por el usuario (antes de procesar columnas).")
+        return {"insertados": 0, "omitidos": 0}
+
     try:
         columnas_dest = columnas_tabla(conn_str_dest, tabla_simple)
         if columnas_ori != columnas_dest:
@@ -181,7 +193,14 @@ def migrar_tabla(
     except Exception as e:
         abort(f"Error consultando columnas: {e}")
         return {"insertados": 0, "omitidos": 0}
+
     log(f"[{tabla_simple}] Llave primaria (o índice unique) detectada: {pk_cols}" if pk_cols else f"[{tabla_simple}] ¡ATENCIÓN! No se detectó PK/índice unique. Puede haber duplicados.")
+
+    # Chequeo rápido de cancelación
+    if cancelar_func and cancelar_func():
+        abort(f"[{tabla_simple}] Migración cancelada por el usuario (tras verificación de columnas).")
+        return {"insertados": 0, "omitidos": 0}
+
     try:
         print("------ LEYENDO PKS DEL DESTINO ------")
         print(f"[DEBUG migrar_tabla] pk_cols para destino: {pk_cols}")
@@ -202,6 +221,12 @@ def migrar_tabla(
         traceback.print_exc()
         abort(f"[{tabla_simple}] Error obteniendo PKs actuales en destino: {e}")
         return {"insertados": 0, "omitidos": 0}
+
+    # Chequeo después de proceso pesado de PK
+    if cancelar_func and cancelar_func():
+        abort(f"[{tabla_simple}] Migración cancelada por el usuario (tras PK).")
+        return {"insertados": 0, "omitidos": 0}
+
     try:
         print("------ LEYENDO FILAS DE ORIGEN ------")
         with pyodbc.connect(conn_str_ori, timeout=8) as conn_ori:
@@ -218,6 +243,12 @@ def migrar_tabla(
     except Exception as e:
         abort(f"[{tabla_simple}] Error leyendo datos origen: {e}")
         return {"insertados": 0, "omitidos": 0}
+
+    # Chequeo después de traer todos los datos
+    if cancelar_func and cancelar_func():
+        abort(f"[{tabla_simple}] Migración cancelada por el usuario (tras fetch de datos).")
+        return {"insertados": 0, "omitidos": 0}
+
     try:
         with pyodbc.connect(conn_str_dest, timeout=8) as conn_dest:
             with conn_dest.cursor() as cur_dest:
@@ -225,6 +256,7 @@ def migrar_tabla(
                 cuantos_destino = cur_dest.fetchone()[0]
     except Exception:
         cuantos_destino = 0
+
     if cuantos_destino == 0:
         log(f"[{tabla_simple}] Tabla destino VACÍA. Se insertarán TODOS los registros del origen en un único lote y commit.")
         insertables = [[getattr(row, col) for col in columnas_ori] for row in filas]
@@ -233,6 +265,12 @@ def migrar_tabla(
             log(f"[{tabla_simple}] No hay registros para insertar (tabla origen vacía).")
             progress(100)
             return {"insertados": 0, "omitidos": 0}
+
+        # Chequeo antes de la única inserción masiva
+        if cancelar_func and cancelar_func():
+            abort(f"[{tabla_simple}] Migración cancelada por el usuario (antes de insertar todo el lote).")
+            return {"insertados": 0, "omitidos": 0}
+
         try:
             with pyodbc.connect(conn_str_dest, timeout=8) as conn_dest:
                 with conn_dest.cursor() as cur_dest:
@@ -246,12 +284,18 @@ def migrar_tabla(
         except Exception as e:
             abort(f"[{tabla_simple}] Error global insertando: {e}")
             return {"insertados": 0, "omitidos": 0}
+
     progress(40)
     insertables = []
     omitidos = 0
     print("------ INICIO DE EVALUACION DE CLAVES ORIGEN VS DESTINO ------")
     if pk_cols:
         for row in filas:
+            # Chequeo frecuente durante grandes ciclos también es posible aquí si filas>> grandes
+            if cancelar_func and cancelar_func():
+                abort(f"[{tabla_simple}] Migración cancelada por el usuario (durante evaluación de duplicados).")
+                return {"insertados": 0, "omitidos": omitidos}
+
             key = tuple(getattr(row, col) for col in pk_cols)
             if key not in pks_dest:
                 insertables.append([getattr(row, col) for col in columnas_ori])
@@ -259,20 +303,24 @@ def migrar_tabla(
                 omitidos += 1
     else:
         insertables = [[getattr(row, col) for col in columnas_ori] for row in filas]
+
     total_insertados = 0
     if not insertables:
         log(f"[{tabla_simple}] No hay registros para insertar (todo duplicado o vacía tabla origen).")
         log(f"Total insertados: 0, Total omitidos {omitidos}")
         progress(100)
         return {"insertados": 0, "omitidos": omitidos}
+
     progress(50)
     try:
         with pyodbc.connect(conn_str_dest, timeout=8) as conn_dest:
             with conn_dest.cursor() as cur_dest:
                 conn_dest.autocommit = False
+                # Puedes reducir el lote a 1000 para hacer aún más responsiva la cancelación
                 lotes = 3000
                 total = len(insertables)
                 for i in range(0, total, lotes):
+                    # Chequeo de cancelación antes de cada batch
                     if cancelar_func and cancelar_func():
                         conn_dest.rollback()
                         abort(f"[{tabla_simple}] cancelado por el usuario. Todas las inserciones fueron deshechas")
@@ -293,8 +341,7 @@ def migrar_tabla(
     except Exception as e:
         abort(f"[{tabla_simple}] Error global insertando: {e}")
         return {"insertados": 0, "omitidos": omitidos}
+
     log(f"[{tabla_simple}] Migración finalizada. Insertados: {total_insertados}, Omitidos por duplicado: {omitidos}")
     progress(100)
     return {"insertados": total_insertados, "omitidos": omitidos}
-
-   #asda

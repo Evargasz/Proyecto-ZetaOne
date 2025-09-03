@@ -34,7 +34,7 @@ class HistorialConsultasVen(tk.Toplevel):
         super().__init__(master)
         self.callback_usar = callback_usar
         self.title("historial de consultas")
-        self.geometry("470x320")
+        self.geometry("320x320")
         self.resizable(False,False)
 
         etiqueta_titulo(self, texto="Historial de consultas recientes").pack(pady=10)
@@ -56,8 +56,8 @@ class HistorialConsultasVen(tk.Toplevel):
                 frame, 
                 texto=f"Where: {consulta.get('where', consulta.get('condicion (where)', ''))}"
             ).grid(row=2, column=0, sticky="w")
-            btn_usar = boton_accion(frame, text="Usar esta consulta", command=lambda c=consulta: self.usar_consulta(c))
-            btn_usar.grid(row=0, column=1, rowspan=3, padx=10)
+            btn_usar = tb.Button(frame, text="Usar esta consulta", command=lambda c=consulta: self.usar_consulta(c), bootstyle="dark")
+            btn_usar.grid(row=0, column=2, rowspan=3, padx=10)
 
     def usar_consulta(self, consulta):
         if self.callback_usar:

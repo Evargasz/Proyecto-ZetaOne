@@ -129,8 +129,11 @@ class MigracionVentana(tk.Toplevel):
         panel_superior.pack(fill='x', padx=18, pady=8)
 
         self.tipo_var = tk.StringVar(value="tabla")
-        tk.Radiobutton(panel_superior, text="Tabla a tabla", variable=self.tipo_var, value="tabla", command=self.toggle_tipo).grid(row=0, column=0, sticky="w")
-        tk.Radiobutton(panel_superior, text="Grupo de selección", variable=self.tipo_var, value="grupo", command=self.toggle_tipo).grid(row=0, column=1, sticky="w", padx=15)
+        self.ventana_tabla = tk.Radiobutton(panel_superior, text="Tabla a tabla", variable=self.tipo_var, value="tabla", command=self.toggle_tipo)
+        self.ventana_tabla.grid(row=0, column=0, sticky="w")
+        
+        self.ventana_grupo = tk.Radiobutton(panel_superior, text="Grupo de selección", variable=self.tipo_var, value="grupo", command=self.toggle_tipo)
+        self.ventana_grupo.grid(row=0, column=1, sticky="w", padx=15)
 
         etiqueta_titulo(panel_superior, texto="Ambiente origen:").grid(row=1, column=0, sticky="e", pady=8)
         self.combo_amb_origen = ttk.Combobox(panel_superior, values=self.nombres_ambientes, state="readonly", width=28)
@@ -402,6 +405,8 @@ class MigracionVentana(tk.Toplevel):
         self.entry_where.config(state="disabled")
         self.btn_cancelar.config(state="disabled")
         self.btn_historial.config(state="disabled")
+        self.ventana_tabla.config(state="disabled")
+        self.ventana_grupo.config(state="disabled")
     
     def habilitar_controles_tabla(self):
         self.btn_consultar.config(state="normal")
@@ -412,6 +417,8 @@ class MigracionVentana(tk.Toplevel):
         self.entry_where.config(state="normal")
         self.btn_cancelar.config(state="normal")
         self.btn_historial.config(state="normal")
+        self.ventana_tabla.config(state="normal")
+        self.ventana_grupo.config(state="normal")
 
     def cancelar_op(self):
 
@@ -486,6 +493,8 @@ class MigracionVentana(tk.Toplevel):
         self.btn_limpiar_tabla["state"] = st
         self.btn_cancelar["state"] = st
         self.btn_historial["state"] = st
+        self.ventana_tabla["state"] = st
+        self.ventana_grupo["state"] = st
 
     def on_consultar_tabla(self):
         self.info_tabla_origen = None
