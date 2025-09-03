@@ -14,7 +14,7 @@ from ttkbootstrap.constants import *
 #Linkeo de ventanas
 from Usuario_basico.migrar_tabla import migrar_tabla, consultar_tabla_e_indice
 from Usuario_basico.migrar_grupo import migrar_grupo, MigracionGruposGUI
-from Usuario_basico.historialConsultas import HistorialConsultasVen
+from Usuario_basico.historialConsultas import HistorialConsultasVen, cargar_historial, guardar_historial
 
 CATALOGO_FILE = "catalogo_migracion.json"
 
@@ -100,6 +100,9 @@ class MigracionVentana(tk.Toplevel):
 
         self.nombres_ambientes = [a["nombre"] for a in self.ambientes]
         self._armar_interfaz()
+
+    def is_cancelled(self):
+        return self.cancelar_migracion
 
     def configurar_logging(self):
         logging.basicConfig(
@@ -221,7 +224,8 @@ class MigracionVentana(tk.Toplevel):
         self.combo_grupo.bind('<<ComboboxSelected>>', self.on_grupo_change)
 
         if "boton_rojo" in globals():
-            self.btn_limpiar_grupo = boton_rojo(self.frame_grupo, texto="Limpiar", cursor='hand2', comando=self.limpiar_grupo, width=12)
+            self.btn_limpiar_grupo = boton_rojo(self.frame_grupo, texto="Limpiar",
+            cursor='hand2', comando=self.limpiar_grupo, width=12)
         else:
             self.btn_limpiar_grupo = boton_rojo(self.frame_grupo, texto="Limpiar", cursor='hand2', comando=self.limpiar_grupo, width=12)
         self.btn_limpiar_grupo.grid(row=0, column=2, padx=(12,0), ipadx=12, ipady=5)
@@ -319,6 +323,7 @@ class MigracionVentana(tk.Toplevel):
         self.btn_migrar["state"] = "disabled"
         self.combo_amb_origen["state"] = "readonly"
         self.combo_amb_destino["state"] = "readonly"
+        self.btn_cancelar["state"] = "disabled"
         self.limpiar_consola()
 
     def limpiar_grupo(self):
@@ -361,11 +366,13 @@ class MigracionVentana(tk.Toplevel):
             self.frame_tabla.pack(fill='x')
             self.frame_grupo.pack_forget()
             self.btn_migrar["state"] = "disabled"
+            self.btn_cancelar["state"] = "disabled"
 
         else:
             self.frame_grupo.pack(fill='x')
             self.frame_tabla.pack_forget()
             self.btn_migrar["state"] = "normal"
+            self.btn_cancelar["state"] = "normal"
 
         self.lbl_registros["text"] = ""
         self.progress["value"] = 0
@@ -393,7 +400,7 @@ class MigracionVentana(tk.Toplevel):
         self.entry_db_origen.config(state="disabled")
         self.entry_tabla_origen.config(state="disabled")
         self.entry_where.config(state="disabled")
-        self.btn_cancelar.config(state="normal")
+        self.btn_cancelar.config(state="disabled")
         self.btn_historial.config(state="disabled")
     
     def habilitar_controles_tabla(self):
@@ -403,7 +410,7 @@ class MigracionVentana(tk.Toplevel):
         self.entry_db_origen.config(state="normal")
         self.entry_tabla_origen.config(state="normal")
         self.entry_where.config(state="normal")
-        self.btn_cancelar.config(state="disabled")
+        self.btn_cancelar.config(state="normal")
         self.btn_historial.config(state="normal")
 
     def cancelar_op(self):
@@ -465,6 +472,7 @@ class MigracionVentana(tk.Toplevel):
         self.btn_consultar["state"] = st
         self.btn_limpiar_tabla["state"] = st
         self.btn_cancelar["state"] = st
+        self.btn_historial["state"] = st
 
     def on_consultar_tabla(self):
         self.info_tabla_origen = None
@@ -514,11 +522,12 @@ class MigracionVentana(tk.Toplevel):
         else:
             self.btn_migrar["state"] = "disabled"
             # self.btn_migrar["bootstyle"] = "success"
+            self.btn_cancelar["state"] = "disabled"
 
 
     def on_migrar(self):
         #ventana modal de confirmacion de migracion
-        def dialogo_confirmacion_migracion(parent, titulo, encabezado, pares, fuente=("Arial", 16)):
+        def dialogo_confirmacion_migracion(parent, titulo, encabezado, pares):
             win = tk.Toplevel(parent)
             win.title(titulo)
             win.grab_set()
@@ -533,12 +542,12 @@ class MigracionVentana(tk.Toplevel):
                 fila = tk.Frame(frame)
                 fila.pack(anchor="w", pady=2)
                 etiqueta_titulo(fila, texto=clave+":").pack(side="left")
-                etiqueta_titulo(fila,
-                                texto=valor,
-                                font=("Arial", 15, "bold"),
-                                bootsyle="info"
-                            ).pack(side="left", padx=5)
-            
+                tb.Label(fila,
+                        text=valor,
+                        font=("Arial", 15, "bold"),
+                        bootstyle="warning"
+                    ).pack(side="left", padx=5)
+    
             #botones
             resp = {"ok": False}
             botones = tk.Frame(frame)
@@ -593,9 +602,12 @@ class MigracionVentana(tk.Toplevel):
         def restaurar():
             self.habilitar_botones(True)
             self.btn_migrar["state"] = "normal"
-
+            self.btn_cancelar["state"] = "normal"
+            self.cancelar_migracion = False
 
         if self.tipo_var.get() == "tabla":
+            self.deshabilitar_controles_tabla()
+            self.btn_cancelar["state"] = "normal"
             threading.Thread(target=lambda: [self.do_migrar_tabla(), restaurar()], daemon=True).start()
         else:
             threading.Thread(target=lambda: [self.do_migrar_grupo(), restaurar()], daemon=True).start()
@@ -638,10 +650,10 @@ class MigracionVentana(tk.Toplevel):
             abort_func=self.error_migracion,
             columnas=self.info_tabla_origen['columnas'],
             clave_primaria=self.info_tabla_origen['clave_primaria'],
-            base_usuario=base
+            base_usuario=base,
+            cancelar_func=self.is_cancelled
         )
         try:
-            from Usuario_basico.historialConsultas import guardar_historial, cargar_historial
             historial = cargar_historial()
             nuevo = {"base": base, "tabla": tabla_origen, "condicion (where)": where}
             if nuevo not in historial:
@@ -685,7 +697,8 @@ class MigracionVentana(tk.Toplevel):
             amb_destino,
             log_func=self.log,
             progress_func=self.update_progress,
-            abort_func=self.error_migracion
+            abort_func=self.error_migracion,
+            cancelar_func=self.is_cancelled
         )
         self.update_progress(100)
         self.log("Migración de grupo finalizada.", nivel="success")

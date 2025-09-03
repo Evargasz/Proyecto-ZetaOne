@@ -6,7 +6,7 @@ import json
 import re
 
 #importacion de estilos
-from styles import etiqueta_titulo, entrada_estandar, boton_accion, boton_exito, boton_rojo
+from styles import etiqueta_titulo, boton_accion
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 
@@ -42,7 +42,7 @@ class HistorialConsultasVen(tk.Toplevel):
 
         historial = cargar_historial()
         if not historial:
-            tk.Label(self, text="No hay historial todavía", font=("Arial", 12, "italic")).pack(pady=30)
+            etiqueta_titulo(self, texto="No hay historial todavía", font=("Arial", 12, "italic")).pack(pady=30)
             return
 
         main_frame = tk.Frame(self)
@@ -50,10 +50,13 @@ class HistorialConsultasVen(tk.Toplevel):
         for i, consulta in enumerate(historial):
             frame = tk.Frame(main_frame, bd=1, relief="solid", pady=4, padx=6)
             frame.pack(fill="x", pady=5, padx=18)
-            tk.Label(frame, text=f"Base: {consulta['base']}", font=("Arial", 10, "bold")).grid(row=0, column=0, sticky="w")
-            tk.Label(frame, text=f"Tabla: {consulta['tabla']}", font=("Arial", 10)).grid(row=1, column=0, sticky="w")
-            tk.Label(frame, text=f"Where: {consulta['where']}", font=("Arial", 10)).grid(row=2, column=0, sticky="w")
-            btn_usar = tk.Button(frame, text="Usar esta consulta", command=lambda c=consulta: self.usar_consulta(c))
+            etiqueta_titulo(frame, texto=f"Base: {consulta['base']}").grid(row=0, column=0, sticky="w")
+            etiqueta_titulo(frame, texto=f"Tabla: {consulta['tabla']}").grid(row=1, column=0, sticky="w")
+            etiqueta_titulo(
+                frame, 
+                texto=f"Where: {consulta.get('where', consulta.get('condicion (where)', ''))}"
+            ).grid(row=2, column=0, sticky="w")
+            btn_usar = boton_accion(frame, text="Usar esta consulta", command=lambda c=consulta: self.usar_consulta(c))
             btn_usar.grid(row=0, column=1, rowspan=3, padx=10)
 
     def usar_consulta(self, consulta):
@@ -61,6 +64,10 @@ class HistorialConsultasVen(tk.Toplevel):
             self.callback_usar(
                 consulta.get("base",""),
                 consulta.get("tabla",""),
-                consulta.get("where","")
+                consulta.get("where", consulta.get("condicion(where)",""))
             )
         self.destroy()
+
+#hay problemas con el "where" dice que hay argumenots invalidos (revisar chat con elkin)
+#el boton de cancelar no esta activo cuando debe, has modificado cositas, a ver si minimo se activa a la vez que el de migracion
+#gn

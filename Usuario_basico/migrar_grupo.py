@@ -122,7 +122,17 @@ def reactivar_indices_secundarios(conn_str, tabla, log):
     except Exception as e:
         log(f"[{tabla}] No se pudieron reactivar índices secundarios: {e}")
 
-def migrar_tabla_del_grupo(tabla_conf, variables, conn_str_ori, conn_str_dest, batch_size, idx_tabla, total_tablas, log, progress):
+def migrar_tabla_del_grupo(
+        tabla_conf,
+        variables,
+        conn_str_ori,
+        conn_str_dest,
+        batch_size,
+        idx_tabla,
+        total_tablas,
+        log, progress,
+        cancelar_func=None):
+    
     tabla = tabla_conf.get('tabla') or tabla_conf.get('tabla llave')
     if not es_nombre_tabla_valido(tabla):
         log(f"[{tabla}] Nombre de tabla inválido/peligroso. Abortando.")
@@ -208,6 +218,14 @@ def migrar_tabla_del_grupo(tabla_conf, variables, conn_str_ori, conn_str_dest, b
                 filas = cur_ori.fetchmany(BATCH_SIZE_EXTRACCION)
                 if not filas:
                     break
+                if cancelar_func and cancelar_func():
+                    log(f"[{tabla}] Migracion  de grupo cancelada por el usuario. rollback de cambios si es necesario.")
+                    try:
+                        conn_dest.rollback()
+                    except Exception:
+                        pass
+                    return migrados
+                
                 total_filas += len(filas)
                 lote_num += 1
                 # PK indispensables
@@ -264,7 +282,16 @@ def migrar_tabla_del_grupo(tabla_conf, variables, conn_str_ori, conn_str_dest, b
 
     return migrados
 
-def migrar_grupo(grupo_conf, variables, amb_origen, amb_destino, log_func, progress_func, abort_func):
+def migrar_grupo(
+        grupo_conf,
+        variables,
+        amb_origen,
+        amb_destino,
+        log_func,
+        progress_func,
+        abort_func,
+        cancelar_func=None
+    ):
     log = log_func if log_func else print
     progress = progress_func if progress_func else lambda x: None
     abort = abort_func if abort_func else lambda msg: print(f"ABORT: {msg}")
@@ -303,7 +330,7 @@ def migrar_grupo(grupo_conf, variables, amb_origen, amb_destino, log_func, progr
             futuras.append(executor.submit(
                 migrar_tabla_del_grupo,
                 tabla_conf, variables, conn_str_ori, conn_str_dest, batch_size,
-                idx_tabla, total_tablas, log, progress
+                idx_tabla, total_tablas, log, progress, cancelar_func
             ))
         for future in as_completed(futuras):
             try:
@@ -524,9 +551,3 @@ class TablaDialog(tk.Toplevel):
 
     def cancel(self):
         self.destroy()
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    root.title("Gestión de grupos de migración")
-    app = MigracionGruposGUI(root)
-    app.mainloop()
