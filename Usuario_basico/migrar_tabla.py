@@ -296,3 +296,5 @@ def migrar_tabla(
     log(f"[{tabla_simple}] Migración finalizada. Insertados: {total_insertados}, Omitidos por duplicado: {omitidos}")
     progress(100)
     return {"insertados": total_insertados, "omitidos": omitidos}
+
+   #asda

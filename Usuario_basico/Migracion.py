@@ -703,3 +703,5 @@ class MigracionVentana(tk.Toplevel):
         self.update_progress(100)
         self.log("Migración de grupo finalizada.", nivel="success")
         messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!")
+        
+        #asda

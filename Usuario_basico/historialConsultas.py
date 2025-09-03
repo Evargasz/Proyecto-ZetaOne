@@ -68,6 +68,5 @@ class HistorialConsultasVen(tk.Toplevel):
             )
         self.destroy()
 
-#hay problemas con el "where" dice que hay argumenots invalidos (revisar chat con elkin)
-#el boton de cancelar no esta activo cuando debe, has modificado cositas, a ver si minimo se activa a la vez que el de migracion
-#gn
+
+   #asda   
