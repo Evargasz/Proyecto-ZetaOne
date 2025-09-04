@@ -9,6 +9,7 @@ import re
 from styles import etiqueta_titulo, boton_accion
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
+from textwrap import wrap
 
 #-----------Historial de consultas
 HISTORIAL_FILE = 'json/HistorialConsultas.json'
@@ -44,20 +45,56 @@ class HistorialConsultasVen(tk.Toplevel):
         if not historial:
             etiqueta_titulo(self, texto="No hay historial todavía", font=("Arial", 12, "italic")).pack(pady=30)
             return
+        
+#------------------------------------------------------------------------------------
 
-        main_frame = tk.Frame(self)
-        main_frame.pack(fill="both", expand=True)
+        # scrollbar
+        canvas = tk.Canvas(self, borderwidth=0, height=240)  # Puedes ajustar el height
+        scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True, padx=(0,0), pady=(0,10))
+        scrollbar.pack(side="right", fill="y")
+
+    #logica de carga de consultas 
+
+        def formatear_where(texto):
+
+            if '\n' in texto:
+                return texto
+            
+            if " and " in texto:
+                partes = texto.split(" and ")
+                return "\n".join("and " + p if i > 0 else p for i, p in enumerate(partes))
+            
+            return "\n".join(wrap(texto, width=38))
+        
         for i, consulta in enumerate(historial):
-            frame = tk.Frame(main_frame, bd=1, relief="solid", pady=4, padx=6)
+            frame = tk.Frame(scrollable_frame, bd=1, relief="solid", pady=4, padx=6)
+
+            where_val = consulta.get('where', consulta.get('condicion (where)', ''))
+            where_formateado = formatear_where(where_val)
+
+            texto_consuta = f"Base: {consulta['base']}\nTabla: {consulta['tabla']}\nWhere: {where_formateado}"    
+
+            consutla = etiqueta_titulo(frame, texto=texto_consuta)
+            consutla.grid(row=0, column=0, sticky="w")
+            
+            btn_usar = tb.Button(frame, text="Usar consulta",
+                                 command=lambda c=consulta: self.usar_consulta(c), bootstyle="dark", width=14)
+            btn_usar.grid(row=0, column=1, padx=20, pady=30, sticky="n")
+
             frame.pack(fill="x", pady=5, padx=18)
-            etiqueta_titulo(frame, texto=f"Base: {consulta['base']}").grid(row=0, column=0, sticky="w")
-            etiqueta_titulo(frame, texto=f"Tabla: {consulta['tabla']}").grid(row=1, column=0, sticky="w")
-            etiqueta_titulo(
-                frame, 
-                texto=f"Where: {consulta.get('where', consulta.get('condicion (where)', ''))}"
-            ).grid(row=2, column=0, sticky="w")
-            btn_usar = tb.Button(frame, text="Usar esta consulta", command=lambda c=consulta: self.usar_consulta(c), bootstyle="dark")
-            btn_usar.grid(row=0, column=2, rowspan=3, padx=10)
 
     def usar_consulta(self, consulta):
         if self.callback_usar:

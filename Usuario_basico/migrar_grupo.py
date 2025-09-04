@@ -342,7 +342,7 @@ def migrar_grupo(
     log(f"✅ Migración de grupo finalizada. Total migrados: {total_global}")
 
 #################################################################
-# --------- CLASES DE LA ADMINISTRACION VISUAL DE GRUPOS -------
+# -------- CLASES DE LA ADMINISTRACION VISUAL DE GRUPOS ------- #
 #################################################################
 
 class MigracionGruposGUI(tk.Toplevel):

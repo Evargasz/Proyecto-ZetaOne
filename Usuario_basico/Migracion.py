@@ -621,11 +621,13 @@ class MigracionVentana(tk.Toplevel):
         self.progress_lbl["text"] = "0%"
         self.habilitar_botones(False)
 
+        self.cancelar_migracion = True
+
         def restaurar():
+            self.cancelar_migracion = False
             self.habilitar_controles_tabla()
             self.btn_migrar["state"] = "normal"
             self.btn_cancelar["state"] = "normal"
-            self.cancelar_migracion = False
 
         if self.tipo_var.get() == "tabla":
             self.deshabilitar_controles_tabla()
@@ -728,4 +730,5 @@ class MigracionVentana(tk.Toplevel):
         self.log("Migración de grupo finalizada.", nivel="success")
         messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!")
         
-        #asda
+        #el boton cancelar sigue sin ejecutar la operacion de cancelacion, sin embargo ejecuta la accion del boton (manda el mensaje de info)
+        #en conclusion no cancela la operacion de migracion
