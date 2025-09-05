@@ -58,7 +58,7 @@ class ModificacionesVariasVentana(tk.Toplevel):
         self.entry_condicion = entrada_estandar(self)
         self.entry_condicion.place(x=150, y=y_now, width=200)
 
-        self.btn_continuar = boton_accion(self, texto="Ejecutar modificación", comando=self.on_ejecutar, width=16)
+        self.btn_continuar = boton_accion(self, texto="Ejecutar modificación", comando=self.on_ejecutar, width=20)
         self.btn_continuar.place(relx=1.0, rely=1.0, x=-230, y=-22, anchor='se')
         self.btn_salir = boton_accion(self, "Salir", comando=self.on_salir, width=10)
         self.btn_salir.place(relx=1.0, rely=1.0, x=-40, y=-22, anchor='se')

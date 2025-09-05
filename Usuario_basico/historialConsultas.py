@@ -35,7 +35,7 @@ class HistorialConsultasVen(tk.Toplevel):
         super().__init__(master)
         self.callback_usar = callback_usar
         self.title("historial de consultas")
-        self.geometry("320x320")
+        self.geometry("320x400")
         self.resizable(False,False)
 
         etiqueta_titulo(self, texto="Historial de consultas recientes").pack(pady=10)
@@ -49,7 +49,7 @@ class HistorialConsultasVen(tk.Toplevel):
 #------------------------------------------------------------------------------------
 
         # scrollbar
-        canvas = tk.Canvas(self, borderwidth=0, height=240)  # Puedes ajustar el height
+        canvas = tk.Canvas(self, borderwidth=0, height=180)  # Puedes ajustar el height
         scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
         scrollable_frame = tk.Frame(canvas)
 
@@ -67,25 +67,10 @@ class HistorialConsultasVen(tk.Toplevel):
         scrollbar.pack(side="right", fill="y")
 
     #logica de carga de consultas 
-
-        def formatear_where(texto):
-
-            if '\n' in texto:
-                return texto
-            
-            if " and " in texto:
-                partes = texto.split(" and ")
-                return "\n".join("and " + p if i > 0 else p for i, p in enumerate(partes))
-            
-            return "\n".join(wrap(texto, width=38))
-        
         for i, consulta in enumerate(historial):
             frame = tk.Frame(scrollable_frame, bd=1, relief="solid", pady=4, padx=6)
 
-            where_val = consulta.get('where', consulta.get('condicion (where)', ''))
-            where_formateado = formatear_where(where_val)
-
-            texto_consuta = f"Base: {consulta['base']}\nTabla: {consulta['tabla']}\nWhere: {where_formateado}"    
+            texto_consuta = f"Base: {consulta['base']}\nTabla: {consulta['tabla']}"    
 
             consutla = etiqueta_titulo(frame, texto=texto_consuta)
             consutla.grid(row=0, column=0, sticky="w")

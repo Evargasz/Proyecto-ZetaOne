@@ -621,7 +621,7 @@ class MigracionVentana(tk.Toplevel):
         self.progress_lbl["text"] = "0%"
         self.habilitar_botones(False)
 
-        self.cancelar_migracion = True
+        self.cancelar_migracion = False 
 
         def restaurar():
             self.cancelar_migracion = False
@@ -637,7 +637,6 @@ class MigracionVentana(tk.Toplevel):
             self.deshabilitar_controles_tabla()
             self.btn_cancelar["state"] = "normal"
             threading.Thread(target=lambda: [self.do_migrar_grupo(), restaurar()], daemon=True).start()
-
     def do_migrar_tabla(self):
         self.update_progress(5)
         tabla_origen = self.entry_tabla_origen.get().strip()
