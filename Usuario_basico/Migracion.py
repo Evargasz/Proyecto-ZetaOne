@@ -77,6 +77,7 @@ class MigracionVentana(tk.Toplevel):
         self.tablas_con_errores = []
         self.info_tabla_origen = None
         self.cancelar_migracion = False
+        self.migrando = False
 
         base_script = os.path.dirname(os.path.abspath(__file__))
         base_raiz = os.path.dirname(base_script)
@@ -421,8 +422,7 @@ class MigracionVentana(tk.Toplevel):
         self.ventana_grupo.config(state="normal")
 
     def cancelar_op(self):
-
-        if not self.cancelar_migracion:
+        if not self.migrando:
             messagebox.showinfo("No hay nada que cancelar","No hay ninguna migración corriendo para cancelar.")
             return
         
@@ -548,7 +548,7 @@ class MigracionVentana(tk.Toplevel):
 
 
     def on_migrar(self):
-        #ventana modal de confirmacion de migracion
+        # ventana modal de confirmacion de migración
         def dialogo_confirmacion_migracion(parent, titulo, encabezado, pares):
             win = tk.Toplevel(parent)
             win.title(titulo)
@@ -557,9 +557,7 @@ class MigracionVentana(tk.Toplevel):
             frame = ttk.Frame(win, padding=18)
             frame.pack()
 
-            #encabezado
             etiqueta_titulo(frame, texto=encabezado).pack(anchor="w", pady=(0,12))
-            #listado de variables
             for clave, valor in pares:
                 fila = tk.Frame(frame)
                 fila.pack(anchor="w", pady=2)
@@ -569,23 +567,21 @@ class MigracionVentana(tk.Toplevel):
                         font=("Arial", 15, "bold"),
                         bootstyle="warning"
                     ).pack(side="left", padx=5)
-    
-            #botones
+
             resp = {"ok": False}
             botones = tk.Frame(frame)
             botones.pack(pady=(14,0))
             def ok(): resp["ok"] = True; win.destroy()
-            def canc(): win.destroy
+            def canc(): win.destroy()
             boton_accion(botones, texto="si, migrar", comando=ok).pack(side="left", padx=5)
             boton_accion(botones, texto="cancelar", comando=canc). pack(side="left")
-            #centrar la ventana
             parent.update_idletasks()
             x = parent.winfo_rootx() + 50
             y = parent.winfo_rooty() + 70
             win.geometry(f"+{x}+{y}")
             win.wait_window()
             return resp["ok"]
-        
+
         errores = self.validar_campos_obligatorios()
         if self.tipo_var.get() == "tabla":
             self.entry_tabla_origen.config(bootstyle="light" if not self.entry_tabla_origen.get().strip() else "white")
@@ -616,15 +612,17 @@ class MigracionVentana(tk.Toplevel):
         if not respuesta:
             return
 
+        self.cancelar_migracion = False   # <--- reinicia el flag siempre ANTES de migrar
+        self.migrando = True              # <--- indica que una migración está en curso
+
         self.btn_migrar["state"] = "disabled"
         self.progress["value"] = 0
         self.progress_lbl["text"] = "0%"
         self.habilitar_botones(False)
 
-        self.cancelar_migracion = False 
-
         def restaurar():
             self.cancelar_migracion = False
+            self.migrando = False
             self.habilitar_controles_tabla()
             self.btn_migrar["state"] = "normal"
             self.btn_cancelar["state"] = "normal"
@@ -636,7 +634,9 @@ class MigracionVentana(tk.Toplevel):
         else:
             self.deshabilitar_controles_tabla()
             self.btn_cancelar["state"] = "normal"
-            threading.Thread(target=lambda: [self.do_migrar_grupo(), restaurar()], daemon=True).start()
+            threading.Thread(target=lambda: [self.do_migrar_grupo(), restaurar()], daemon=True).start()    
+    
+    
     def do_migrar_tabla(self):
         self.update_progress(5)
         tabla_origen = self.entry_tabla_origen.get().strip()
