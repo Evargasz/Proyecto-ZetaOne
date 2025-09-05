@@ -72,7 +72,7 @@ class MigracionVentana(tk.Toplevel):
         self.title("Migración de tablas ||  grupos")
         self.resizable(False, False)
         self.geometry("900x560")
-        self.protocol("WM_DELETE_WINDOW", self.on_salir)
+        self.protocol("WM_DELETE_WINDOW", self.on_salir) #alt + f4 o X
         self.variables_inputs = {}
         self.tablas_con_errores = []
         self.info_tabla_origen = None
@@ -385,6 +385,19 @@ class MigracionVentana(tk.Toplevel):
         self.info_tabla_origen = None
 
     def on_salir(self):
+    # Si hay migración activa, pide confirmación
+        if getattr(self, "migrando", False):   # El flag que implementaste antes
+            resp = messagebox.askyesno(
+                "Confirmar cierre",
+                "Actualmente hay una migración en curso.\n¿Estás seguro que deseas cerrar la ventana?\nSi cierras, la migración podría quedar incompleta."
+            )
+            if not resp:
+                return  # NO cierra la ventana, el usuario canceló
+
+            # Si confirma, cancela la migración (activa el flag y loguea)
+            self.cancelar_migracion = True
+            self.log("El usuario solicitó cerrar la ventana durante una migración. Cancelando migración... Espera un momento.", nivel="warning")
+
         self.destroy()
 
     def mostrar_ven_historial(self):
