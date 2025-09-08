@@ -137,12 +137,12 @@ class usuBasicoMain(tb.Frame):
         bienvenida_lbl = etiqueta_titulo(self.sidebar, f"BIENVENIDO\n  {nombre_usuario}", font=("Arial", 12))
         bienvenida_lbl.pack(pady=(0, 300))
 
-        btn_volver = boton_accion(self.sidebar, "volver", comando=self.volver,
+        self.btn_volver = boton_accion(self.sidebar, "volver", comando=self.volver,
                                 width=15)
-        btn_volver.pack(side="top", pady=(0, 0))
+        self.btn_volver.pack(side="top", pady=(0, 0))
 
-        btn_salir = boton_rojo(self.sidebar, "salir", comando=self.salir, width=15)
-        btn_salir.pack(side="bottom", pady=(0, 30))
+        self.btn_salir = boton_rojo(self.sidebar, "salir", comando=self.salir, width=15)
+        self.btn_salir.pack(side="bottom", pady=(0, 30))
         
     #------------------------------------------frame de la derecha---------------------------------------------
     def armar_area_principal(self): #frame derecha
@@ -353,9 +353,11 @@ class usuBasicoMain(tb.Frame):
         ventana_usu_no_vig.wait_window()
 
     def usar_migracion_de_datos(self):
+        self.habilitar_sidebar(False)
         ventana_mig_datos = MigracionVentana(master= self.root)
         ventana_mig_datos.grab_set()
         ventana_mig_datos.wait_window()
+        self.habilitar_sidebar(True)
 
     def usar_modificaciones_varias(self):
         try:
@@ -368,3 +370,10 @@ class usuBasicoMain(tb.Frame):
         ventana_modificaciones = ModificacionesVariasVentana(self.root, ambientes_lista)
         ventana_modificaciones.grab_set()
         ventana_modificaciones.wait_window()
+
+    def habilitar_sidebar(self, habilitar=True):
+        estado = "normal" if habilitar else "disabled"
+        self.btn_volver.config(state=estado)
+        self.btn_salir.config(state=estado)
+
+    #cuando la migracion este activa, los botones de la pagina principal deben bloquearse para evitar errores
