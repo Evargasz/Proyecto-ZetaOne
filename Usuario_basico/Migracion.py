@@ -79,6 +79,8 @@ class MigracionVentana(tk.Toplevel):
         self.cancelar_migracion = False
         self.migrando = False
 
+        MigracionVentana.centrar_ventana(self)
+
         base_script = os.path.dirname(os.path.abspath(__file__))
         base_raiz = os.path.dirname(base_script)
         json_dir = os.path.join(base_raiz, "json")
@@ -101,6 +103,14 @@ class MigracionVentana(tk.Toplevel):
 
         self.nombres_ambientes = [a["nombre"] for a in self.ambientes]
         self._armar_interfaz()
+
+    def centrar_ventana(ventana):
+        ventana.update_idletasks()
+        ancho = ventana.winfo_width()
+        alto = ventana.winfo_height()
+        x = (ventana.winfo_screenwidth() // 2) - (ancho // 2)
+        y = (ventana.winfo_screenheight() // 2) - (alto // 2)
+        ventana.geometry(f"{ancho}x{alto}+{x}+{y}")
 
     def is_cancelled(self):
         return self.cancelar_migracion
@@ -517,6 +527,8 @@ class MigracionVentana(tk.Toplevel):
         nombre_origen = self.combo_amb_origen.get()
         nombre_destino = self.combo_amb_destino.get()
         errores = []
+
+        # Validaciones
         if not tabla:
             self.entry_tabla_origen.config(bootstyle="light")
             errores.append("Tabla (origen)")
@@ -531,23 +543,34 @@ class MigracionVentana(tk.Toplevel):
         if not es_nombre_tabla_valido(base):
             self.entry_db_origen.config(bootstyle="light")
             errores.append("Nombre de base no válido")
+
+        # BLOQUE DE CORRECCIÓN: deshabilitar ambos botones si hay errores
         if errores:
             self.error_migracion("Debe ingresar: " + ", ".join(errores))
+            self.btn_migrar["state"] = "disabled"
+            self.btn_cancelar["state"] = "disabled"
             return
+
         amb_origen = next((a for a in self.ambientes if a["nombre"] == nombre_origen), None)
         if not amb_origen:
             self.error_migracion("Debes seleccionar un ambiente de origen válido.")
+            self.btn_migrar["state"] = "disabled"
+            self.btn_cancelar["state"] = "disabled"
             return
         amb_destino = next((a for a in self.ambientes if a["nombre"] == nombre_destino), None)
         if not amb_destino:
             self.error_migracion("Debes seleccionar un ambiente de destino válido.")
+            self.btn_migrar["state"] = "disabled"
+            self.btn_cancelar["state"] = "disabled"
             return
+
         resultado = consultar_tabla_e_indice(
             tabla, amb_origen, amb_destino, self.log, self.error_migracion, where=where, base_usuario=base
         )
         if resultado:
             self.info_tabla_origen = resultado
             self.btn_migrar["state"] = "normal"
+            self.btn_cancelar["state"] = "normal"      # Asegura que ambos se habiliten correctamente solo aquí
             self.combo_amb_origen["state"] = "disabled"
             self.combo_amb_destino["state"] = "disabled"
             self.log(
@@ -556,7 +579,6 @@ class MigracionVentana(tk.Toplevel):
             )
         else:
             self.btn_migrar["state"] = "disabled"
-            # self.btn_migrar["bootstyle"] = "success"
             self.btn_cancelar["state"] = "disabled"
 
 
