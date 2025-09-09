@@ -313,12 +313,12 @@ class usuAdminMain:
     class AmbientesPanel:
 
         def __init__(self, parent, logtxt=None):
-            self.frame = tb.LabelFrame(parent, text="Ambientes Configurados",bootstyle="primary", padding=(12, 8))
+            self.frame = tb.LabelFrame(parent, text="Ambientes Configurados", bootstyle="primary", padding=(12, 8))
             
             self.ambientes = cargar_ambientes()
             self.estado_conex_ambs = [None] * len(self.ambientes)  # None: sin testear, True: OK, False: fallido
 
-            # Permitir asignar el widget del log externo (compartido con archivos_panel.py, por ejemplo)
+            # Permitir asignar el widget del log externo
             self.logtxt = logtxt
 
             #icono para el boton de probar conexión
@@ -329,7 +329,7 @@ class usuAdminMain:
                 self.zeta_icon = None
 
             #boton para probar conexión
-            self.btn_testamb = tb.Button( 
+            self.btn_testamb = tb.Button(
                 self.frame,
                 text="Probar Conexión",
                 image=self.zeta_icon,
@@ -337,7 +337,7 @@ class usuAdminMain:
                 command=self.test_ambs,
                 bootstyle="warning-outline",
                 width=10 
-               )
+            )
             self.btn_testamb.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12), padx=(5,5))
 
             self.ambientes_vars = []
@@ -370,7 +370,7 @@ class usuAdminMain:
             self.progressbar_amb.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
             self.progressbar_amb.grid_remove()
 
-            #logica y acciones de botones_amb
+            self.lbamb = None  # Para compatibilidad con validación y tests legacy
 
         def logear_panel(self, msg):
             if self.logtxt is not None:
@@ -385,10 +385,9 @@ class usuAdminMain:
                 var = tk.BooleanVar()
                 self.ambientes_vars.append(var)
                 label = f"{amb['nombre']} | {amb['ip']} | {amb['puerto']} | {amb['usuario']}"
-                #determinar el estilo del checkbutton segun el estado de conexion
                 estado = self.estado_conex_ambs[idx]
                 if estado is True:
-                    bootstyle="success"
+                    bootstyle = "success"
                     icono = "\u2705"
                 elif estado is False:
                     bootstyle = "danger"
@@ -399,7 +398,6 @@ class usuAdminMain:
 
                 chk = tb.Checkbutton(self.check_frame, text=label, variable=var, bootstyle=bootstyle)
                 chk.grid(row=idx, sticky='w', padx=2, pady=0)
-                
                 lbl_estado = tb.Label(self.check_frame, text=icono, font=("Saegoe UI", 14))
                 lbl_estado.grid(row=idx, column=1, padx=(8, 2), sticky='w')
 
@@ -417,7 +415,7 @@ class usuAdminMain:
         def del_amb(self):
             sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
             if not sel:
-                messagebox.showwarning("Error","debe seleccionar minimo un ambiente")
+                messagebox.showwarning("Error", "debe seleccionar minimo un ambiente")
                 return
             idx = sel[0]
             ok = messagebox.askyesno("Confirmar", "¿Eliminar los ambientes seleccionados?", parent=self.frame)
@@ -490,7 +488,6 @@ class usuAdminMain:
                 self.refresh_amb_list()
                 window.destroy()
 
-            #botones ventana emergente agregar/editar
             btn_save = tb.Button(window, text="Guardar", command=snd, bootstyle="success" )
             btn_save.grid(row=len(fields), column=0, pady=6, padx=8, sticky="we")
             btn_salir = tb.Button(window, text="Cancelar", command=window.destroy, bootstyle="secondary", width=10)
@@ -562,7 +559,7 @@ class usuAdminMain:
                 self.logear_panel("Prueba de ambientes: todas las conexiones fallidas.")
 
         def colorear_lbamb(self):
-            for idx in range(self.lbamb.size()):
+            for idx in range(self.lbamb.size() if self.lbamb else 0):
                 estado = self.estado_conex_ambs[idx] if idx < len(self.estado_conex_ambs) else None
                 if estado is True:
                     self.lbamb.itemconfig(idx, {'bg': '#22c55e', 'fg': 'white'})
@@ -570,3 +567,10 @@ class usuAdminMain:
                     self.lbamb.itemconfig(idx, {'bg': '#ef4444', 'fg': 'white'})
                 else:
                     self.lbamb.itemconfig(idx, {'bg': 'white'})
+
+        def get_seleccionados(self):
+            """
+            Devuelve los índices de ambientes seleccionados usando Checkbuttons.
+            Compatibilidad con la validación y futuras migraciones.
+            """
+            return [i for i, v in enumerate(self.ambientes_vars) if v.get()]

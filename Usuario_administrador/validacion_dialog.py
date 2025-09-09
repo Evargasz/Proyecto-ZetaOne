@@ -39,8 +39,24 @@ def logear(parent, msg):
         print(f"(No se pudo loguear en widget) {msg}")
 
 def lanzar_validacion(parent, archivos_unicos, seleccionados_idx, ambientes_panel):
+    # Protección para la obtención de ambientes seleccionados
     try:
-        ambientes = ambientes_panel.get_seleccionados() if hasattr(ambientes_panel, 'get_seleccionados') else [ambientes_panel.ambientes[i] for i in ambientes_panel.lbamb.curselection()]
+        # Intentar obtener los ambientes seleccionados con la mejor API disponible
+        if hasattr(ambientes_panel, 'get_seleccionados'):
+            selamb_idx = ambientes_panel.get_seleccionados()
+            ambientes = [ambientes_panel.ambientes[i] for i in selamb_idx]
+        elif hasattr(ambientes_panel, 'lbamb') and ambientes_panel.lbamb is not None:
+            selamb_idx = ambientes_panel.lbamb.curselection()
+            ambientes = [ambientes_panel.ambientes[i] for i in selamb_idx]
+        else:
+            messagebox.showerror(
+                "Error crítico",
+                f"Ocurrió un error en el proceso de validación:\n\n"
+                f"El argumento 'ambientes_panel' debe tener método 'get_seleccionados' o atributo 'lbamb', "
+                f"pero se recibió: {type(ambientes_panel)} con valor: {ambientes_panel}."
+            )
+            return
+
         if not ambientes:
             messagebox.showwarning("Ambiente", "Seleccione al menos un ambiente con conexión OK.", parent=parent)
             logear(parent, "[VALIDACIÓN] Selección de ambientes vacía o inválida.")
@@ -110,7 +126,7 @@ def lanzar_validacion(parent, archivos_unicos, seleccionados_idx, ambientes_pane
         mostrar_resultado(parent, resultados, archivos_unicos, ambientes_panel)
     except Exception as e:
         import traceback
-        messagebox.showerror("Error crítico", f"Ocurrió un error en el proceso de validación:\n{e}")
+        messagebox.showerror("Error crítico", f"Ocurrió un error en el proceso de validación:\n{e}", parent=parent)
         logear(parent, "[VALIDACIÓN] ERROR crítico:\n" + traceback.format_exc())
 
 def validar_archivos_multiambiente_feedback(archivos_unicos, seleccionados_idx, ambientes, progress, label_porc, progreso_win, parent):
@@ -311,15 +327,11 @@ def mostrar_resultado(parent, resultados, archivos_unicos, ambientes_panel):
     win.update_idletasks()
     centrar_ventana(win, ancho, alto, parent=parent)
 
-# ------------------------
-# NUEVA FUNCIÓN DE RESUMEN
-# ------------------------
 def mostrar_resumen_catalogacion(parent, resultados, archivos_unicos):
     win = tk.Toplevel(parent)
     win.title("Resultado Catalogacion Multiambiente")
     win.geometry("420x210")
     win.resizable(False, False)
-    # Centramos la ventana
     win.update_idletasks()
     ancho = win.winfo_width()
     alto = win.winfo_height()
