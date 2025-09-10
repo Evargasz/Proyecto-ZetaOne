@@ -21,3 +21,6 @@ json/*
 # Otras excepciones específicas (si lo deseas)
 json/HistorialConsultas.json
 json/ambientesrelacionados.json
+
+msodbcsql.msi
+tests/

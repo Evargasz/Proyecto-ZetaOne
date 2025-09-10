@@ -315,20 +315,25 @@ class usuAdminMain:
         def __init__(self, parent, logtxt=None):
             self.frame = tb.LabelFrame(parent, text="Ambientes Configurados", bootstyle="primary", padding=(12, 8))
             
+            # === Inicialización de los iconos de estado (deben existir los PNGs en imagenes_iconos/) ===
+            self.imagen_check = tk.PhotoImage(file="imagenes_iconos/check_green.png")
+            self.imagen_x = tk.PhotoImage(file="imagenes_iconos/x_red.png")
+            self.imagen_neutral = tk.PhotoImage(file="imagenes_iconos/neutral_grey.png")
+            
             self.ambientes = cargar_ambientes()
             self.estado_conex_ambs = [None] * len(self.ambientes)  # None: sin testear, True: OK, False: fallido
 
             # Permitir asignar el widget del log externo
             self.logtxt = logtxt
 
-            #icono para el boton de probar conexión
+            # Icono para el boton de probar conexión
             icon_path = os.path.join(os.path.dirname(__file__), "imagenes_iconos/zeta99.png")
             if os.path.exists(icon_path):
                 self.zeta_icon = tb.PhotoImage(file=icon_path)
             else:
                 self.zeta_icon = None
 
-            #boton para probar conexión
+            # Boton para probar conexión
             self.btn_testamb = tb.Button(
                 self.frame,
                 text="Probar Conexión",
@@ -336,21 +341,21 @@ class usuAdminMain:
                 compound="left" if self.zeta_icon else None,
                 command=self.test_ambs,
                 bootstyle="warning-outline",
-                width=10 
+                width=10
             )
-            self.btn_testamb.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12), padx=(5,5))
+            self.btn_testamb.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12), padx=(5, 5))
 
             self.ambientes_vars = []
             self.check_frame = tb.Frame(self.frame)
-            self.check_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(0,8), padx=(0, 0))
+            self.check_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(0, 8), padx=(0, 0))
             self.refresh_amb_list()
 
             self.frame.rowconfigure(1, weight=1)
             self.frame.columnconfigure(0, weight=1)
 
-            #botones de accion
+            # Botones de accion
             botones_amb = tb.Frame(self.frame, bootstyle="Panel2.TFrame")
-            botones_amb.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10,0))
+            botones_amb.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
             tb.Button(botones_amb, text="➕Agregar", command=self.add_amb, bootstyle="success-outline").grid(row=2, column=0, padx=2, pady=2, sticky='ew')
             tb.Button(botones_amb, text="✏️Editar", command=self.edit_amb, bootstyle="info-outline").grid(row=2, column=3, padx=2, pady=2, sticky='ew')
             tb.Button(botones_amb, text="🗑️Eliminar", command=self.del_amb, bootstyle="danger-outline").grid(row=2, column=2, padx=2, pady=2, sticky='ew')
@@ -359,7 +364,7 @@ class usuAdminMain:
             self.amb_estado = tb.Label(self.frame, text="", anchor="w", bootstyle="inverse-info", font=("sagoe UI", 10, "bold"))
             self.amb_estado.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
 
-            #barra de progreso visual
+            # Barra de progreso visual
             self.progressbar_amb = tb.Progressbar(
                 self.frame,
                 orient="horizontal",
@@ -384,21 +389,23 @@ class usuAdminMain:
             for idx, amb in enumerate(self.ambientes):
                 var = tk.BooleanVar()
                 self.ambientes_vars.append(var)
-                label = f"{amb['nombre']} | {amb['ip']} | {amb['puerto']} | {amb['usuario']}"
+                label = f"{amb['nombre']} | {amb['ip']} | {amb['puerto']} "
                 estado = self.estado_conex_ambs[idx]
                 if estado is True:
                     bootstyle = "success"
-                    icono = "\u2705"
+                    icono = self.imagen_check
                 elif estado is False:
                     bootstyle = "danger"
-                    icono = "\u274C"
+                    icono = self.imagen_x
                 else:
                     bootstyle = ""
-                    icono = ""
+                    icono = self.imagen_neutral
 
                 chk = tb.Checkbutton(self.check_frame, text=label, variable=var, bootstyle=bootstyle)
                 chk.grid(row=idx, sticky='w', padx=2, pady=0)
-                lbl_estado = tb.Label(self.check_frame, text=icono, font=("Saegoe UI", 14))
+
+                lbl_estado = tb.Label(self.check_frame, image=icono)
+                lbl_estado.image = icono  # ¡Importante! Mantiene la referencia para evitar que se "pierda" la imagen
                 lbl_estado.grid(row=idx, column=1, padx=(8, 2), sticky='w')
 
         def add_amb(self):
