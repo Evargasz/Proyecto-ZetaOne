@@ -35,7 +35,7 @@ class HistorialConsultasVen(tk.Toplevel):
         super().__init__(master)
         self.callback_usar = callback_usar
         self.title("historial de consultas")
-        self.geometry("320x400")
+        self.geometry("400x400")
         self.resizable(False,False)
 
         etiqueta_titulo(self, texto="Historial de consultas recientes").pack(pady=10)
@@ -55,9 +55,7 @@ class HistorialConsultasVen(tk.Toplevel):
 
         scrollable_frame.bind(
             "<Configure>",
-            lambda e: canvas.configure(
-                scrollregion=canvas.bbox("all")
-            )
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
@@ -88,7 +86,4 @@ class HistorialConsultasVen(tk.Toplevel):
                 consulta.get("tabla",""),
                 consulta.get("where", consulta.get("condicion(where)",""))
             )
-        self.destroy()
-
-
-   #asda   
+        self.destroy()  

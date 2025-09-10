@@ -2,7 +2,23 @@ import json
 import os
 from typing import List, Dict, Any
 import logging
+import shutil
 
+def cargar_seguro_json(path, default=None):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        corrupted_path = f"{path}.corrupto"
+        shutil.move(path, corrupted_path)
+        print(f"Archivo corrupto movido (respaldado): {corrupted_path}")
+        # Si tienes acceso a messagebox aquí, puedes notificarlo al usuario
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(default if default is not None else [], f, indent=2, ensure_ascii=False)
+        return default if default is not None else []
+    except FileNotFoundError:
+        return default if default is not None else []
+    
 AMBIENTES_CONFIG = "json/ambientes.json"
 
 def cargar_ambientes() -> List[Dict[str, Any]]:

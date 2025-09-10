@@ -510,6 +510,8 @@ class MigracionGruposGUI(tk.Toplevel):
     def on_close(self):
         if self.on_update_callback:
             self.on_update_callback()
+        
+        self.master.grab_set()
         self.destroy()
 
 class TablaDialog(tk.Toplevel):
