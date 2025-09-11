@@ -5,6 +5,7 @@ from PIL import Image, ImageTk
 import os
 import getpass
 
+
 #Base de datos
 import json
 
@@ -15,6 +16,7 @@ from Usuario_basico.Desbloquear_usuario import desbloquearUsuVentana
 from Usuario_basico.Migracion import MigracionVentana
 from Usuario_basico.Modificaciones_varias import ModificacionesVariasVentana
 from Usuario_basico.Actualizafechaconta import ActualizaFechaContabilidadVentana
+from util_rutas import recurso_path
 
 #estilos (styles.py está en la raíz)
 from styles import etiqueta_titulo, entrada_estandar, boton_rojo, img_boton, boton_comun, boton_accion
@@ -24,20 +26,27 @@ from ttkbootstrap.constants import *
 FAVORITOS_FILE = 'Favoritos.json'
 
 #--------------------Precargar favoritos guardados-------------------
+
+# --- SECCIÓN CORREGIDA: Rutas de archivos JSON ---
+# Se define la ruta de forma segura y reutilizable
+RUTA_FAVORITOS = recurso_path("json", "Favoritos.json")
+
 def cargar_favoritos():
-    if os.path.exists(FAVORITOS_FILE):
-        try:
-            with open(FAVORITOS_FILE, 'r', encoding='utf-8') as fav:
-                return json.load(fav)
-        except Exception as err:
-            print(f"Error al leer favoritos: {err}")
-            return[]
-    return []
+    """Carga los favoritos desde un archivo JSON usando la ruta correcta."""
+    if not os.path.exists(RUTA_FAVORITOS):
+        return []
+    try:
+        with open(RUTA_FAVORITOS, 'r', encoding='utf-8') as fav:
+            return json.load(fav)
+    except Exception as err:
+        print(f"Error al leer favoritos: {err}")
+        return []
 
 def guardar_favoritos(favoritos):
+    """Guarda los favoritos en un archivo JSON usando la ruta correcta."""
     try:
-        with open(FAVORITOS_FILE, 'w', encoding='utf-8') as fav:
-            json.dump(favoritos, fav, ensure_ascii=False, indent=4)
+        with open(RUTA_FAVORITOS, 'w', encoding='utf-8') as fav:
+            json.dump(favoritos, fav, indent=4)
     except Exception as err:
         print(f"Error al guardar favoritos: {err}")
 
@@ -60,7 +69,8 @@ class usuBasicoMain(tb.Frame):
         self.root.resizable(False, False)
 
         #icono
-        self.root.iconbitmap("imagenes_iconos/Zeta99.ico")
+        ruta_icono = recurso_path("imagenes_iconos", "Zeta99.ico")
+        self.root.iconbitmap(ruta_icono)
 
         # funcionalidades Y contenido de las cards
         self.funcionalidades = [
@@ -128,28 +138,37 @@ class usuBasicoMain(tb.Frame):
 
     #-------------------------------------------frame de la izquierda------------------------------------------
     def armar_sidebar(self):
-        usuario_img = Image.open("imagenes_iconos/userico.png")
-        usuario_img = usuario_img.resize((120, 120))
-        self.usuario_icon = ImageTk.PhotoImage(usuario_img)
-        tb.Label(self.sidebar, image=self.usuario_icon, bootstyle="light").pack(pady=(30, 10))
+        try:
+            # Carga la imagen del usuario y la muestra en la barra lateral
+            ruta_user_ico = recurso_path("imagenes_iconos", "userico.png")
+            usuario_img = Image.open(ruta_user_ico)
+            usuario_img = usuario_img.resize((120, 120))
+            self.usuario_icon = ImageTk.PhotoImage(usuario_img)
+            tb.Label(self.sidebar, image=self.usuario_icon, bootstyle="light").pack(pady=(30, 10))
+        except Exception as e:
+            print(f"ADVERTENCIA: No se pudo cargar la imagen de usuario 'userico.png': {e}")
+            # Si la imagen falla, se crea una etiqueta de texto como alternativa
+            tb.Label(self.sidebar, text="(Imagen no disponible)", bootstyle="secondary").pack(pady=(30, 10))
 
+        # Muestra el mensaje de bienvenida
         nombre_usuario = getpass.getuser()
         bienvenida_lbl = etiqueta_titulo(self.sidebar, f"BIENVENIDO\n  {nombre_usuario}", font=("Arial", 12))
         bienvenida_lbl.pack(pady=(0, 300))
 
+        # Botón para volver
         self.btn_volver = boton_accion(self.sidebar, "volver", comando=self.volver,
-                                width=15)
+                                    width=15)
         self.btn_volver.pack(side="top", pady=(0, 0))
 
+        # Botón para salir
         self.btn_salir = boton_rojo(self.sidebar, "salir", comando=self.salir, width=15)
         self.btn_salir.pack(side="bottom", pady=(0, 30))
-        
     #------------------------------------------frame de la derecha---------------------------------------------
     def armar_area_principal(self): #frame derecha
         barra_superior = tb.Frame(self.main_frame)
         barra_superior.pack(fill="x", padx=40, pady=20)
 
-        #Buscador
+        # --- Buscador ---
         self.entry_busqueda = entrada_estandar(barra_superior, font=("Arial", 14))
         self.entry_busqueda.insert(0, self.placeholder_text)
         self.entry_busqueda.pack(side="left", fill="x", expand=True, padx=(0, 0), ipady=4)
@@ -168,16 +187,28 @@ class usuBasicoMain(tb.Frame):
         self.entry_busqueda.bind("<FocusOut>", add_placeholder_busqueda)
         self.entry_busqueda.bind("<Return>", lambda event: self.accion_busqueda())
 
-        lupa_img = Image.open("imagenes_iconos/lupa.png")
-        lupa_img = lupa_img.resize((28, 30))
-        self.lupa_icon = ImageTk.PhotoImage(lupa_img)
+        # --- Bloque de Carga de Imagen de Lupa (CORREGIDO) ---
+        try:
+            # 1. Obtenemos la ruta correcta de la imagen
+            ruta_lupa = recurso_path("imagenes_iconos", "lupa.png")
+            
+            # 2. Abrimos, redimensionamos y preparamos la imagen
+            lupa_img = Image.open(ruta_lupa)
+            lupa_img = lupa_img.resize((28, 30))
+            self.lupa_icon = ImageTk.PhotoImage(lupa_img)
 
-        btn_lupa = img_boton(barra_superior, image=self.lupa_icon,
-                             comando=self.accion_busqueda)
+            # 3. Creamos el botón con la imagen
+            btn_lupa = img_boton(barra_superior, image=self.lupa_icon,
+                                comando=self.accion_busqueda)
+        except Exception as e:
+            # Si la imagen falla, se crea un botón de texto como alternativa
+            print(f"ADVERTENCIA: No se pudo cargar la imagen 'lupa.png': {e}")
+            btn_lupa = boton_comun(barra_superior, "Buscar",
+                                    comando=self.accion_busqueda)
+
         btn_lupa.pack(side="left")
 
-        #-----------------------filtrado de contenido---------------------------------
-
+        # --- Filtrado de contenido ---
         filtros_frame = tb.Frame(self.main_frame)
         filtros_frame.pack(anchor="w", padx=56, pady=(5, 10))
 
@@ -323,20 +354,19 @@ class usuBasicoMain(tb.Frame):
 
     #-------------------------------------------Ventanas Modales (contenido de las cards)---------------------------------------------
     def usar_desbloquear_usuario(self):
-        try:
-            with open('json/ambientes.json', 'r', encoding='utf-8') as f:
-                ambientes_lista = json.load(f)
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo cargar ambientes.json\n{e}")
-            return
-
-        def callback_confirmar(usuario, ambiente_obj):
-            print("Usuario a desbloquear:", usuario, "Ambiente:", ambiente_obj)
-
-        ventana_desbloquear_usu = desbloquearUsuVentana(self.root, ambientes_lista, callback_confirmar)
-        ventana_desbloquear_usu.grab_set()
-        ventana_desbloquear_usu.wait_window()
-
+        # Estandarizamos la apertura de la ventana
+        self.habilitar_sidebar(False)
+        
+        # Se llama a la ventana de la forma nueva y simplificada
+        ventana_desbloqueo = desbloquearUsuVentana(master=self.root)
+        
+        # Se hace la ventana modal y se espera a que se cierre
+        ventana_desbloqueo.grab_set()
+        self.root.wait_window(ventana_desbloqueo)
+        
+        # Se rehabilita la ventana principal al terminar
+        self.habilitar_sidebar(True)
+        
     def usar_autorizar_tablas(self):
         ventana_autorizar = AutorizarTablaVentana(master=self.root)
         ventana_autorizar.grab_set()
@@ -347,10 +377,20 @@ class usuBasicoMain(tb.Frame):
         ventana_actualiza.grab_set()
         ventana_actualiza.wait_window()
     
-    def usar_usu_no_vigente (self):
-        ventana_usu_no_vig = UsuarioNoVigenteVentana(master=self.root)
-        ventana_usu_no_vig.grab_set()
-        ventana_usu_no_vig.wait_window()
+    def usar_usu_no_vigente(self):
+        self.habilitar_sidebar(False)
+        
+        # Creamos la ventana y la guardamos en una variable
+        ventana_no_vigente = UsuarioNoVigenteVentana(master=self.root)
+        
+        # Hacemos que la nueva ventana sea modal (bloquea la anterior)
+        ventana_no_vigente.grab_set()
+        
+        # Esperamos a que la nueva ventana se cierre
+        self.root.wait_window(ventana_no_vigente)
+        
+        # Cuando se cierra, rehabilitamos la ventana principal
+        self.habilitar_sidebar(True)
 
     def usar_migracion_de_datos(self):
         self.habilitar_sidebar(False)
@@ -361,15 +401,20 @@ class usuBasicoMain(tb.Frame):
 
     def usar_modificaciones_varias(self):
         try:
-            with open('json/ambientes.json', 'r', encoding='utf-8') as f:
+            # CORRECCIÓN: Usamos recurso_path para encontrar el archivo de forma segura
+            ruta_ambientes = recurso_path("json", "ambientes.json")
+            with open(ruta_ambientes, 'r', encoding='utf-8') as f:
                 ambientes_lista = json.load(f)
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudo cargar ambientes.json\n{e}")
+            messagebox.showerror("Error", f"No se pudo cargar 'ambientes.json'.\nLa ventana no puede abrirse.\n\nDetalle: {e}")
             return
 
+        # Estandarizamos la apertura de la ventana
+        self.habilitar_sidebar(False)
         ventana_modificaciones = ModificacionesVariasVentana(self.root, ambientes_lista)
         ventana_modificaciones.grab_set()
-        ventana_modificaciones.wait_window()
+        self.root.wait_window(ventana_modificaciones)
+        self.habilitar_sidebar(True)
 
     def habilitar_sidebar(self, habilitar=True):
         estado = "normal" if habilitar else "disabled"

@@ -3,8 +3,12 @@ import tkinter as tk
 from tkinter import filedialog, scrolledtext, messagebox
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
-
 import os
+import datetime
+import threading # <-- SOLUCIÓN: Se añade el import que faltaba
+
+# --- Import clave para que las rutas funcionen en el .exe ---
+from util_rutas import recurso_path
 
 #importaciones frame derecha (panel de archivos)
 from .handlers.explorador import explorar_sd_folder
@@ -43,12 +47,14 @@ class usuAdminMain:
             self.root.geometry(f"{ventana_ancho}x{ventana_alto}+{x}+{y}")
             root.resizable(False, False)
 
-            #icono de la ventana
-            self.root.iconbitmap("imagenes_iconos/Zeta99.ico")
+            # --- CORRECCIÓN: Carga de ícono de ventana de forma segura ---
+            try:
+                ruta_icono = recurso_path("imagenes_iconos", "Zeta99.ico")
+                self.root.iconbitmap(ruta_icono)
+            except Exception as e:
+                print(f"ADVERTENCIA: No se pudo cargar el icono de la ventana: {e}")
 
-            #llamado a los estilos de la ventana
-              
-              # Fuerza el tema clam antes de aplicar estilos personalizados
+            # Fuerza el tema clam antes de aplicar estilos personalizados
             main_frame = tb.Frame(root, padding=12, bootstyle="light")
             main_frame.pack(fill="both", expand=True)
 
@@ -75,8 +81,7 @@ class usuAdminMain:
             self.log_visible = False    # Marca el estado como oculto
 
             # Referencia cruzada para accionar desde paneles
-            self.amb_panel.master = self
-            self.arch_panel.master = self
+            self.amb_panel.logtxt = self.logtxt
             self.arch_panel.logtxt = self.logtxt
 
         def toggle_log(self):
@@ -209,6 +214,7 @@ class usuAdminMain:
                 self.sd_label.config(text="SD único: " + carpeta)
                 self.logear_panel(f"Seleccionado SD único: {carpeta}")
                 self.escanear_archivos_inner()
+
         def multi_sd(self):
             carpeta = filedialog.askdirectory(title="Seleccionar carpeta con varios SDs")
             if carpeta:
@@ -236,25 +242,23 @@ class usuAdminMain:
             self.archivos_unicos, self.repetidos_log = quitar_repetidos(archivos_candidatos)
             self.tree.delete(*self.tree.get_children())
             for idx, a in enumerate(self.archivos_unicos):
-                import datetime
                 fecha = datetime.datetime.fromtimestamp(a['fecha_mod']).strftime('%Y-%m-%d %H:%M:%S')
                 ruta_corta = a['rel_path']
                 tag = "alt" if idx % 2 == 1 else ""
-                self.tree.insert("", "end", iid=idx, values=(a['nombre_archivo'], ruta_corta, fecha), tags=(tag,))
+                self.tree.insert("", "end", iid=str(idx), values=(a['nombre_archivo'], ruta_corta, fecha), tags=(tag,))
             self.tree.tag_configure('alt', background="#f3f9fb")
             self.logear_panel(f"Escaneados {len(self.archivos_unicos)} archivos únicos. Repetidos: {len(self.repetidos_log)}.")
 
         def get_tooltip_for_row(self, iid):
-            if iid and iid.isdigit() and int(iid)<len(self.archivos_unicos):
-                return self.archivos_unicos[int(iid)]['rel_path']
+            try:
+                if iid and int(iid)<len(self.archivos_unicos):
+                    return self.archivos_unicos[int(iid)]['rel_path']
+            except (ValueError, IndexError):
+                return ""
             return ""
 
         def ver_repetidos(self):
-            import datetime
-            
-            if not hasattr(self, "repetidos_log"):
-                self.repetidos_log = []
-            if not self.repetidos_log:
+            if not hasattr(self, "repetidos_log") or not self.repetidos_log:
                 messagebox.showinfo("Sin repetidos", "No se detectaron repeticiones en el último escaneo.", parent=self.frame)
                 self.logear_panel("Se consultaron repetidos pero no había repeticiones.")
                 return
@@ -275,15 +279,16 @@ class usuAdminMain:
             self.logear_panel("Mostrada ventana de fuentes repetidos.")
 
         def validar_seleccionados(self):
-            seleccionados_archivos = [int(iid) for iid in self.tree.selection()]
-            if not seleccionados_archivos:
+            seleccionados_iids = self.tree.selection()
+            if not seleccionados_iids:
                 messagebox.showwarning("Validación", "Seleccione uno o más archivos de la lista.", parent=self.frame)
                 self.logear_panel("Intento de validar sin selección de archivos.")
                 return
 
+            seleccionados_archivos = [int(iid) for iid in seleccionados_iids]
             ambientes_panel = self.ambientes_panel
 
-            selamb_idx = [i for i, var in enumerate(ambientes_panel.ambientes_vars) if var.get()]           
+            selamb_idx = ambientes_panel.get_seleccionados()          
             if not selamb_idx:
                 messagebox.showwarning("Validación", "No ha seleccionado ambientes para validar.", parent=self.frame)
                 self.logear_panel("Intento de validar sin selección de ambientes.")
@@ -304,36 +309,30 @@ class usuAdminMain:
 
         def lanzar_catalogacion(self):
             def aceptar(nombre, descripcion):
-                ("Catalogado", f"Archivo '{nombre}' catalogado.\nDescripción: {descripcion}")
+                messagebox.showinfo("Catalogado", f"Archivo '{nombre}' catalogado.\nDescripción: {descripcion}")
                 self.logear_panel(f"Archivo '{nombre}' catalogado con descripción '{descripcion}'.")
             CatalogacionDialog(self.frame, aceptar_callback=aceptar)
 
     #--------------------------panel de ambientes-------------------------------------
-
     class AmbientesPanel:
-
         def __init__(self, parent, logtxt=None):
             self.frame = tb.LabelFrame(parent, text="Ambientes Configurados", bootstyle="primary", padding=(12, 8))
             
-            # === Inicialización de los iconos de estado (deben existir los PNGs en imagenes_iconos/) ===
-            self.imagen_check = tk.PhotoImage(file="imagenes_iconos/check_green.png")
-            self.imagen_x = tk.PhotoImage(file="imagenes_iconos/x_red.png")
-            self.imagen_neutral = tk.PhotoImage(file="imagenes_iconos/neutral_grey.png")
-            
-            self.ambientes = cargar_ambientes()
-            self.estado_conex_ambs = [None] * len(self.ambientes)  # None: sin testear, True: OK, False: fallido
+            # --- CORRECCIÓN: Carga segura de imágenes de estado ---
+            try:
+                self.imagen_check = tk.PhotoImage(file=recurso_path("imagenes_iconos", "check_green.png"))
+                self.imagen_x = tk.PhotoImage(file=recurso_path("imagenes_iconos", "x_red.png"))
+                self.imagen_neutral = tk.PhotoImage(file=recurso_path("imagenes_iconos", "neutral_grey.png"))
+                icon_path = recurso_path("imagenes_iconos", "zeta99.png")
+                self.zeta_icon = tb.PhotoImage(file=icon_path)
+            except Exception as e:
+                print(f"ADVERTENCIA: No se pudieron cargar los iconos de estado: {e}")
+                self.imagen_check = self.imagen_x = self.imagen_neutral = self.zeta_icon = None
 
-            # Permitir asignar el widget del log externo
+            self.ambientes = cargar_ambientes()
+            self.estado_conex_ambs = [None] * len(self.ambientes)
             self.logtxt = logtxt
 
-            # Icono para el boton de probar conexión
-            icon_path = os.path.join(os.path.dirname(__file__), "imagenes_iconos/zeta99.png")
-            if os.path.exists(icon_path):
-                self.zeta_icon = tb.PhotoImage(file=icon_path)
-            else:
-                self.zeta_icon = None
-
-            # Boton para probar conexión
             self.btn_testamb = tb.Button(
                 self.frame,
                 text="Probar Conexión",
@@ -353,18 +352,16 @@ class usuAdminMain:
             self.frame.rowconfigure(1, weight=1)
             self.frame.columnconfigure(0, weight=1)
 
-            # Botones de accion
             botones_amb = tb.Frame(self.frame, bootstyle="Panel2.TFrame")
             botones_amb.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
             tb.Button(botones_amb, text="➕Agregar", command=self.add_amb, bootstyle="success-outline").grid(row=2, column=0, padx=2, pady=2, sticky='ew')
             tb.Button(botones_amb, text="✏️Editar", command=self.edit_amb, bootstyle="info-outline").grid(row=2, column=3, padx=2, pady=2, sticky='ew')
             tb.Button(botones_amb, text="🗑️Eliminar", command=self.del_amb, bootstyle="danger-outline").grid(row=2, column=2, padx=2, pady=2, sticky='ew')
-            tb.Button(botones_amb, text="relacionar", command=self.gestionar_relacionados, bootstyle="primary-outline", width=10).grid(row=2, column=1, pady=2, padx=2, sticky="ew")
+            tb.Button(botones_amb, text="Relacionar", command=self.gestionar_relacionados, bootstyle="primary-outline", width=10).grid(row=2, column=1, pady=2, padx=2, sticky="ew")
 
-            self.amb_estado = tb.Label(self.frame, text="", anchor="w", bootstyle="inverse-info", font=("sagoe UI", 10, "bold"))
+            self.amb_estado = tb.Label(self.frame, text="", anchor="w", bootstyle="inverse-info", font=("Segoe UI", 10, "bold"))
             self.amb_estado.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
 
-            # Barra de progreso visual
             self.progressbar_amb = tb.Progressbar(
                 self.frame,
                 orient="horizontal",
@@ -374,8 +371,6 @@ class usuAdminMain:
             )
             self.progressbar_amb.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
             self.progressbar_amb.grid_remove()
-
-            self.lbamb = None  # Para compatibilidad con validación y tests legacy
 
         def logear_panel(self, msg):
             if self.logtxt is not None:
@@ -391,6 +386,8 @@ class usuAdminMain:
                 self.ambientes_vars.append(var)
                 label = f"{amb['nombre']} | {amb['ip']} | {amb['puerto']} "
                 estado = self.estado_conex_ambs[idx]
+                
+                icono = self.imagen_neutral
                 if estado is True:
                     bootstyle = "success"
                     icono = self.imagen_check
@@ -399,47 +396,47 @@ class usuAdminMain:
                     icono = self.imagen_x
                 else:
                     bootstyle = ""
-                    icono = self.imagen_neutral
 
                 chk = tb.Checkbutton(self.check_frame, text=label, variable=var, bootstyle=bootstyle)
                 chk.grid(row=idx, sticky='w', padx=2, pady=0)
 
                 lbl_estado = tb.Label(self.check_frame, image=icono)
-                lbl_estado.image = icono  # ¡Importante! Mantiene la referencia para evitar que se "pierda" la imagen
+                lbl_estado.image = icono
                 lbl_estado.grid(row=idx, column=1, padx=(8, 2), sticky='w')
 
         def add_amb(self):
             self.editar_amb_dialog(nuevo=True)
 
         def edit_amb(self):
-            sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
+            sel = self.get_seleccionados()
             if len(sel) != 1:
                 messagebox.showerror("Editar ambiente", "Seleccione UN solo ambiente", parent=self.frame)
                 return
-            idx = sel[0]
-            self.editar_amb_dialog(nuevo=False, editar_idx=idx)
+            self.editar_amb_dialog(nuevo=False, editar_idx=sel[0])
 
         def del_amb(self):
-            sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
+            sel = self.get_seleccionados()
             if not sel:
-                messagebox.showwarning("Error", "debe seleccionar minimo un ambiente")
+                messagebox.showwarning("Error", "Debe seleccionar mínimo un ambiente", parent=self.frame)
                 return
-            idx = sel[0]
+            
             ok = messagebox.askyesno("Confirmar", "¿Eliminar los ambientes seleccionados?", parent=self.frame)
             if ok:
-                self.logear_panel(f"Eliminado ambiente: {self.ambientes[idx]['nombre']}")
-                self.ambientes.pop(idx)
-                self.estado_conex_ambs.pop(idx)
+                # Eliminar de atrás hacia adelante para no alterar los índices
+                for idx in sorted(sel, reverse=True):
+                    self.logear_panel(f"Eliminado ambiente: {self.ambientes[idx]['nombre']}")
+                    self.ambientes.pop(idx)
+                    self.estado_conex_ambs.pop(idx)
+                
                 guardar_ambientes(self.ambientes)
                 self.refresh_amb_list()
 
         def gestionar_relacionados(self):
-            sel= [i for i, v in enumerate(self.ambientes_vars) if v.get()]
+            sel = self.get_seleccionados()
             if len(sel) != 1:
-                messagebox.showwarning("seleccione un ambiente", "Seleccione UN solo ambiente", parent=self.frame)
+                messagebox.showwarning("Seleccione un ambiente", "Seleccione UN solo ambiente", parent=self.frame)
                 return
-            idx = sel[0]
-            nombre_ambiente=self.ambientes[idx]['nombre']
+            nombre_ambiente = self.ambientes[sel[0]]['nombre']
             gestionar_ambientes_relacionados(nombre_ambiente, master=self.frame)
         
         def editar_amb_dialog(self, nuevo=True, editar_idx=None):
@@ -447,21 +444,13 @@ class usuAdminMain:
             window.title("Nuevo ambiente" if nuevo else "Editar ambiente")
             window.resizable(False, False)
             
-            fields = [
-                ("Nombre","nombre"),
-                ("IP/HOST","ip"),
-                ("Puerto","puerto"),
-                ("Usuario","usuario"),
-                ("Clave","clave"),
-                ("Base de datos","base"),
-                ("Driver ODBC","driver")
-            ]
+            fields = ["Nombre", "IP/HOST", "Puerto", "Usuario", "Clave", "Base de datos", "Driver ODBC"]
+            keys = ["nombre", "ip", "puerto", "usuario", "clave", "base", "driver"]
             default = {'driver':'Sybase ASE ODBC Driver', 'puerto':'7028'}
             vals = {}
 
-            for i, (lbl, key) in enumerate(fields):
-                lab = tb.Label(window, text=lbl + ":")
-                lab.grid(row=i, column=0, padx=8, pady=4, sticky="e")
+            for i, (lbl, key) in enumerate(zip(fields, keys)):
+                tb.Label(window, text=lbl + ":").grid(row=i, column=0, padx=8, pady=4, sticky="e")
                 show = "*" if key == "clave" else ""
                 ent = tb.Entry(window, width=32, show=show, bootstyle="secondary")
                 ent.grid(row=i, column=1, padx=8, pady=4, sticky="we")
@@ -471,17 +460,16 @@ class usuAdminMain:
 
             if not nuevo and editar_idx is not None:
                 amb = self.ambientes[editar_idx]
-                for key in vals:
-                    if key in amb:
-                        vals[key].insert(0, amb[key])
+                for key, ent in vals.items():
+                    ent.insert(0, amb.get(key, ''))
             else:
-                for key in vals:
+                for key, ent in vals.items():
                     if key in default:
-                        vals[key].insert(0, default[key])
+                        ent.insert(0, default[key])
 
             def snd():
-                data = {key: vals[key].get() for key in vals}
-                if not all(data[x] for x in ['nombre', 'ip', 'puerto', 'usuario', 'clave', 'base', 'driver']):
+                data = {key: vals[key].get() for key in keys}
+                if not all(data.get(x) for x in ['nombre', 'ip', 'puerto', 'usuario', 'clave', 'base', 'driver']):
                     messagebox.showwarning("Error", "Faltan datos obligatorios", parent=window)
                     return
                 if nuevo:
@@ -491,6 +479,7 @@ class usuAdminMain:
                 else:
                     self.logear_panel(f"Editado ambiente: {data['nombre']} (Anterior: {self.ambientes[editar_idx]['nombre']})")
                     self.ambientes[editar_idx] = data
+                
                 guardar_ambientes(self.ambientes)
                 self.refresh_amb_list()
                 window.destroy()
@@ -501,8 +490,8 @@ class usuAdminMain:
             btn_salir.grid(row=len(fields), column=1, pady=6, padx=8, sticky="we")
             
             window.grab_set()
-        
 
+        # --- CORRECCIÓN: Se revierte al método de conexión original que sí funciona ---
         def test_ambs(self):
             sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
             if not sel:
@@ -536,8 +525,7 @@ class usuAdminMain:
 
                 if ok:
                     self.progressbar_amb.config(bootstyle="success-striped")
-                    self.amb_estado.config(
-                    text=f"Ambiente {amb['nombre']}: Conexión exitosa")
+                    self.amb_estado.config(text=f"Ambiente {amb['nombre']}: Conexión exitosa")
                     hay_exito = True
                     self.logear_panel(f"Conexión exitosa a '{amb['nombre']}': {msg}")
                 else:
@@ -557,7 +545,7 @@ class usuAdminMain:
                 self.amb_estado.config(text="Todas las conexiones exitosas")
                 self.logear_panel("Prueba de ambientes: ¡todas las conexiones exitosas!")
             elif hay_exito and hay_fallo:
-                self.btn_testamb.config(bootstyle="success-outline")
+                self.btn_testamb.config(bootstyle="warning-outline") # Cambiado para ser más visible
                 self.amb_estado.config(text="Al menos un ambiente OK")
                 self.logear_panel("Prueba de ambientes: al menos un ambiente OK, alguno fallido.")
             else:
@@ -565,19 +553,8 @@ class usuAdminMain:
                 self.amb_estado.config(text="Todas las conexiones fallidas")
                 self.logear_panel("Prueba de ambientes: todas las conexiones fallidas.")
 
-        def colorear_lbamb(self):
-            for idx in range(self.lbamb.size() if self.lbamb else 0):
-                estado = self.estado_conex_ambs[idx] if idx < len(self.estado_conex_ambs) else None
-                if estado is True:
-                    self.lbamb.itemconfig(idx, {'bg': '#22c55e', 'fg': 'white'})
-                elif estado is False:
-                    self.lbamb.itemconfig(idx, {'bg': '#ef4444', 'fg': 'white'})
-                else:
-                    self.lbamb.itemconfig(idx, {'bg': 'white'})
-
         def get_seleccionados(self):
             """
             Devuelve los índices de ambientes seleccionados usando Checkbuttons.
-            Compatibilidad con la validación y futuras migraciones.
             """
             return [i for i, v in enumerate(self.ambientes_vars) if v.get()]

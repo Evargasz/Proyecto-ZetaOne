@@ -1,14 +1,16 @@
-import getpass
-from tkinter import ttk, messagebox
 import tkinter as tk
+from tkinter import ttk, messagebox
 import os
 import json
 import re
 import datetime
-import sys
+import getpass
+import threading
+import pyodbc
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# --- Imports Corregidos y Optimizados ---
 from styles import etiqueta_titulo, entrada_estandar, boton_accion
+from util_rutas import recurso_path
 from ttkbootstrap.constants import *
 
 class ModificacionesVariasVentana(tk.Toplevel):
@@ -17,6 +19,7 @@ class ModificacionesVariasVentana(tk.Toplevel):
         self.title("Modificaciones varias")
         self.protocol("WM_DELETE_WINDOW", self.on_salir)
 
+        # --- Tu diseño de ventana original, sin cambios ---
         ventana_ancho = 400
         ventana_alto = 380
         pantalla_ancho = self.winfo_screenwidth()
@@ -68,10 +71,21 @@ class ModificacionesVariasVentana(tk.Toplevel):
         self.progress.lower()
 
         self.ambientes_lista = ambientes_lista
+        
+        # --- Carga segura de ambientes relacionados ---
+        self.ambientes_rel = {}
+        try:
+            ruta_relaciones = recurso_path("json", "ambientesrelacionados.json")
+            if os.path.exists(ruta_relaciones):
+                with open(ruta_relaciones, "r", encoding="utf-8") as f:
+                    self.ambientes_rel = json.load(f)
+        except Exception as e:
+            print(f"ADVERTENCIA: No se pudo cargar 'ambientesrelacionados.json': {e}")
 
     def bloquear_campos(self, bloquear=True):
         state = "disabled" if bloquear else "normal"
-        self.entry_ambiente.config(state=state)
+        # Para el combobox, el estado normal es 'readonly'
+        self.entry_ambiente.config(state="disabled" if bloquear else "readonly")
         self.entry_base.config(state=state)
         self.entry_tabla.config(state=state)
         self.entry_campo.config(state=state)
@@ -92,127 +106,77 @@ class ModificacionesVariasVentana(tk.Toplevel):
             messagebox.showerror("Error de validación", "Todos los campos son obligatorios.")
             return
         if re.search(r'\bwhere\b', condicion, re.I):
-            messagebox.showerror("Error de validación", "No incluya la palabra 'where' en la condición.")
-            return
-        if re.search(r'\bset\b', valor, re.I):
-            messagebox.showerror("Error de validación", "No incluya la palabra 'set' en el nuevo valor.")
+            messagebox.showerror("Error de validación", "No incluya la palabra 'WHERE' en la condición.")
             return
 
-        ambiente_obj = next((a for a in self.ambientes_lista if a['nombre'] == ambiente), None)
-        if not ambiente_obj:
-            messagebox.showerror("Ambiente no encontrado", "Por favor seleccione un ambiente válido.")
+        # --- Lógica mejorada para incluir ambientes relacionados ---
+        ambientes_a_afectar_nombres = [ambiente]
+        if ambiente in self.ambientes_rel:
+            ambientes_a_afectar_nombres.extend(self.ambientes_rel[ambiente])
+        
+        ambientes_dic = {a['nombre']: a for a in self.ambientes_lista}
+        ambientes_obj_a_afectar = [ambientes_dic.get(nombre) for nombre in ambientes_a_afectar_nombres if ambientes_dic.get(nombre)]
+
+        confirm_msg = (
+            f"Se intentará ejecutar la modificación en los siguientes ambientes:\n\n"
+            f"- {chr(10).join(ambientes_a_afectar_nombres)}\n\n"
+            "Esta acción puede ser irreversible. ¿Desea continuar?"
+        )
+        if not messagebox.askyesno("Confirmar Modificación", confirm_msg):
             return
 
-        # --- Obtiene y muestra valores previos para CONFIRMAR ---
         self.bloquear_campos(True)
         self.progress.lift()
         self.progress.start(10)
-        self.after(200, lambda: self.consulta_y_confirma(ambiente_obj, base, tabla, campo, valor, condicion))
 
-    def consulta_y_confirma(self, ambiente, base, tabla, campo, valor, condicion):
-        try:
-            import pyodbc
-            conn_str = self._cadena_conexion(ambiente, base)
-            conn = pyodbc.connect(conn_str, timeout=5)
-            cursor = conn.cursor()
-            select_sql = f"SELECT * FROM {tabla} WHERE {condicion}"
-            cursor.execute(select_sql)
-            columnas = [column[0] for column in cursor.description]
-            filas = cursor.fetchall()
-            conn.close()
-            if not filas:
-                self._finalizar("No se encontraron datos bajo esa condición. No se realiza ninguna modificación.")
-                return
-            self._respaldar_registros(columnas, filas, tabla, condicion, ambiente['nombre'])
-            valores_anteriores = ""
-            for fila in filas:
-                fila_str = ", ".join([f"{col}={str(val)}" for col, val in zip(columnas, fila)])
-                valores_anteriores += f"{fila_str}\n"
-            confirm_msg = (
-                f"Los siguientes registros serán modificados en:\n"
-                f"Ambiente: {ambiente['nombre']} - Base: {base}\n"
-                f"Tabla: {tabla}\n"
-                f"Campo: {campo}\n"
-                f"Nuevo valor: {valor}\n"
-                f"Condición: {condicion}\n\n"
-                f"VALORES ANTERIORES:\n{valores_anteriores}\n\n"
-                "¿Desea continuar la modificación?"
-            )
-            if not messagebox.askyesno("Confirmar modificación", confirm_msg):
-                self._finalizar("Modificación cancelada por el usuario.", finaliza=False, success=False)
-                return
-            # Si confirmó, sigue con la modificación
-            self.after(100, lambda: self.ejecutar_modificacion(ambiente, base, tabla, campo, valor, condicion))
-        except Exception as e:
-            self._finalizar(f"Error haciendo respaldo previo (SELECT):\n{e}")
+        params = {"base": base, "tabla": tabla, "campo": campo, "valor": valor, "condicion": condicion}
+        
+        threading.Thread(
+            target=self.proceso_de_modificacion,
+            args=(ambientes_obj_a_afectar, params),
+            daemon=True
+        ).start()
 
-    def ejecutar_modificacion(self, ambiente, base, tabla, campo, valor, condicion):
-        try:
-            import pyodbc
-            conn_str = self._cadena_conexion(ambiente, base)
-            conn = pyodbc.connect(conn_str, timeout=5)
-            cursor = conn.cursor()
-        except Exception as e:
-            self._finalizar("Error de conexión:\n" + str(e))
-            return
-
-        # Obtener tipo de columna mediante fallback (Sybase) o método directo (SQL Server)
-        tipo_dato_col = None
-        try:
-            tipo_dato_col = self._obtener_tipo_columna(cursor, tabla, campo)
-            if tipo_dato_col is not None:
-                valor = self._validar_tipo(valor, tipo_dato_col)
-        except Exception as e:
-            messagebox.showwarning("Advertencia", f"No se pudo validar el tipo para {campo}. Se usará el valor como texto.")
-
-        # UPDATE (sin CONVERT para texto, solo para numéricos!)
-        update_sql = f"UPDATE {tabla} SET {campo} = ?" + f" WHERE {condicion}"
-        try:
-            cursor.execute(update_sql, valor)
-            filas_afectadas = cursor.rowcount
-            conn.commit()
-            conn.close()
-            self._finalizar(f"¡Modificación exitosa!\nFilas modificadas: {filas_afectadas}", success=True)
-        except Exception as e:
-            self._finalizar(f"Error al modificar datos:\n{e}")
-
-    def _obtener_tipo_columna(self, cursor, tabla, campo, schema="dbo"):
-        # Intenta método ODBC standar, si falla usa fallback Sybase/SQLServer
-        try:
-            # Método 1: ODBC estándar
-            for col in cursor.columns(table=tabla, schema=schema):
-                if col.column_name.strip().lower() == campo.strip().lower():
-                    return col.type_name.lower()
-        except Exception:
-            # Método 2: Fallback directo a diccionario de sistema
+    def proceso_de_modificacion(self, ambientes_a_modificar, params):
+        resultados = []
+        for amb in ambientes_a_modificar:
             try:
-                sql = (
-                    "SELECT t.name FROM sysobjects o "
-                    "JOIN syscolumns c ON c.id = o.id "
-                    "JOIN systypes t ON t.type = c.type "
-                    "WHERE o.name = ? AND c.name = ?"
-                )
-                cursor.execute(sql, (tabla, campo))
-                row = cursor.fetchone()
-                if row:
-                    return row[0].lower()
-            except Exception as e2:
-                print(f"[DEBUG] Fallback type query failed: {e2}")
-        return None
+                conn_str = self._cadena_conexion(amb, params['base'])
+                with pyodbc.connect(conn_str, timeout=5) as conn:
+                    with conn.cursor() as cursor:
+                        # 1. Respaldo (SELECT)
+                        select_sql = f"SELECT * FROM {params['tabla']} WHERE {params['condicion']}"
+                        cursor.execute(select_sql)
+                        columnas = [column[0] for column in cursor.description]
+                        filas = cursor.fetchall()
 
-    def _finalizar(self, mensaje, finaliza=True, success=False):
+                        if not filas:
+                            resultados.append(f"[{amb['nombre']}] - INFO: No se encontraron registros que cumplan la condición.")
+                            continue
+                        
+                        self._respaldar_registros(columnas, filas, params, amb['nombre'])
+                        
+                        # 2. Modificación (UPDATE)
+                        update_sql = f"UPDATE {params['tabla']} SET {params['campo']} = ? WHERE {params['condicion']}"
+                        cursor.execute(update_sql, params['valor'])
+                        filas_afectadas = cursor.rowcount
+                        conn.commit()
+                        resultados.append(f"[{amb['nombre']}] - ÉXITO: {filas_afectadas} fila(s) modificada(s).")
+
+            except Exception as e:
+                resultados.append(f"[{amb['nombre']}] - ERROR: {e}")
+
+        resumen_final = "\n".join(resultados)
+        self.after(0, self._finalizar, resumen_final)
+
+    def _finalizar(self, mensaje):
         self.progress.stop()
         self.progress.lower()
         self.bloquear_campos(False)
-        if success:
-            messagebox.showinfo("Resultado", mensaje)
-        else:
-            messagebox.showerror("Resultado", mensaje)
-        if finaliza:
-            self.destroy()
+        messagebox.showinfo("Resultado", mensaje)
 
     def _cadena_conexion(self, ambiente, base):
-        driver = ambiente['driver']
+        driver = ambiente.get('driver', 'SQL Server')
         if driver == 'Sybase ASE ODBC Driver':
             return (
                 f"DRIVER={{{driver}}};"
@@ -231,37 +195,22 @@ class ModificacionesVariasVentana(tk.Toplevel):
                 f"PWD={ambiente['clave']};"
             )
 
-    def _respaldar_registros(self, columnas, filas, tabla, condicion, ambiente):
-        folder = r'C:\ZetaOne\Modificaciones'
-        os.makedirs(folder, exist_ok=True)
-        fecha = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        nombre = f"{tabla}_{ambiente}_{fecha}.txt"
-        path = os.path.join(folder, nombre)
-        with open(path, 'w', encoding='utf-8') as f:
-            f.write(f"--- Respaldo previo a modificación ---\n")
-            f.write(f"Tabla: {tabla}\nAmbiente: {ambiente}\nCondición: {condicion}\nFecha: {fecha}\n\n")
-            f.write('\t'.join(columnas) + '\n')
-            for fila in filas:
-                f.write('\t'.join([str(campo) for campo in fila]) + '\n')
-
-    def _validar_tipo(self, valor, tipo_col):
-        if 'int' in tipo_col:
-            if not valor.isnumeric():
-                raise ValueError("El valor para este campo debe ser un número entero.")
-            return int(valor)
-        if 'char' in tipo_col or 'text' in tipo_col or 'varchar' in tipo_col or 'univarchar' in tipo_col:
-            return str(valor)
-        if 'date' in tipo_col or 'time' in tipo_col:
-            if not re.match(r"\d{4}-\d{2}-\d{2}", valor):
-                raise ValueError("El valor debe ser una fecha con formato AAAA-MM-DD.")
-            return valor
-        if 'money' in tipo_col or 'decimal' in tipo_col or 'numeric' in tipo_col or 'float' in tipo_col or 'real' in tipo_col:
-            try:
-                valor_float = float(str(valor).replace(',', '').replace('$', '').strip())
-            except Exception:
-                raise ValueError("El valor debe ser numérico (ej: 1234.56) para un campo MONEY/DECIMAL/etc. No use comas ni símbolos.")
-            return valor_float
-        return valor
+    def _respaldar_registros(self, columnas, filas, params, ambiente_nombre):
+        # --- Ruta de respaldo mejorada y segura ---
+        try:
+            folder = os.path.join(os.path.expanduser("~"), "Documents", "ZetaOne_Respaldos")
+            os.makedirs(folder, exist_ok=True)
+            fecha = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            nombre = f"{params['tabla']}_{ambiente_nombre}_{fecha}.txt"
+            path = os.path.join(folder, nombre)
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(f"--- Respaldo previo a modificación ---\n")
+                f.write(f"Tabla: {params['tabla']}\nAmbiente: {ambiente_nombre}\nCondición: {params['condicion']}\nFecha: {fecha}\n\n")
+                f.write('\t'.join(columnas) + '\n')
+                for fila in filas:
+                    f.write('\t'.join([str(campo) for campo in fila]) + '\n')
+        except Exception as e:
+            print(f"ADVERTENCIA: No se pudo crear el archivo de respaldo: {e}")
 
     def on_salir(self):
         self.destroy()

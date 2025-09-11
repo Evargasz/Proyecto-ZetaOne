@@ -3,118 +3,126 @@ from tkinter import messagebox, ttk
 import json
 import os
 
-#estilos
+# Estilos
 from styles import etiqueta_titulo, boton_comun
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 
-# Nueva: ruta base a la carpeta json/
-CARPETA_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "json")
-ARCHIVO_AMBIENTES = os.path.join("json/ambientes.json")
-ARCHIVO_RELACIONES = os.path.join("json/ambientesrelacionados.json")
+# Import clave para que las rutas funcionen en el .exe
+from util_rutas import recurso_path
+
+# --- SECCIÓN CORREGIDA: Carga de archivos JSON ---
 
 def cargar_ambientes():
-    print("DEBUG ruta actual:", os.getcwd())
-    print("DEBUG buscaré ambientes.json en:", ARCHIVO_AMBIENTES)
-    if os.path.exists(ARCHIVO_AMBIENTES):
-        with open(ARCHIVO_AMBIENTES, 'r', encoding='utf-8') as f:
+    """Carga los ambientes desde el archivo JSON usando la ruta correcta."""
+    try:
+        # Usamos recurso_path para encontrar el archivo de forma segura
+        ruta_json = recurso_path("json", "ambientes.json")
+        with open(ruta_json, 'r', encoding='utf-8') as f:
             return json.load(f)
-    else:
-        print("DEBUG - No se encontró ambientes.json")
-        messagebox.showerror("No se encontró","no se encontro ambientes.json")
+    except FileNotFoundError:
+        messagebox.showerror("Error Crítico", "No se encontró el archivo 'ambientes.json'. La aplicación no puede continuar.")
+        return []
+    except Exception as e:
+        messagebox.showerror("Error Crítico", f"Error al cargar 'ambientes.json':\n{e}")
         return []
 
 def cargar_relaciones():
-    if os.path.exists(ARCHIVO_RELACIONES):
-        with open(ARCHIVO_RELACIONES, 'r', encoding='utf-8') as f:
+    """Carga las relaciones de ambientes desde el archivo JSON."""
+    try:
+        # Usamos recurso_path para encontrar el archivo de forma segura
+        ruta_json = recurso_path("json", "ambientesrelacionados.json")
+        with open(ruta_json, "r", encoding='utf-8') as f:
             return json.load(f)
-    else:
+    except FileNotFoundError:
+        # Si el archivo no existe, es normal, se creará después.
+        return {}
+    except Exception as e:
+        messagebox.showerror("Error", f"No se pudo cargar 'ambientesrelacionados.json':\n{e}")
         return {}
 
-def guardar_relaciones(relaciones):
-    with open(ARCHIVO_RELACIONES, 'w', encoding='utf-8') as f:
-        json.dump(relaciones, f, indent=4, ensure_ascii=False)
+
+# --- Interfaz Gráfica ---
 
 def gestionar_ambientes_relacionados(ambiente, master=None):
-    ambientes = cargar_ambientes()
-    nombres_ambientes = [a['nombre'] for a in ambientes if 'nombre' in a]
-
-    relaciones = cargar_relaciones()
-    relacionados = set(relaciones.get(ambiente, []))
-
     win = tk.Toplevel(master)
-    win.title(f"Ambientes relacionados para: {ambiente}")
-    win.geometry("520x320")
+    win.title(f"Relacionar ambientes para: {ambiente}")
+    win.grab_set()
     win.resizable(False, False)
 
-    frame_main = tk.Frame(win, pady=12)
-    frame_main.pack(fill=tk.BOTH, expand=True)
+    # Cargar datos
+    ambientes_data = cargar_ambientes()
+    nombres_ambientes = [a['nombre'] for a in ambientes_data]
+    relaciones_data = cargar_relaciones()
+    relacionados = relaciones_data.get(ambiente, [])
 
-    lbl_principal = etiqueta_titulo(frame_main, texto=f"Ambiente seleccionado:")
-    lbl_principal.grid(row=0, column=0, sticky='e', padx=(12,8), pady=(6,3))
-    lbl_principal_value = etiqueta_titulo(frame_main, texto=ambiente)
-    lbl_principal_value.grid(row=0, column=1, sticky='w', padx=(0,16), pady=(6,3))
+    # --- SECCIÓN CORREGIDA: Guardado de archivo JSON ---
+    def guardar_en_archivo():
+        """Guarda el archivo de relaciones usando la ruta correcta."""
+        relaciones_data[ambiente] = relacionados
+        try:
+            # Usamos recurso_path para obtener la ruta de guardado correcta
+            ruta_json = recurso_path("json", "ambientesrelacionados.json")
+            with open(ruta_json, 'w', encoding='utf-8') as f:
+                json.dump(relaciones_data, f, indent=4)
+        except Exception as e:
+            messagebox.showerror("Error al Guardar", f"No se pudo guardar el archivo de relaciones:\n{e}")
 
-    etiqueta_titulo(frame_main, texto="Ambiente a relacionar:").grid(row=1, column=0, sticky='e', padx=(12,8), pady=(2,3))
-    combo_ambiente = ttk.Combobox(frame_main, state="readonly", width=26)
-    combo_ambiente.grid(row=1, column=1, sticky='w', padx=(0,16), pady=(2,3))
+    # Interfaz
+    frame_main = tk.Frame(win, padx=20, pady=15)
+    frame_main.pack()
+
+    etiqueta_titulo(frame_main, texto="Ambientes Relacionados:").grid(row=0, column=0, sticky="w")
+    etiqueta_titulo(frame_main, texto="Ambientes Disponibles:").grid(row=0, column=1, sticky="w", padx=(60, 0))
+
+    lb_relacionados = tk.Listbox(frame_main, height=10, width=30)
+    lb_relacionados.grid(row=1, column=0)
+    lb_disponibles = tk.Listbox(frame_main, height=10, width=30)
+    lb_disponibles.grid(row=1, column=1, padx=(60, 0))
 
     def agregar_relacion():
-        seleccionado = combo_ambiente.get()
-        if not seleccionado:
-            messagebox.showinfo("Info", "Seleccione un ambiente para relacionar.")
+        seleccion = lb_disponibles.curselection()
+        if not seleccion:
             return
-        if seleccionado in relacionados:
-            messagebox.showwarning("Advertencia", "Este ambiente ya está relacionado.")
-            return
-        relacionados.add(seleccionado)
+        amb_a_agregar = lb_disponibles.get(seleccion[0])
+        if amb_a_agregar not in relacionados:
+            relacionados.append(amb_a_agregar)
         actualizar_listas()
-        guardar_en_archivo()
-    btn_relacionar = tb.Button(frame_main, text="Relacionar", width=14, command=agregar_relacion, bootstyle="primary")
-    btn_relacionar.grid(row=1, column=2, padx=(9,8), pady=2)
+        guardar_en_archivo() # Guardar al agregar
 
-    etiqueta_titulo(frame_main, texto="Ambientes relacionados:").grid(row=2, column=0, sticky='ne', padx=(12,6), pady=(8,2))
-    lb_relacionados = tk.Listbox(frame_main, height=10, width=35, exportselection=False)
-    lb_relacionados.grid(row=2, column=1, sticky='w', padx=(0,0), pady=(8,2))
+    btn_agregar = tb.Button(frame_main, text="Agregar", width=14, command=agregar_relacion, bootstyle="success")
+    btn_agregar.grid(row=2, column=0, padx=(8,0), pady=(8,2), sticky='n')
 
     def quitar_relacion():
         seleccion = lb_relacionados.curselection()
         if not seleccion:
-            messagebox.showinfo("Info", "Seleccione un ambiente relacionado para quitar.")
             return
-        seleccionado = lb_relacionados.get(seleccion[0])
-        relacionados.discard(seleccionado)
+        amb_a_quitar = lb_relacionados.get(seleccion[0])
+        if amb_a_quitar in relacionados:
+            relacionados.remove(amb_a_quitar)
         actualizar_listas()
-        guardar_en_archivo()
+        guardar_en_archivo() # Guardar al quitar
+
     btn_quitar = tb.Button(frame_main, text="Quitar", width=14, command=quitar_relacion, bootstyle="danger")
-    btn_quitar.grid(row=2, column=2, padx=(9,8), pady=(8,2), sticky='n')
+    btn_quitar.grid(row=2, column=1, padx=(60,0), pady=(8,2), sticky='n')
 
     def regresar():
+        guardar_en_archivo() # Aseguramos guardar antes de salir
         win.destroy()
 
-    frame_botones = tk.Frame(win, pady=20)
+    frame_botones = tk.Frame(win, pady=15)
     frame_botones.pack()
-    btn_regresar = boton_comun(frame_botones, texto="guardar", width=14, comando=regresar)
-    btn_regresar.grid(row=0, column=0, padx=(10,8))
-    btn_cerrar = boton_comun(frame_botones, texto="Salir", width=10, comando=win.destroy)
-    btn_cerrar.grid(row=0, column=1, padx=(4,12))
+    btn_regresar = boton_comun(frame_botones, texto="Cerrar", width=14, comando=regresar)
+    btn_regresar.pack()
 
     def actualizar_listas():
         lb_relacionados.delete(0, tk.END)
         for amb in sorted(relacionados):
             lb_relacionados.insert(tk.END, amb)
-        disponibles = [a for a in nombres_ambientes if a != ambiente and a not in relacionados]
-        # ---- DEBUG PRINTS ----
-        print("DEBUG - Ambiente principal:", ambiente)
-        print("DEBUG - Nombres ambientes:", nombres_ambientes)
-        print("DEBUG - Ya relacionados:", relacionados)
-        print("DEBUG - Disponibles para relacionar:", disponibles)
-        # ---------------------
-        combo_ambiente['values'] = disponibles
-        combo_ambiente.set('' if not disponibles else disponibles[0])
 
-    def guardar_en_archivo():
-        relaciones[ambiente] = sorted(list(relacionados))
-        guardar_relaciones(relaciones)
+        lb_disponibles.delete(0, tk.END)
+        disponibles = [a for a in nombres_ambientes if a != ambiente and a not in relacionados]
+        for amb in sorted(disponibles):
+            lb_disponibles.insert(tk.END, amb)
 
     actualizar_listas()

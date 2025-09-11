@@ -9,6 +9,7 @@ import pyodbc
 from styles import etiqueta_titulo, entrada_estandar, boton_accion
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
+from util_rutas import recurso_path
 
 class UsuarioNoVigenteVentana(tk.Toplevel):
     def __init__(self, master=None):
@@ -24,22 +25,35 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
         self.geometry(f"{ventana_ancho}x{ventana_alto}+{x}+{y}")
         self.resizable(False, False)
 
-        # Resolviendo rutas a los JSON
-        self.proyecto_base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.json_path_ambientes = os.path.join(self.proyecto_base, "json", "ambientes.json")
-        self.json_path_rel = os.path.join(self.proyecto_base, "json", "ambientesrelacionados.json")
-
+        # --- SECCIÓN CORREGIDA Y ROBUSTA ---
         self.ambientes = []
         self.ambientes_rel = {}
         try:
-            with open(self.json_path_ambientes, "r", encoding="utf-8") as f:
+            # Carga el archivo de ambientes (este es obligatorio)
+            ruta_ambientes = recurso_path("json", "ambientes.json")
+            with open(ruta_ambientes, "r", encoding="utf-8") as f:
                 self.ambientes = json.load(f)
-            with open(self.json_path_rel, "r", encoding="utf-8") as f:
-                self.ambientes_rel = json.load(f)
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudieron cargar los archivos JSON:\n{e}")
+
+            # Carga el archivo de relaciones (este es opcional)
+            ruta_relaciones = recurso_path("json", "ambientesrelacionados.json")
+            if os.path.exists(ruta_relaciones):
+                with open(ruta_relaciones, "r", encoding="utf-8") as f:
+                    self.ambientes_rel = json.load(f)
+            else:
+                # Si el archivo no existe, simplemente continuamos con un diccionario vacío
+                print("ADVERTENCIA: No se encontró 'ambientesrelacionados.json'. Se continuará sin relaciones.")
+                self.ambientes_rel = {}
+
+        except FileNotFoundError as e:
+            # Este error solo saltará si 'ambientes.json' no se encuentra
+            messagebox.showerror("Error de Archivo", f"No se pudo encontrar el archivo de configuración 'ambientes.json':\n{e}")
             self.destroy()
             return
+        except Exception as e:
+            messagebox.showerror("Error de Carga", f"No se pudieron cargar los archivos JSON:\n{e}")
+            self.destroy()
+            return
+        # --- FIN DE SECCIÓN CORREGIDA ---
 
         self._armar_interfaz()
 
@@ -75,18 +89,15 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
             messagebox.showwarning("Campos requeridos", "Elija un ambiente e ingrese un usuario.")
             return
 
-        # Determinar ambientes afectados (principal y relacionados)
         ambientes_a_afectar = [ambiente_seleccionado]
         if ambiente_seleccionado in self.ambientes_rel:
             ambientes_a_afectar.extend(self.ambientes_rel[ambiente_seleccionado])
 
-        # Obtener datos de conexión de cada ambiente
         ambientes_dic = {a["nombre"]: a for a in self.ambientes if a["nombre"] in ambientes_a_afectar}
         if not ambientes_dic:
             messagebox.showerror("Error", "No se encontró información de los ambientes seleccionados.")
             return
 
-        # 1. Consulta previa: Muestra cuántos registros serán afectados
         consulta_resultados = self.consulta_resumen_ambientes(ambientes_a_afectar, ambientes_dic, usuario)
         if not consulta_resultados:
             messagebox.showerror("Sin conexión", "No se pudo consultar el estado de ningún ambiente. Verifique su conexión.")
@@ -114,7 +125,6 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
         ):
             return
 
-        # 2. Ejecutar los updates en hilo aparte
         self.progress.start()
         self._deshabilitar_ui(True)
         threading.Thread(
@@ -166,11 +176,10 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
         for nombre_amb in ambientes_a_afectar:
             res = consulta_resultados.get(nombre_amb)
             if not res or res['estado'] != "ok" or res.get("no_vigentes", 0) == 0:
-                # No hay nada que actualizar o hubo error en consulta
                 if res and res['estado'] == "error":
                     resultados.append(f"{nombre_amb}: {res['mensaje']}")
                 continue
-            amb = ambientes_dic[nombre_amb]
+            
             conn_str = res['conn_str']
             try:
                 conn = pyodbc.connect(conn_str, timeout=5)
@@ -180,11 +189,10 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
                 conn.commit()
                 cursor.close()
                 conn.close()
-                # USAMOS EL no_vigentes del SELECT correcto
                 resultados.append(f"{nombre_amb}: Actualizado correctamente ({res.get('no_vigentes', 0)} usuario/s).")
             except Exception as e:
                 resultados.append(f"{nombre_amb}: Revise la conexión al ambiente.")
-        # Mostrar resultados y desbloquear UI
+
         resumen = "\n".join(resultados) or "No hubo cambios."
         self.after(0, self.progress.stop)
         self.after(0, self._habilitar_ui)
