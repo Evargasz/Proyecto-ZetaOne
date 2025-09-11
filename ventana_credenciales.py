@@ -2,6 +2,7 @@
 from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import ttk, messagebox
+from util_rutas import recurso_path
 
 #importar estilos
 import ttkbootstrap as tb
@@ -35,7 +36,7 @@ class credenciales:
         root.resizable(False, False)
         
     #icono
-        ruta = os.path.join(os.path.dirname(__file__), "imagenes_iconos", "Zeta99.ico")
+        ruta = recurso_path("imagenes_iconos","Zeta99.ico")
         self.root.iconbitmap(ruta)
 
     #Imagen de fondo

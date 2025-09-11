@@ -5,6 +5,7 @@ from ventana_credenciales import credenciales
 from Usuario_basico.usu_basico_main import usuBasicoMain
 import os
 from styles import boton_principal, etiqueta_titulo
+from util_rutas import recurso_path
 
 class PantallaInicio: 
     def __init__(self, root, controlador=None):
@@ -21,7 +22,7 @@ class PantallaInicio:
         root.resizable(False, False)
 
         # Icono
-        ruta = os.path.join(os.path.dirname(__file__), "imagenes_iconos", "Zeta99.ico")
+        ruta = recurso_path("imagenes_iconos", "Zeta99.ico")
         self.root.iconbitmap(ruta)
 
         # Imagen de fondo ajustada al nuevo tamaño

@@ -22,5 +22,3 @@ json/*
 json/HistorialConsultas.json
 json/ambientesrelacionados.json
 
-msodbcsql.msi
-tests/

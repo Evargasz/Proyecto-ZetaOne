@@ -1,0 +1,19 @@
+{
+    "SYBCOB26": [
+        "SQLATM26",
+        "SQLCMP26",
+        "SYBOFC26"
+    ],
+    "SYBCOB25": [
+        "SQLATM25",
+        "SQLCMP25",
+        "SYBOFC25"
+    ],
+    "SYBOFC26": [],
+    "SYBOFC28": [],
+    "SYBCOB28": [
+        "SQLATM28",
+        "SQLCMP28",
+        "SYBOFC28"
+    ]
+}
