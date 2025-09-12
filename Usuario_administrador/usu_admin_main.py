@@ -314,7 +314,9 @@ class usuAdminMain:
             CatalogacionDialog(self.frame, aceptar_callback=aceptar)
 
     #--------------------------panel de ambientes-------------------------------------
+    #--------------------------panel de ambientes-------------------------------------
     class AmbientesPanel:
+
         def __init__(self, parent, logtxt=None):
             self.frame = tb.LabelFrame(parent, text="Ambientes Configurados", bootstyle="primary", padding=(12, 8))
             
@@ -328,11 +330,12 @@ class usuAdminMain:
             except Exception as e:
                 print(f"ADVERTENCIA: No se pudieron cargar los iconos de estado: {e}")
                 self.imagen_check = self.imagen_x = self.imagen_neutral = self.zeta_icon = None
-
+            
             self.ambientes = cargar_ambientes()
             self.estado_conex_ambs = [None] * len(self.ambientes)
             self.logtxt = logtxt
 
+            # Boton para probar conexión
             self.btn_testamb = tb.Button(
                 self.frame,
                 text="Probar Conexión",
@@ -352,16 +355,18 @@ class usuAdminMain:
             self.frame.rowconfigure(1, weight=1)
             self.frame.columnconfigure(0, weight=1)
 
+            # Botones de accion
             botones_amb = tb.Frame(self.frame, bootstyle="Panel2.TFrame")
             botones_amb.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
             tb.Button(botones_amb, text="➕Agregar", command=self.add_amb, bootstyle="success-outline").grid(row=2, column=0, padx=2, pady=2, sticky='ew')
             tb.Button(botones_amb, text="✏️Editar", command=self.edit_amb, bootstyle="info-outline").grid(row=2, column=3, padx=2, pady=2, sticky='ew')
             tb.Button(botones_amb, text="🗑️Eliminar", command=self.del_amb, bootstyle="danger-outline").grid(row=2, column=2, padx=2, pady=2, sticky='ew')
-            tb.Button(botones_amb, text="Relacionar", command=self.gestionar_relacionados, bootstyle="primary-outline", width=10).grid(row=2, column=1, pady=2, padx=2, sticky="ew")
+            tb.Button(botones_amb, text="relacionar", command=self.gestionar_relacionados, bootstyle="primary-outline", width=10).grid(row=2, column=1, pady=2, padx=2, sticky="ew")
 
-            self.amb_estado = tb.Label(self.frame, text="", anchor="w", bootstyle="inverse-info", font=("Segoe UI", 10, "bold"))
+            self.amb_estado = tb.Label(self.frame, text="", anchor="w", bootstyle="inverse-info", font=("sagoe UI", 10, "bold"))
             self.amb_estado.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
 
+            # Barra de progreso visual
             self.progressbar_amb = tb.Progressbar(
                 self.frame,
                 orient="horizontal",
@@ -372,6 +377,9 @@ class usuAdminMain:
             self.progressbar_amb.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
             self.progressbar_amb.grid_remove()
 
+            self.lbamb = None
+
+        # --- SOLUCIÓN: Se reincorpora el método 'logear_panel' ---
         def logear_panel(self, msg):
             if self.logtxt is not None:
                 self.logtxt.insert(tk.END, "[Ambientes] " + msg + "\n")
@@ -388,14 +396,13 @@ class usuAdminMain:
                 estado = self.estado_conex_ambs[idx]
                 
                 icono = self.imagen_neutral
+                bootstyle = ""
                 if estado is True:
                     bootstyle = "success"
                     icono = self.imagen_check
                 elif estado is False:
                     bootstyle = "danger"
                     icono = self.imagen_x
-                else:
-                    bootstyle = ""
 
                 chk = tb.Checkbutton(self.check_frame, text=label, variable=var, bootstyle=bootstyle)
                 chk.grid(row=idx, sticky='w', padx=2, pady=0)
@@ -408,16 +415,16 @@ class usuAdminMain:
             self.editar_amb_dialog(nuevo=True)
 
         def edit_amb(self):
-            sel = self.get_seleccionados()
+            sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
             if len(sel) != 1:
                 messagebox.showerror("Editar ambiente", "Seleccione UN solo ambiente", parent=self.frame)
                 return
             self.editar_amb_dialog(nuevo=False, editar_idx=sel[0])
 
         def del_amb(self):
-            sel = self.get_seleccionados()
+            sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
             if not sel:
-                messagebox.showwarning("Error", "Debe seleccionar mínimo un ambiente", parent=self.frame)
+                messagebox.showwarning("Error", "debe seleccionar minimo un ambiente")
                 return
             
             ok = messagebox.askyesno("Confirmar", "¿Eliminar los ambientes seleccionados?", parent=self.frame)
@@ -432,11 +439,12 @@ class usuAdminMain:
                 self.refresh_amb_list()
 
         def gestionar_relacionados(self):
-            sel = self.get_seleccionados()
+            sel= [i for i, v in enumerate(self.ambientes_vars) if v.get()]
             if len(sel) != 1:
-                messagebox.showwarning("Seleccione un ambiente", "Seleccione UN solo ambiente", parent=self.frame)
+                messagebox.showwarning("seleccione un ambiente", "Seleccione UN solo ambiente", parent=self.frame)
                 return
-            nombre_ambiente = self.ambientes[sel[0]]['nombre']
+            idx = sel[0]
+            nombre_ambiente=self.ambientes[idx]['nombre']
             gestionar_ambientes_relacionados(nombre_ambiente, master=self.frame)
         
         def editar_amb_dialog(self, nuevo=True, editar_idx=None):
@@ -444,13 +452,13 @@ class usuAdminMain:
             window.title("Nuevo ambiente" if nuevo else "Editar ambiente")
             window.resizable(False, False)
             
-            fields = ["Nombre", "IP/HOST", "Puerto", "Usuario", "Clave", "Base de datos", "Driver ODBC"]
-            keys = ["nombre", "ip", "puerto", "usuario", "clave", "base", "driver"]
+            fields = [("Nombre","nombre"),("IP/HOST","ip"),("Puerto","puerto"),("Usuario","usuario"),("Clave","clave"),("Base de datos","base"),("Driver ODBC","driver")]
             default = {'driver':'Sybase ASE ODBC Driver', 'puerto':'7028'}
             vals = {}
 
-            for i, (lbl, key) in enumerate(zip(fields, keys)):
-                tb.Label(window, text=lbl + ":").grid(row=i, column=0, padx=8, pady=4, sticky="e")
+            for i, (lbl, key) in enumerate(fields):
+                lab = tb.Label(window, text=lbl + ":")
+                lab.grid(row=i, column=0, padx=8, pady=4, sticky="e")
                 show = "*" if key == "clave" else ""
                 ent = tb.Entry(window, width=32, show=show, bootstyle="secondary")
                 ent.grid(row=i, column=1, padx=8, pady=4, sticky="we")
@@ -460,16 +468,17 @@ class usuAdminMain:
 
             if not nuevo and editar_idx is not None:
                 amb = self.ambientes[editar_idx]
-                for key, ent in vals.items():
-                    ent.insert(0, amb.get(key, ''))
+                for key in vals:
+                    if key in amb:
+                        vals[key].insert(0, amb[key])
             else:
-                for key, ent in vals.items():
+                for key in vals:
                     if key in default:
-                        ent.insert(0, default[key])
+                        vals[key].insert(0, default[key])
 
             def snd():
-                data = {key: vals[key].get() for key in keys}
-                if not all(data.get(x) for x in ['nombre', 'ip', 'puerto', 'usuario', 'clave', 'base', 'driver']):
+                data = {key: vals[key].get() for key in vals}
+                if not all(data[x] for x in ['nombre', 'ip', 'puerto', 'usuario', 'clave', 'base', 'driver']):
                     messagebox.showwarning("Error", "Faltan datos obligatorios", parent=window)
                     return
                 if nuevo:
@@ -479,7 +488,6 @@ class usuAdminMain:
                 else:
                     self.logear_panel(f"Editado ambiente: {data['nombre']} (Anterior: {self.ambientes[editar_idx]['nombre']})")
                     self.ambientes[editar_idx] = data
-                
                 guardar_ambientes(self.ambientes)
                 self.refresh_amb_list()
                 window.destroy()
@@ -490,8 +498,8 @@ class usuAdminMain:
             btn_salir.grid(row=len(fields), column=1, pady=6, padx=8, sticky="we")
             
             window.grab_set()
-
-        # --- CORRECCIÓN: Se revierte al método de conexión original que sí funciona ---
+        
+        # --- SOLUCIÓN: Se restaura el método original que sí funciona ---
         def test_ambs(self):
             sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
             if not sel:
@@ -554,7 +562,4 @@ class usuAdminMain:
                 self.logear_panel("Prueba de ambientes: todas las conexiones fallidas.")
 
         def get_seleccionados(self):
-            """
-            Devuelve los índices de ambientes seleccionados usando Checkbuttons.
-            """
             return [i for i, v in enumerate(self.ambientes_vars) if v.get()]

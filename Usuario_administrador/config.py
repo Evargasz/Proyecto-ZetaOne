@@ -4,6 +4,9 @@ from typing import List, Dict, Any
 import logging
 import shutil
 
+# --- Import clave para que las rutas funcionen en el .exe ---
+from util_rutas import recurso_path
+
 def cargar_seguro_json(path, default=None):
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -19,7 +22,8 @@ def cargar_seguro_json(path, default=None):
     except FileNotFoundError:
         return default if default is not None else []
     
-AMBIENTES_CONFIG = "json/ambientes.json"
+# --- SOLUCIÓN: Se reemplaza la ruta fija con una llamada a recurso_path ---
+AMBIENTES_CONFIG = recurso_path("json", "ambientes.json")
 
 def cargar_ambientes() -> List[Dict[str, Any]]:
     """

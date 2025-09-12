@@ -135,8 +135,8 @@ class desbloquearUsuVentana(tk.Toplevel):
             
             with pyodbc.connect(conn_str, timeout=5) as conn:
                 with conn.cursor() as cursor:
-                    # Se usa la consulta correcta para desbloquear sesión
-                    query = "DELETE FROM cobis..ts_session WHERE ss_login = ?"
+                    # --- CORRECCIÓN: Se restaura la consulta SQL original y correcta ---
+                    query = "DELETE FROM cobis..in_login WHERE lo_login = ?"
                     cursor.execute(query, usuario)
                     conn.commit()
             return f"{amb['nombre']}: Sesión de '{usuario}' eliminada correctamente."
