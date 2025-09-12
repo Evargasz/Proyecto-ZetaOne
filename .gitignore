@@ -17,6 +17,7 @@ json/*
 !json/catalogo_migracion.json
 !json/usuarios.json
 !json/ambientes.json
+!json/ambientesrelacionados.json
 
 # Otras excepciones específicas (si lo deseas)
 json/HistorialConsultas.json
