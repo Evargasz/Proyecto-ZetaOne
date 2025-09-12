@@ -128,16 +128,28 @@ class credenciales:
 
     #esta funcion va a cambiar y sera conectada con una base de datos
     def validar_usuario(self, usuario, contraseña):
+        import os
+        from cryptography.fernet import Fernet
         ruta_carpeta = os.path.dirname(__file__)
         ruta_usuarios = os.path.join(ruta_carpeta, "json", "usuarios.json")
+        ruta_clave = os.path.join(ruta_carpeta, "json", "clave.key")
         try:
+            with open(ruta_clave, "rb") as key_file:
+                clave = key_file.read()
+            fernet = Fernet(clave)
             with open(ruta_usuarios, "r", encoding="utf-8") as f:
                 datos = json.load(f)
                 for user in datos["usuarios"]:
-                    if user["usuario"] == usuario and user["password"] == contraseña:
-                        return True
+                    if user["usuario"] == usuario:
+                        # Desencriptar el password guardado
+                        try:
+                            password_guardado = fernet.decrypt(user["password"].encode()).decode()
+                        except Exception:
+                            continue  # Si falla la desencriptación, pasa al siguiente usuario
+                        if password_guardado == contraseña:
+                            return True
         except Exception as e:
-            print("Error al leer usuarios:", e)
+            print("Error al leer usuarios o la clave:", e)
         return False
     
     def volver_inicio(self):
