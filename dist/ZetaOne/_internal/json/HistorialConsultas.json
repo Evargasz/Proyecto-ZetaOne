@@ -1,0 +1,7 @@
+[
+    {
+        "base": "cob_conta_super",
+        "tabla": "sb_balance",
+        "condicion (where)": "ba_empresa =1 and ba_periodo =2024 and ba_corte =244"
+    }
+]

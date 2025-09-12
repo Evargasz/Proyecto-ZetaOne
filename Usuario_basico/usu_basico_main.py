@@ -321,11 +321,9 @@ class usuBasicoMain(tb.Frame):
         if self.filtro_favoritos:
             self.boton_filtro_favoritos.config()
             self.mostrar_funcionalidades(filtro_favoritos=True)
-            print("favoritos funciona")
         else:
             self.boton_filtro_favoritos.config()
             self.mostrar_funcionalidades(filtro_favoritos=False)
-            print("deseleccion de favoritos funciona")
 
     def toggle_Favoritos(self, funcionalidad):
         funcionalidad["Favoritos"] = not funcionalidad.get("Favoritos", False)
@@ -337,7 +335,6 @@ class usuBasicoMain(tb.Frame):
         self.filtro_favoritos = False
         self.boton_filtro_favoritos.config()
         self.mostrar_funcionalidades(filtro_favoritos=False)
-        print("este boton funciona correctamente")
 
     def recargar_cards(self):
         self.entry_busqueda.delete(0, tk.END)
@@ -350,7 +347,6 @@ class usuBasicoMain(tb.Frame):
         self.entry_busqueda.focus_set()
         self.entry_busqueda.icursor(0)
         self.root.focus()
-        print("este boton funciona correctamente")
 
     #-------------------------------------------Ventanas Modales (contenido de las cards)---------------------------------------------
     def usar_desbloquear_usuario(self):
