@@ -67,12 +67,13 @@ class ToolTip:
             self.tooltip_window = None
 
 class MigracionVentana(tk.Toplevel):
+    
     def __init__(self, master=None):
         super().__init__(master)
         self.title("Migración de tablas ||  grupos")
         self.resizable(False, False)
         self.geometry("900x560")
-        self.protocol("WM_DELETE_WINDOW", self.on_salir) #alt + f4 o X
+        self.protocol("WM_DELETE_WINDOW", self.on_salir)
         self.variables_inputs = {}
         self.tablas_con_errores = []
         self.info_tabla_origen = None
@@ -81,12 +82,15 @@ class MigracionVentana(tk.Toplevel):
 
         MigracionVentana.centrar_ventana(self)
 
-        base_script = os.path.dirname(os.path.abspath(__file__))
-        base_raiz = os.path.dirname(base_script)
-        json_dir = os.path.join(base_raiz, "json")
-
-        self.json_path_grupo = os.path.join(json_dir, CATALOGO_FILE)
-        self.json_ambientes = os.path.join(json_dir, "ambientes.json")
+        # --- CORRECCIÓN: Se usan rutas seguras con recurso_path ---
+        from util_rutas import recurso_path # Importación local para claridad
+        try:
+            self.json_path_grupo = recurso_path("json", CATALOGO_FILE)
+            self.json_ambientes = recurso_path("json", "ambientes.json")
+        except Exception as e:
+            messagebox.showerror("Error de Ruta", f"No se pudo resolver la ruta a los archivos de configuración.\n{e}")
+            self.destroy()
+            return
 
         self.configurar_logging()
         self.catalogo = cargar_json(self.json_path_grupo)
@@ -287,6 +291,14 @@ class MigracionVentana(tk.Toplevel):
             )
         self.btn_cancelar.pack(side="left", padx=(0,8))
 
+        # --- BOTÓN "SALIR" CON LA INDENTACIÓN CORRECTA ---
+        self.btn_salir = boton_accion(
+            frame_migrar, texto="Salir",
+            comando=self.on_salir,
+            width=18
+        )
+        self.btn_salir.pack(side="left", padx=(0,8))
+
         # Barra progreso
         # Si tienes ttkbootstrap/tb.Progressbar úsala. Sino usa ttk.Progressbar normal
         try:
@@ -374,6 +386,7 @@ class MigracionVentana(tk.Toplevel):
         self.progress["value"] = 0
         self.progress_lbl["text"] = ""
         self.habilitar_botones(True)
+        self.migrando = False
 
     def toggle_tipo(self):
         if self.tipo_var.get() == "tabla":
@@ -581,97 +594,49 @@ class MigracionVentana(tk.Toplevel):
             self.btn_migrar["state"] = "disabled"
             self.btn_cancelar["state"] = "disabled"
 
-
     def on_migrar(self):
-        # ventana modal de confirmacion de migración
-        def dialogo_confirmacion_migracion(parent, titulo, encabezado, pares):
-            win = tk.Toplevel(parent)
-            win.title(titulo)
-            win.grab_set()
-            win.resizable(False, False)
-            frame = ttk.Frame(win, padding=18)
-            frame.pack()
+        # --- CORRECCIÓN #1: Se usan los nombres correctos para los combos de ambiente ---
+        amb_origen_nombre = self.combo_amb_origen.get()
+        amb_destino_nombre = self.combo_amb_destino.get()
 
-            etiqueta_titulo(frame, texto=encabezado).pack(anchor="w", pady=(0,12))
-            for clave, valor in pares:
-                fila = tk.Frame(frame)
-                fila.pack(anchor="w", pady=2)
-                etiqueta_titulo(fila, texto=clave+":").pack(side="left")
-                tb.Label(fila,
-                        text=valor,
-                        font=("Arial", 15, "bold"),
-                        bootstyle="warning"
-                    ).pack(side="left", padx=5)
-
-            resp = {"ok": False}
-            botones = tk.Frame(frame)
-            botones.pack(pady=(14,0))
-            def ok(): resp["ok"] = True; win.destroy()
-            def canc(): win.destroy()
-            boton_accion(botones, texto="si, migrar", comando=ok).pack(side="left", padx=5)
-            boton_accion(botones, texto="cancelar", comando=canc). pack(side="left")
-            parent.update_idletasks()
-            x = parent.winfo_rootx() + 50
-            y = parent.winfo_rooty() + 70
-            win.geometry(f"+{x}+{y}")
-            win.wait_window()
-            return resp["ok"]
-
-        errores = self.validar_campos_obligatorios()
-        if self.tipo_var.get() == "tabla":
-            self.entry_tabla_origen.config(bootstyle="light" if not self.entry_tabla_origen.get().strip() else "white")
-            self.entry_db_origen.config(bootstyle="light" if not self.entry_db_origen.get().strip() else "white")
-        else:
-            for var, entry in self.variables_inputs.items():
-                entry.config(bootstyle="light" if not entry.get().strip() else "white")
-        if errores:
-            messagebox.showerror("Campos requeridos", "Debes completar:\n- " + "\n- ".join(errores))
+        if not amb_origen_nombre or "Selecciona" in amb_origen_nombre or not amb_destino_nombre or "Selecciona" in amb_destino_nombre:
+            messagebox.showwarning("Selección requerida", "Debe seleccionar un ambiente de origen y uno de destino.", parent=self)
+            return
+        if amb_origen_nombre == amb_destino_nombre:
+            messagebox.showwarning("Selección inválida", "El ambiente de origen y destino no pueden ser el mismo.", parent=self)
             return
 
-        if self.tipo_var.get() == "tabla":
-            pares = [
-                ("Ambiente origen", self.combo_amb_origen.get()),
-                ("Ambiente destino", self.combo_amb_destino.get()),
-                ("Base de datos", self.entry_db_origen.get().strip()),
-                ("Tabla", self.entry_tabla_origen.get().strip())
-            ]
-            encabezado = "¿Estas seguro de iniciar la migracion?\n"
+        amb_origen = next((a for a in self.ambientes if a['nombre'] == amb_origen_nombre), None)
+        amb_destino = next((a for a in self.ambientes if a['nombre'] == amb_destino_nombre), None)
 
-        respuesta = dialogo_confirmacion_migracion(
-            self,
-            titulo="confirmar migracion",
-            encabezado=encabezado,
-            pares=pares
-        )
-
-        if not respuesta:
+        if not amb_origen or not amb_destino:
+            messagebox.showerror("Error", "No se encontró la configuración para los ambientes seleccionados.", parent=self)
             return
 
-        self.cancelar_migracion = False   # <--- reinicia el flag siempre ANTES de migrar
-        self.migrando = True              # <--- indica que una migración está en curso
-
-        self.btn_migrar["state"] = "disabled"
-        self.progress["value"] = 0
-        self.progress_lbl["text"] = "0%"
-        self.habilitar_botones(False)
-
-        def restaurar():
-            self.cancelar_migracion = False
-            self.migrando = False
-            self.habilitar_controles_tabla()
-            self.btn_migrar["state"] = "normal"
-            self.btn_cancelar["state"] = "normal"
-
-        if self.tipo_var.get() == "tabla":
+        # --- CORRECCIÓN #2: Se usa la variable del radio button (self.tipo_var) en lugar del notebook ---
+        modo_seleccionado = self.tipo_var.get()
+        
+        # Lógica para migración por tabla
+        if modo_seleccionado == "tabla":
+            if not self.info_tabla_origen:
+                self.error_migracion("Debe usar 'Consultar datos a migrar' antes de poder migrar.")
+                return
+            self.migrando = True
             self.deshabilitar_controles_tabla()
-            self.btn_cancelar["state"] = "normal"
-            threading.Thread(target=lambda: [self.do_migrar_tabla(), restaurar()], daemon=True).start()
-        else:
-            self.deshabilitar_controles_tabla()
-            self.btn_cancelar["state"] = "normal"
-            threading.Thread(target=lambda: [self.do_migrar_grupo(), restaurar()], daemon=True).start()    
-    
-    
+            self.btn_cancelar.config(state="normal")
+            threading.Thread(target=self.do_migrar_tabla, daemon=True).start()
+
+        # Lógica para migración por grupo
+        elif modo_seleccionado == "grupo":
+            errores = self.validar_campos_obligatorios()
+            if errores:
+                self.error_migracion("Debe completar los siguientes campos: " + ", ".join(errores))
+                return
+            self.migrando = True
+            self.habilitar_botones(False)
+            self.btn_cancelar.config(state="normal")
+            threading.Thread(target=self.do_migrar_grupo, daemon=True).start()
+        
     def do_migrar_tabla(self):
         self.update_progress(5)
         tabla_origen = self.entry_tabla_origen.get().strip()
@@ -731,6 +696,7 @@ class MigracionVentana(tk.Toplevel):
             messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!")
         self.habilitar_controles_tabla()
         self.btn_cancelar.config(state="normal")
+        self.migrando = False
 
     def do_migrar_grupo(self):
         grupo_nombre = self.combo_grupo.get()
@@ -763,6 +729,9 @@ class MigracionVentana(tk.Toplevel):
         self.update_progress(100)
         self.log("Migración de grupo finalizada.", nivel="success")
         messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!")
+        self.habilitar_botones(True) # Habilitar todos los botones
+        self.btn_cancelar.config(state="disabled") # Deshabilitar cancelar al final
+        self.migrando = False # 
         
         #el boton cancelar sigue sin ejecutar la operacion de cancelacion, sin embargo ejecuta la accion del boton (manda el mensaje de info)
         #en conclusion no cancela la operacion de migracion
