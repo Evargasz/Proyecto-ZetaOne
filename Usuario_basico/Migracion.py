@@ -16,6 +16,137 @@ from Usuario_basico.migrar_tabla import migrar_tabla, consultar_tabla_e_indice
 from Usuario_basico.migrar_grupo import migrar_grupo, MigracionGruposGUI
 from Usuario_basico.historialConsultas import HistorialConsultasVen, cargar_historial, guardar_historial
 
+# --- NUEVO WIDGET DE AUTOCOMPLETADO PERSONALIZADO (VERSIÓN DEFINITIVA) ---
+class AutocompleteEntry(tk.Frame):
+    def __init__(self, parent, completion_list, **kwargs):
+        super().__init__(parent)
+        
+        self._completion_list = sorted(completion_list, key=str.lower)
+        
+        self.entry = entrada_estandar(self, **kwargs)
+        self.entry.pack(fill='both', expand=True)
+        self.entry.bind('<KeyRelease>', self._on_keyrelease)
+        self.entry.bind('<FocusOut>', self._on_focus_out)
+        self.entry.bind('<Down>', self._on_arrow_down)
+        self.entry.bind('<Up>', self._on_arrow_up)
+        self.entry.bind('<Return>', self._on_enter)
+        self.entry.bind('<Enter>', self._on_enter)
+        
+        # --- LÍNEA NUEVA: Añadimos el evento de clic ---
+        self.entry.bind('<Button-1>', self._on_click)
+        
+        self._listbox = None
+        self._listbox_toplevel = None
+
+    def _create_listbox(self):
+        if self._listbox:
+            return
+        
+        # Crea una ventana flotante para la lista
+        x = self.entry.winfo_rootx()
+        y = self.entry.winfo_rooty() + self.entry.winfo_height()
+        width = self.entry.winfo_width()
+        
+        self._listbox_toplevel = tk.Toplevel(self)
+        self._listbox_toplevel.wm_overrideredirect(True) # Sin bordes de ventana
+        self._listbox_toplevel.wm_geometry(f"{width}x150+{x}+{y}")
+        
+        self._listbox = tk.Listbox(self._listbox_toplevel, exportselection=False)
+        self._listbox.pack(fill='both', expand=True)
+        self._listbox.bind('<Button-1>', self._on_listbox_click)
+
+    def _destroy_listbox(self):
+        if self._listbox_toplevel:
+            self._listbox_toplevel.destroy()
+            self._listbox_toplevel = None
+            self._listbox = None
+
+    def _on_keyrelease(self, event):
+        if event.keysym in ("Up", "Down", "Return", "Enter"):
+            return
+            
+        value = self.entry.get()
+        if value:
+            hits = [item for item in self._completion_list if item.lower().startswith(value.lower())]
+        else:
+            hits = self._completion_list
+            
+        self._update_listbox(hits)
+
+    def _update_listbox(self, items):
+        if not items:
+            self._destroy_listbox()
+            return
+            
+        self._create_listbox()
+        self._listbox.delete(0, 'end')
+        for item in items:
+            self._listbox.insert('end', item)
+        self._listbox.selection_set(0)
+
+    def _on_focus_out(self, event):
+        # Cierra la lista si se pierde el foco
+        self.after(200, self._destroy_listbox)
+
+    def _on_listbox_click(self, event):
+        self._select_item()
+
+    # --- FUNCIÓN NUEVA: Se ejecuta al hacer clic en el campo ---
+    def _on_click(self, event):
+        """Muestra la lista completa si el campo está vacío."""
+        if not self.entry.get():
+            self._update_listbox(self._completion_list)
+
+    def _on_enter(self, event):
+        if self._listbox:
+            self._select_item()
+        return "break"
+
+    def _select_item(self):
+        if self._listbox and self._listbox.curselection():
+            value = self._listbox.get(self._listbox.curselection())
+            self.entry.delete(0, 'end')
+            self.entry.insert(0, value)
+            self._destroy_listbox()
+            self.entry.icursor('end')
+
+    def _move_selection(self, direction):
+        if not self._listbox:
+            self._update_listbox(self._completion_list)
+            return "break"
+        
+        current_selection = self._listbox.curselection()
+        if not current_selection:
+            self._listbox.selection_set(0)
+        else:
+            next_idx = current_selection[0] + direction
+            if 0 <= next_idx < self._listbox.size():
+                self._listbox.selection_clear(0, 'end')
+                self._listbox.selection_set(next_idx)
+                self._listbox.see(next_idx)
+        return "break"
+
+    def _on_arrow_down(self, event):
+        return self._move_selection(1)
+
+    def _on_arrow_up(self, event):
+        return self._move_selection(-1)
+
+    # --- Métodos para que se comporte como un widget normal ---
+    def get(self):
+        return self.entry.get()
+
+    def set(self, text):
+        self.entry.delete(0, 'end')
+        self.entry.insert(0, text)
+        
+    def focus_set(self):
+        self.entry.focus_set()
+        
+    def icursor(self, index):
+        self.entry.icursor(index)
+
+
 CATALOGO_FILE = "catalogo_migracion.json"
 
 def es_nombre_tabla_valido(nombre):
@@ -237,7 +368,8 @@ class MigracionVentana(tk.Toplevel):
         # --- Bloque GRUPO ---
         self.frame_grupo = tk.LabelFrame(main_panel, text="Grupo de migración", padx=10, pady=10)
         etiqueta_titulo(self.frame_grupo, texto="Grupo:").grid(row=0, column=0, sticky="e")
-        self.combo_grupo = ttk.Combobox(self.frame_grupo, values=[g["grupo"] for g in self.catalogo], width=33, state="readonly")
+        # Usamos nuestro nuevo widget personalizado
+        self.combo_grupo = AutocompleteEntry(self.frame_grupo, completion_list=[g["grupo"] for g in self.catalogo], width=25)
         self.combo_grupo.grid(row=0, column=1)
         self.combo_grupo.bind('<<ComboboxSelected>>', self.on_grupo_change)
 
@@ -246,7 +378,7 @@ class MigracionVentana(tk.Toplevel):
             cursor='hand2', comando=self.limpiar_grupo, width=12)
         else:
             self.btn_limpiar_grupo = boton_rojo(self.frame_grupo, texto="Limpiar", cursor='hand2', comando=self.limpiar_grupo, width=12)
-        self.btn_limpiar_grupo.grid(row=0, column=2, padx=(12,0), ipadx=12, ipady=5)
+        self.btn_limpiar_grupo.grid(row=0, column=2, padx=(12,0), ipadx=12)
 
         self.btn_editar_grupos = boton_accion(
             self.frame_grupo, texto="Administrar grupos...", 
@@ -363,14 +495,19 @@ class MigracionVentana(tk.Toplevel):
         self.log_box.config(state='disabled')
 
     def open_admin_grupo(self):
-        app = MigracionGruposGUI(self, self.reload_catalogo, json_path=self.json_path_grupo)
+        # Obtener el grupo actualmente seleccionado
+        grupo_seleccionado = self.combo_grupo.get()
+        
+        # Pasar el grupo seleccionado a la nueva ventana
+        app = MigracionGruposGUI(self, self.reload_catalogo, json_path=self.json_path_grupo, grupo_inicial=grupo_seleccionado)
         app.grab_set()
 
     def reload_catalogo(self):
         self.catalogo = cargar_json(self.json_path_grupo) or []
-        self.combo_grupo['values'] = [g["grupo"] for g in self.catalogo]
-        if self.combo_grupo.get() not in self.combo_grupo['values'] and self.combo_grupo['values']:
-            self.combo_grupo.set(self.combo_grupo['values'][0])
+        grupos = [g["grupo"] for g in self.catalogo]
+        self.combo_grupo._completion_list = sorted(grupos, key=str.lower) # Actualizamos la lista interna
+        if self.combo_grupo.get() not in grupos and grupos:
+            self.combo_grupo.set(grupos[0])
         self.on_grupo_change(None)
 
     def update_progress(self, percent):
@@ -400,6 +537,8 @@ class MigracionVentana(tk.Toplevel):
             self.frame_tabla.pack_forget()
             self.btn_migrar["state"] = "normal"
             self.btn_cancelar["state"] = "normal"
+            # --- LÍNEA NUEVA: Ponemos el foco en nuestro widget ---
+            self.after(50, lambda: self.combo_grupo.focus_set())
 
         self.lbl_registros["text"] = ""
         self.progress["value"] = 0
