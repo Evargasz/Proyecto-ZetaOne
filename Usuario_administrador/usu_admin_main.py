@@ -20,6 +20,7 @@ from .widgets.tooltip import ToolTip
 
 from .validacion_dialog import lanzar_validacion
 from .catalogacion_dialog import CatalogacionDialog
+from .Catalogacion_CTS import CatalogacionCTS
 
 #importaciones frame izquierdo (panel de ambientes)
 from .handlers.ambientes import cargar_ambientes, guardar_ambientes, probar_conexion_amb
@@ -36,6 +37,7 @@ class usuAdminMain:
             self.root.title("Homologador Sybase SD - Multiambiente Validación/Catalogación")
             style = tb.Style()
             print(style.element_names())
+
 
             #tamaño de la ventana
             ventana_ancho = 1366
@@ -68,7 +70,7 @@ class usuAdminMain:
             self.amb_panel.frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=(0, 8))
 
             # Panel de Archivos (derecha)
-            self.arch_panel = usuAdminMain.ArchivosPanel(main_frame, controlador, self.amb_panel, toggle_log_callback=self.toggle_log)
+            self.arch_panel = usuAdminMain.ArchivosPanel(main_frame, controlador, self.amb_panel, toggle_log_callback=self.toggle_log, app_root=root)
             self.arch_panel.frame.grid(row=0, column=1, sticky="nsew", padx=(0, 0), pady=(0, 8))
 
             # Zona de log
@@ -95,12 +97,13 @@ class usuAdminMain:
     #-------------------------panel de archivos-------------------------------
 
     class ArchivosPanel:
-        def __init__(self, parent, controlador, ambientes_panel, toggle_log_callback=None, ):
+        def __init__(self, parent, controlador, ambientes_panel, toggle_log_callback=None, app_root=None ):
             self.frame = tb.Frame(parent, bootstyle="light", padding=(3, 3))
             self.ambientes_panel = ambientes_panel
             self.toggle_log_callback = toggle_log_callback
             self.logtxt = None  # Se asigna desde el main
             self.controlador = controlador
+            self.app_root = app_root
 
             # Barra superior
             barra_sd = tb.Frame(self.frame, bootstyle="secondary", padding=(8, 6))
@@ -127,6 +130,9 @@ class usuAdminMain:
                 barra_sd, text="Programas Repetidos", command=self.ver_repetidos, width=31, bootstyle="dark-outline-button"
             )
             self.btn_repetidos.grid(row=0, column=3, padx=(6, 6), sticky="e")
+
+            self.btn_cata_cts = tb.Button(barra_sd, text="catalogacion de CTS", command=self.abrir_Catalog_CTS, width=31, bootstyle="dark-outline-button")
+            self.btn_cata_cts.grid(row=0, column=2, padx=(6, 6), sticky="e")
 
             #parte principal
             archivos_frame = tb.LabelFrame(
@@ -277,6 +283,9 @@ class usuAdminMain:
                 st.insert(tk.END, "-"*110+"\n")
             st.configure(state="disabled")
             self.logear_panel("Mostrada ventana de fuentes repetidos.")
+
+        def abrir_Catalog_CTS(self):
+            CatalogacionCTS(self.app_root)
 
         def validar_seleccionados(self):
             seleccionados_iids = self.tree.selection()
