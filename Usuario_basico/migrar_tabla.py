@@ -3,28 +3,32 @@ import traceback
 import tkinter as tk
 from tkinter import messagebox
 import threading
+import time
+import os
+# --- IMPORTACIONES PARA PARALELIZACIÓN ---
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from queue import Queue, Empty
 
 # ==================== LOGICA DE BACKEND MIGRACION ====================
 
 def _build_conn_str(amb):
-    driver = amb['driver']
-    if driver == 'Sybase ASE ODBC Driver':
-        return (
-            f"DRIVER={{{driver}}};"
-            f"SERVER={amb['ip']};"
-            f"PORT={amb['puerto']};"
-            f"DATABASE={amb['base']};"
-            f"UID={amb['usuario']};"
-            f"PWD={amb['clave']};"
-        )
-    else:
-        return (
-            f"DRIVER={{{driver}}};"
-            f"SERVER={amb['ip']},{amb['puerto']};"
-            f"DATABASE={amb['base']};"
-            f"UID={amb['usuario']};"
-            f"PWD={amb['clave']};"
-        )
+    driver = amb.get('driver', '')
+    if 'sybase' in driver.lower():
+        odbc_path = os.path.join(os.getcwd(), 'ODBC')
+        os.environ['SYBASE'] = odbc_path
+        os.environ['SYBASE_OCS'] = 'OCS-15_0'
+    
+    server = amb.get('ip', '')
+    port = amb.get('puerto', '')
+    database = amb.get('base', '')
+    uid = amb.get('usuario', '')
+    pwd = amb.get('clave', '')
+    
+    if 'sql server' in driver.lower():
+        return f"DRIVER={{{driver}}};SERVER={server},{port};DATABASE={database};UID={uid};PWD={pwd};TrustServerCertificate=yes;"
+    else:  # Sybase
+        return f"DRIVER={{{driver}}};SERVER={server};PORT={port};DATABASE={database};UID={uid};PWD={pwd};"
+
 
 def columnas_tabla(conn_str, tabla):
     with pyodbc.connect(conn_str, timeout=8) as conn:
@@ -68,7 +72,7 @@ def pk_tabla(conn_str, tabla, is_sybase):
                                     break
                         except Exception:
                             pk_cols = []
-                else:
+                else: # SQL Server
                     consulta_pk = """
                     SELECT col.name
                     FROM sys.indexes pk
@@ -80,20 +84,6 @@ def pk_tabla(conn_str, tabla, is_sybase):
                     """
                     cur.execute(consulta_pk, (nombre_tb_simple,))
                     pk_cols = [row[0].lower() for row in cur.fetchall()]
-                    if not pk_cols:
-                        consulta_unique = """
-                        SELECT col.name
-                        FROM sys.indexes idx
-                        INNER JOIN sys.index_columns ic ON idx.object_id = ic.object_id AND idx.index_id = ic.index_id
-                        INNER JOIN sys.columns col ON ic.object_id = col.object_id AND ic.column_id = col.column_id
-                        INNER JOIN sys.tables t ON idx.object_id = t.object_id
-                        WHERE idx.is_unique = 1 AND t.name = ?
-                        ORDER BY idx.name, ic.key_ordinal
-                        """
-                        cur.execute(consulta_unique, (nombre_tb_simple,))
-                        res = cur.fetchall()
-                        if res:
-                            pk_cols = [row[0].lower() for row in res]
             except Exception:
                 pk_cols = []
             return pk_cols
@@ -101,30 +91,59 @@ def pk_tabla(conn_str, tabla, is_sybase):
 def consultar_tabla_e_indice(tabla, amb_origen, amb_destino, log_func, abort_func, where=None, base_usuario=None):
     is_sybase = amb_destino["driver"].lower().startswith("sybase")
     tabla_simple = tabla.split('.')[-1]
-    tabla_ref = tabla_simple
+    tabla_ref = tabla
+    
     amb_origen_db = amb_origen.copy()
     amb_destino_db = amb_destino.copy()
     if base_usuario:
         amb_origen_db['base'] = base_usuario
         amb_destino_db['base'] = base_usuario
+        
     conn_str_ori = _build_conn_str(amb_origen_db)
     conn_str_dest = _build_conn_str(amb_destino_db)
+    
     try:
         cols_ori = columnas_tabla(conn_str_ori, tabla_ref)
+    except Exception as e:
+        error_str = str(e).lower()
+        if "timeout" in error_str:
+            abort_func(f"Error de conexión (Timeout) al ambiente origen. Por favor, verifique que su conexión de red (VPN) esté activa.")
+        elif "login failed" in error_str or "authentication" in error_str:
+            abort_func(f"Error de autenticación en ambiente origen. Verifique que el usuario y la contraseña sean correctos.")
+        elif "tcp/ip" in error_str or "network-related" in error_str or "unable to connect" in error_str or "sql server does not exist" in error_str or "unable to establish a connection" in error_str:
+             abort_func(f"Error de red al conectar con el ambiente origen. Verifique que la VPN esté activa y que el servidor sea accesible.")
+        else:
+            abort_func(f"No se pudo acceder a la tabla '{tabla}' en ambiente origen.\n\nError: {str(e)[:120]}")
+        return None
+    
+    try:
         cols_dest = columnas_tabla(conn_str_dest, tabla_ref)
     except Exception as e:
-        abort_func(f"Error consultando columnas: {e}")
+        error_str = str(e).lower()
+        if "timeout" in error_str:
+            abort_func(f"Error de conexión (Timeout) al ambiente destino. Por favor, verifique que su conexión de red (VPN) esté activa.")
+        elif "login failed" in error_str or "authentication" in error_str:
+            abort_func(f"Error de autenticación en ambiente destino. Verifique que el usuario y la contraseña sean correctos.")
+        elif "tcp/ip" in error_str or "network-related" in error_str or "unable to connect" in error_str or "sql server does not exist" in error_str or "unable to establish a connection" in error_str:
+             abort_func(f"Error de red al conectar con el ambiente destino. Verifique que la VPN esté activa y que el servidor sea accesible.")
+        else:
+            abort_func(f"No se pudo acceder a la tabla '{tabla}' en ambiente destino.\n\nError: {str(e)[:120]}")
         return None
+
     if cols_ori != cols_dest:
-        abort_func(f"Estructura diferente entre origen y destino. Origen: {cols_ori}, Destino: {cols_dest}")
+        abort_func(f"❌ Estructura diferente entre origen y destino. Verifique que las tablas sean idénticas.")
         return None
     else:
-        log_func(f"✅ La estructura de la tabla es igual en origen y destino. Puedes continuar con la migración.")
+        log_func(f"✅ Estructura de tabla validada correctamente.")
+
     try:
         pk = pk_tabla(conn_str_ori, tabla_simple, is_sybase)
+        if not pk:
+            log_func("⚠️ No se detectó clave primaria. La migración será secuencial y más lenta.", "warning")
     except Exception as e:
         pk = []
-        log_func(f"[{tabla_simple}] Error buscando clave primaria: {e}")
+        log_func(f"⚠️ Error detectando clave primaria: {str(e)[:50]}", "warning")
+
     try:
         with pyodbc.connect(conn_str_ori, timeout=8) as conn:
             with conn.cursor() as cur:
@@ -133,215 +152,361 @@ def consultar_tabla_e_indice(tabla, amb_origen, amb_destino, log_func, abort_fun
                     sql += f" WHERE {where}"
                 cur.execute(sql)
                 nregs = cur.fetchone()[0]
+                log_func(f"📊 Total de registros a procesar: {nregs:,}")
     except Exception as e:
         nregs = -1
-        log_func(f"Ocurrió un error contando registros: {e}")
+        log_func(f"⚠️ No se pudo contar registros. La migración continuará sin mostrar progreso preciso.", "warning")
+
     return {
         "columnas": cols_ori,
         "clave_primaria": pk,
         "nregs": nregs,
     }
 
-def migrar_tabla(
-    tabla,
-    where,
-    amb_origen, amb_destino,
-    log_func=None,
-    progress_func=None,
-    abort_func=None,
-    columnas=None,
-    clave_primaria=None,
-    base_usuario=None,
-    cancelar_func=None
+# --- ARQUITECTURA PARALELA OPTIMIZADA ---
+
+def productor_de_pks_optimizado(pks_queue, conn_str_ori, tabla, pk_cols, where, log, cancelar_event):
+    log(f"🔄 Iniciando extracción optimizada de claves primarias...")
+    batch_size = 10000
+    pk_string = ','.join(pk_cols)
+    
+    # OPTIMIZACIÓN: Usar ORDER BY para mejor performance en índices
+    sql = f"SELECT {pk_string} FROM {tabla}"
+    if where:
+        sql += f" WHERE {where}"
+    sql += f" ORDER BY {pk_string}"  # Ordenar por la clave primaria completa
+
+    try:
+        with pyodbc.connect(conn_str_ori, timeout=60) as conn:
+            with conn.cursor() as cur:
+                # OPTIMIZACIÓN: Configurar cursor para mejor performance
+                cur.arraysize = batch_size
+                cur.execute(sql)
+                
+                lotes_procesados = 0
+                while not cancelar_event.is_set():
+                    pks = cur.fetchmany(batch_size)
+                    if not pks:
+                        break
+                    pks_queue.put([tuple(pk) for pk in pks])
+                    lotes_procesados += 1
+                    if lotes_procesados % 5 == 0:
+                        log(f"📦 Extraídas {lotes_procesados * batch_size:,} claves primarias...")
+        log(f"✅ Extracción de claves completada.")
+    except Exception as e:
+        if "timeout" in str(e).lower():
+            log(f"⚠️ Conexión perdida con ambiente origen durante extracción.", "error")
+        else:
+            log(f"❌ Error crítico extrayendo datos: {str(e)[:100]}", "error")
+    finally:
+        pks_queue.put(None)
+
+def consumidor_de_pks_optimizado(
+    pks_queue, conn_str_ori, conn_str_dest, tabla, columnas, pk_cols, log, 
+    progreso_compartido, lock, cancelar_event
 ):
-    import pyodbc
-    import traceback
+    insertados_hilo = 0
+    omitidos_hilo = 0
+    
+    # OPTIMIZACIÓN 1: Tamaños de lote optimizados
+    SUB_BATCH_SIZE = 500
+    COMMIT_BATCH_SIZE = 5000  # Commits menos frecuentes para performance
+    
+    # OPTIMIZACIÓN 2: Conexiones persistentes
+    conn_ori = pyodbc.connect(conn_str_ori, timeout=60)
+    conn_dest = pyodbc.connect(conn_str_dest, timeout=60, autocommit=False)
+    cur_ori = conn_ori.cursor()
+    cur_dest = conn_dest.cursor()
+    
+    # OPTIMIZACIÓN 3: Configuraciones de performance
+    try:
+        cur_ori.fast_executemany = True
+        cur_dest.fast_executemany = True
+    except AttributeError:
+        pass  # No disponible en todas las versiones
+    
+    pending_inserts = []
+    
+    try:
+        while not cancelar_event.is_set():
+            try:
+                lote_pks_grande = pks_queue.get(timeout=5)
+                if lote_pks_grande is None:
+                    pks_queue.put(None)
+                    break
 
-    print("------ INICIO DE FUNCIÓN MIGRAR_TABLA ------")
-    log = log_func if log_func else print
-    progress = progress_func if progress_func else lambda x: None
-    abort = abort_func if abort_func else lambda msg: print(f"ABORT: {msg}")
-    is_sybase = amb_destino['driver'].lower().startswith("sybase")
-    tabla_simple = tabla.split('.')[-1]
-    columnas_ori = columnas
-    pk_cols = clave_primaria
+                for i in range(0, len(lote_pks_grande), SUB_BATCH_SIZE):
+                    if cancelar_event.is_set(): break
+                    
+                    sub_lote_pks = lote_pks_grande[i:i + SUB_BATCH_SIZE]
+                    
+                    # OPTIMIZACIÓN 4: Verificación de duplicados más eficiente
+                    if len(pk_cols) == 1:
+                        pk_values = [pk[0] for pk in sub_lote_pks]
+                        placeholders = ','.join(['?' for _ in pk_values])
+                        sql_check = f"SELECT {pk_cols[0]} FROM {tabla} WHERE {pk_cols[0]} IN ({placeholders})"
+                        pks_existentes = set(row[0] for row in cur_dest.execute(sql_check, pk_values).fetchall())
+                        pks_a_migrar = [pk for pk in sub_lote_pks if pk[0] not in pks_existentes]
+                    else:
+                        # Para PK compuesta, la estrategia de OR es necesaria para compatibilidad
+                        condiciones_check = " OR ".join([f"({ ' AND '.join([f'{col}=?' for col in pk_cols]) })" for _ in sub_lote_pks])
+                        params_check = [item for sublist in sub_lote_pks for item in sublist]
+                        sql_check = f"SELECT {','.join(pk_cols)} FROM {tabla} WHERE {condiciones_check}"
+                        pks_existentes = set(tuple(row) for row in cur_dest.execute(sql_check, params_check).fetchall())
+                        pks_a_migrar = [pk for pk in sub_lote_pks if pk not in pks_existentes]
 
-    if not columnas_ori or pk_cols is None:
-        conn_str_ori = _build_conn_str(amb_origen)
-        columnas_ori = columnas_ori or columnas_tabla(conn_str_ori, tabla_simple)
-        pk_cols = pk_cols or pk_tabla(conn_str_ori, tabla_simple, is_sybase)
+                    omitidos_en_sub_lote = len(sub_lote_pks) - len(pks_a_migrar)
+                    omitidos_hilo += omitidos_en_sub_lote
+
+                    if pks_a_migrar:
+                        # OPTIMIZACIÓN 5: Fetch masivo usando IN para PK simple
+                        if len(pk_cols) == 1:
+                            pk_values = [pk[0] for pk in pks_a_migrar]
+                            placeholders = ','.join(['?' for _ in pk_values])
+                            sql_fetch = f"SELECT {','.join(columnas)} FROM {tabla} WHERE {pk_cols[0]} IN ({placeholders})"
+                            filas_a_insertar = cur_ori.execute(sql_fetch, pk_values).fetchall()
+                        else:
+                            # Para PK compuesta, la estrategia OR es más compatible
+                            filas_a_insertar = []
+                            FETCH_BATCH = 200 # Lotes más pequeños para evitar timeouts
+                            for j in range(0, len(pks_a_migrar), FETCH_BATCH):
+                                batch_pks = pks_a_migrar[j:j + FETCH_BATCH]
+                                condiciones_pk = " OR ".join([f"({ ' AND '.join([f'{col}=?' for col in pk_cols]) })" for _ in batch_pks])
+                                params_pk = [item for sublist in batch_pks for item in sublist]
+                                sql_fetch = f"SELECT {','.join(columnas)} FROM {tabla} WHERE {condiciones_pk}"
+                                try:
+                                    batch_filas = cur_ori.execute(sql_fetch, params_pk).fetchall()
+                                    filas_a_insertar.extend(batch_filas)
+                                except Exception as fetch_error:
+                                    log(f"⚠️ Error en fetch batch: {str(fetch_error)[:50]}", "warning")
+                                    continue
+
+                        if filas_a_insertar:
+                            try:
+                                # Acumular inserciones para commits por lotes
+                                pending_inserts.extend([tuple(row) for row in filas_a_insertar])
+                                insertados_hilo += len(filas_a_insertar)
+                                
+                                # Commit en lotes grandes para mejorar rendimiento
+                                if len(pending_inserts) >= COMMIT_BATCH_SIZE:
+                                    sql_insert = f"INSERT INTO {tabla} ({','.join(columnas)}) VALUES ({','.join(['?' for _ in columnas])})"
+                                    cur_dest.executemany(sql_insert, pending_inserts)
+                                    conn_dest.commit()
+                                    pending_inserts.clear()
+                                
+                            except Exception as insert_error:
+                                log(f"⚠️ Error en insert: {str(insert_error)[:50]}", "warning")
+                                conn_dest.rollback()
+                                pending_inserts.clear()
+                                continue
+                    
+                    # Actualizar contadores de progreso
+                    with lock:
+                        if filas_a_insertar:
+                            progreso_compartido['insertados'] += len(filas_a_insertar)
+                        progreso_compartido['omitidos'] += omitidos_en_sub_lote
+
+            except Empty:
+                continue
+                
+        # Commit final de registros pendientes
+        if pending_inserts:
+            try:
+                sql_insert = f"INSERT INTO {tabla} ({','.join(columnas)}) VALUES ({','.join(['?' for _ in columnas])})"
+                cur_dest.executemany(sql_insert, pending_inserts)
+                conn_dest.commit()
+            except Exception as final_error:
+                log(f"⚠️ Error en commit final: {str(final_error)[:50]}", "warning")
+                conn_dest.rollback()
+        
+        # Log final del hilo
+        log(f"🏁 Hilo terminado. Insertados: {insertados_hilo:,}, Omitidos: {omitidos_hilo:,}")
+            
+    except Exception as e:
+        if "timeout" in str(e).lower():
+            log(f"⚠️ Conexión perdida durante migración.", "error")
+        elif "duplicate" in str(e).lower():
+            log(f"⚠️ Registros duplicados detectados.", "warning")
+        else:
+            log(f"❌ Error en migración: {str(e)[:100]}", "error")
+        if conn_dest:
+            conn_dest.rollback()
+    finally:
+        conn_ori.close()
+        conn_dest.close()
+
+    return insertados_hilo, omitidos_hilo
+
+def migrar_tabla(
+    tabla, where, amb_origen, amb_destino, log_func=None, progress_func=None,
+    abort_func=None, columnas=None, clave_primaria=None, base_usuario=None,
+    cancelar_func=None, total_registros=None
+):
+    log = log_func
+    progress = progress_func
+    abort = abort_func
 
     if base_usuario:
-        amb_origen = amb_origen.copy()
-        amb_destino = amb_destino.copy()
-        amb_origen['base'] = base_usuario
-        amb_destino['base'] = base_usuario
+        amb_origen_db = amb_origen.copy()
+        amb_destino_db = amb_destino.copy()
+        amb_origen_db['base'] = base_usuario
+        amb_destino_db['base'] = base_usuario
+    else:
+        amb_origen_db = amb_origen
+        amb_destino_db = amb_destino
 
+    conn_str_ori = _build_conn_str(amb_origen_db)
+    conn_str_dest = _build_conn_str(amb_destino_db)
+    
+    # Si no se proporciona total_registros, intentar obtenerlo
+    if not total_registros:
+        try:
+            with pyodbc.connect(conn_str_ori, timeout=8) as conn:
+                with conn.cursor() as cur:
+                    sql = f"SELECT COUNT(*) FROM {tabla}"
+                    if where:
+                        sql += f" WHERE {where}"
+                    cur.execute(sql)
+                    total_registros = cur.fetchone()[0]
+                    log(f"📊 Total estimado: {total_registros:,} registros")
+        except Exception:
+            total_registros = 100000  # Estimación por defecto
+    
+    if not clave_primaria:
+        log("⚠️ Sin clave primaria detectada. Usando migración secuencial.", "warning")
+        return migrar_tabla_secuencial(tabla, where, amb_origen_db, amb_destino_db, log, progress, abort, columnas, cancelar_func, total_registros)
+
+    log(f"🚀 Iniciando migración paralela optimizada de '{tabla}'...")
+    
+    pks_queue = Queue(maxsize=20)  # Aumentar buffer
+    cancelar_event = threading.Event()
+    # PROGRESO SIMPLIFICADO: Solo lo que importa para la barra
+    progreso_compartido = {
+        'insertados': 0,      # Registros realmente insertados
+        'omitidos': 0,        # Registros omitidos (duplicados)
+        'total': total_registros  # Total a migrar
+    }
+    lock = threading.Lock()
+
+    # OPTIMIZACIÓN: Ajustar workers para balancear carga y contención
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        productor_future = executor.submit(
+            productor_de_pks_optimizado, pks_queue, conn_str_ori, tabla,
+            clave_primaria, where, log, cancelar_event
+        )
+
+        consumidor_futures = [
+            executor.submit(
+                consumidor_de_pks_optimizado, pks_queue, conn_str_ori, conn_str_dest, tabla,
+                columnas, clave_primaria, log, progreso_compartido, lock, cancelar_event
+            ) for _ in range(3)
+        ]
+        
+        # Bucle de progreso en el hilo principal
+        ultimo_progreso = 0
+        ultimo_log_regs = 0
+        while not all(f.done() for f in consumidor_futures):
+            if cancelar_func and cancelar_func():
+                log("🛑 Cancelación solicitada por el usuario.", "warning")
+                cancelar_event.set()
+                break
+            
+            with lock:
+                registros_migrados = progreso_compartido['insertados'] + progreso_compartido['omitidos']
+                if progreso_compartido['total'] > 0 and registros_migrados > 0:
+                    porcentaje_real = min(95, int((registros_migrados / progreso_compartido['total']) * 100))
+                    
+                    if porcentaje_real > ultimo_progreso:
+                        progress(porcentaje_real)
+                        ultimo_progreso = porcentaje_real
+                    
+                    if (registros_migrados - ultimo_log_regs) >= 5000:
+                        log(f"📈 Progreso: {porcentaje_real}% ({registros_migrados:,}/{progreso_compartido['total']:,})")
+                        ultimo_log_regs = registros_migrados
+            
+            time.sleep(0.2)
+
+    # Esperar a que terminen todos los hilos y obtener resultados
+    total_insertados = 0
+    total_omitidos = 0
+    
+    for future in consumidor_futures:
+        try:
+            if not future.cancelled():
+                insertados, omitidos = future.result(timeout=10)
+                total_insertados += insertados
+                total_omitidos += omitidos
+        except Exception as e:
+            log(f"⚠️ Error obteniendo resultado de hilo: {str(e)[:50]}", "warning")
+    
+    if cancelar_event.is_set():
+        abort(f"🛑 Migración de '{tabla}' cancelada por el usuario.")
+    else:
+        log(f"✅ Migración completada exitosamente. Insertados: {total_insertados:,} | Omitidos: {total_omitidos:,}", "success")
+        
+    progress(100)
+    return {"insertados": total_insertados, "omitidos": total_omitidos}
+
+def migrar_tabla_secuencial(tabla, where, amb_origen, amb_destino, log, progress, abort, columnas, cancelar_func, total_registros=None):
     conn_str_ori = _build_conn_str(amb_origen)
     conn_str_dest = _build_conn_str(amb_destino)
-
-    # Chequeo rápido de cancelación
-    if cancelar_func and cancelar_func():
-        abort(f"[{tabla_simple}] Migración cancelada por el usuario (antes de procesar columnas).")
-        return {"insertados": 0, "omitidos": 0}
-
-    try:
-        columnas_dest = columnas_tabla(conn_str_dest, tabla_simple)
-        if columnas_ori != columnas_dest:
-            abort(f"Estructura diferente entre origen y destino en '{tabla_simple}'. Origen: {columnas_ori}, Destino: {columnas_dest}")
-            return {"insertados": 0, "omitidos": 0}
-    except Exception as e:
-        abort(f"Error consultando columnas: {e}")
-        return {"insertados": 0, "omitidos": 0}
-
-    log(f"[{tabla_simple}] Llave primaria (o índice unique) detectada: {pk_cols}" if pk_cols else f"[{tabla_simple}] ¡ATENCIÓN! No se detectó PK/índice unique. Puede haber duplicados.")
-
-    # Chequeo rápido de cancelación
-    if cancelar_func and cancelar_func():
-        abort(f"[{tabla_simple}] Migración cancelada por el usuario (tras verificación de columnas).")
-        return {"insertados": 0, "omitidos": 0}
-
-    try:
-        print("------ LEYENDO PKS DEL DESTINO ------")
-        print(f"[DEBUG migrar_tabla] pk_cols para destino: {pk_cols}")
-        with pyodbc.connect(conn_str_dest, timeout=8) as conn_dest:
-            with conn_dest.cursor() as cur_dest:
-                if pk_cols and all(pk_cols):
-                    query = f"SELECT {','.join(pk_cols)} FROM {tabla_simple}"
-                    if where:
-                        query += f" WHERE {where}"
-                    print(f"[DEBUG migrar_tabla] Query para obtener PKs destino: {query}")
-                    cur_dest.execute(query)
-                    pks_dest = set(tuple(row) for row in cur_dest.fetchall())
-                    print(f"------ PKS EN DESTINO: {pks_dest} ------")
-                else:
-                    raise Exception("No se detectó clave primaria ni índice UNIQUE en la tabla destino")
-    except Exception as e:
-        print(f"[DEBUG migrar_tabla] Excepción detallada: {e}")
-        traceback.print_exc()
-        abort(f"[{tabla_simple}] Error obteniendo PKs actuales en destino: {e}")
-        return {"insertados": 0, "omitidos": 0}
-
-    # Chequeo después de proceso pesado de PK
-    if cancelar_func and cancelar_func():
-        abort(f"[{tabla_simple}] Migración cancelada por el usuario (tras PK).")
-        return {"insertados": 0, "omitidos": 0}
-
-    try:
-        print("------ LEYENDO FILAS DE ORIGEN ------")
-        with pyodbc.connect(conn_str_ori, timeout=8) as conn_ori:
-            with conn_ori.cursor() as cur_ori:
-                cols_list = ','.join(columnas_ori)
-                sql = f"SELECT {cols_list} FROM {tabla_simple}"
-                if where:
-                    sql += f" WHERE {where}"
-                progress(30)
-                cur_ori.execute(sql)
-                filas = cur_ori.fetchall()
-                colnames = [d[0] for d in cur_ori.description]
-                print(f"------ FILAS ORIGEN TRAIDAS: {len(filas)} ------")
-    except Exception as e:
-        abort(f"[{tabla_simple}] Error leyendo datos origen: {e}")
-        return {"insertados": 0, "omitidos": 0}
-
-    # Chequeo después de traer todos los datos
-    if cancelar_func and cancelar_func():
-        abort(f"[{tabla_simple}] Migración cancelada por el usuario (tras fetch de datos).")
-        return {"insertados": 0, "omitidos": 0}
-
-    try:
-        with pyodbc.connect(conn_str_dest, timeout=8) as conn_dest:
-            with conn_dest.cursor() as cur_dest:
-                cur_dest.execute(f"SELECT COUNT(*) FROM {tabla_simple}")
-                cuantos_destino = cur_dest.fetchone()[0]
-    except Exception:
-        cuantos_destino = 0
-
-    if cuantos_destino == 0:
-        log(f"[{tabla_simple}] Tabla destino VACÍA. Se insertarán TODOS los registros del origen en un único lote y commit.")
-        insertables = [[getattr(row, col) for col in columnas_ori] for row in filas]
-        omitidos = 0
-        if not insertables:
-            log(f"[{tabla_simple}] No hay registros para insertar (tabla origen vacía).")
-            progress(100)
-            return {"insertados": 0, "omitidos": 0}
-
-        # Chequeo antes de la única inserción masiva
-        if cancelar_func and cancelar_func():
-            abort(f"[{tabla_simple}] Migración cancelada por el usuario (antes de insertar todo el lote).")
-            return {"insertados": 0, "omitidos": 0}
-
-        try:
-            with pyodbc.connect(conn_str_dest, timeout=8) as conn_dest:
-                with conn_dest.cursor() as cur_dest:
-                    sqlin = f"INSERT INTO {tabla_simple} ({','.join(colnames)}) VALUES ({','.join(['?' for _ in colnames])})"
-                    progress(60)
-                    cur_dest.executemany(sqlin, insertables)
-                    conn_dest.commit()
-            log(f"[{tabla_simple}] Migración FINALIZADA (tabla destino vacía). Insertados: {len(insertables)}")
-            progress(100)
-            return {"insertados": len(insertables), "omitidos": 0}
-        except Exception as e:
-            abort(f"[{tabla_simple}] Error global insertando: {e}")
-            return {"insertados": 0, "omitidos": 0}
-
-    progress(40)
-    insertables = []
-    omitidos = 0
-    print("------ INICIO DE EVALUACION DE CLAVES ORIGEN VS DESTINO ------")
-    if pk_cols:
-        for row in filas:
-            # Chequeo frecuente durante grandes ciclos también es posible aquí si filas>> grandes
-            if cancelar_func and cancelar_func():
-                abort(f"[{tabla_simple}] Migración cancelada por el usuario (durante evaluación de duplicados).")
-                return {"insertados": 0, "omitidos": omitidos}
-
-            key = tuple(getattr(row, col) for col in pk_cols)
-            if key not in pks_dest:
-                insertables.append([getattr(row, col) for col in columnas_ori])
-            else:
-                omitidos += 1
-    else:
-        insertables = [[getattr(row, col) for col in columnas_ori] for row in filas]
-
+    
     total_insertados = 0
-    if not insertables:
-        log(f"[{tabla_simple}] No hay registros para insertar (todo duplicado o vacía tabla origen).")
-        log(f"Total insertados: 0, Total omitidos {omitidos}")
-        progress(100)
-        return {"insertados": 0, "omitidos": omitidos}
-
-    progress(50)
+    total_omitidos = 0
+    batch_size = 1000
+    
     try:
-        with pyodbc.connect(conn_str_dest, timeout=8) as conn_dest:
-            with conn_dest.cursor() as cur_dest:
-                conn_dest.autocommit = False
-                # Puedes reducir el lote a 1000 para hacer aún más responsiva la cancelación
-                lotes = 3000
-                total = len(insertables)
-                for i in range(0, total, lotes):
-                    # Chequeo de cancelación antes de cada batch
-                    if cancelar_func and cancelar_func():
-                        conn_dest.rollback()
-                        abort(f"[{tabla_simple}] cancelado por el usuario. Todas las inserciones fueron deshechas")
-                        log(f"[{tabla_simple}] Migracion cancelada por el usuario. Revirtiendo cambios.")
-                        return {"insertados": total_insertados, "omitidos": omitidos}
-
-                    batch = insertables[i:i + lotes]
-                    try:
-                        sqlin = f"INSERT INTO {tabla_simple} ({','.join(colnames)}) VALUES ({','.join(['?' for _ in colnames])})"
-                        cur_dest.executemany(sqlin, batch)
-                        conn_dest.commit()
-                        total_insertados += len(batch)
-                        percent = 50 + int(50 * min(i + lotes, total) / total)
-                        progress(percent)
-                    except Exception as e:
-                        conn_dest.rollback()
-                        log(f"[{tabla_simple}] Error insertando lote {i//lotes+1}: {e}")
+        with pyodbc.connect(conn_str_ori, timeout=30) as conn_ori, \
+             pyodbc.connect(conn_str_dest, timeout=30, autocommit=False) as conn_dest:
+            
+            cur_ori = conn_ori.cursor()
+            cur_dest = conn_dest.cursor()
+            
+            sql_fetch = f"SELECT {','.join(columnas)} FROM {tabla}"
+            if where:
+                sql_fetch += f" WHERE {where}"
+            
+            cur_ori.execute(sql_fetch)
+            
+            while not (cancelar_func and cancelar_func()):
+                filas = cur_ori.fetchmany(batch_size)
+                if not filas:
+                    break
+                
+                sql_insert = f"INSERT INTO {tabla} ({','.join(columnas)}) VALUES ({','.join(['?' for _ in columnas])})"
+                try:
+                    cur_dest.executemany(sql_insert, [tuple(row) for row in filas])
+                    conn_dest.commit()
+                    total_insertados += len(filas)
+                    
+                    # PROGRESO MEJORADO para migración secuencial
+                    total_procesados = total_insertados + total_omitidos
+                    if total_registros and total_registros > 0:
+                        porcentaje = min(95, int((total_procesados / total_registros) * 100))
+                        progress(porcentaje)
+                        log(f"✅ Progreso: {porcentaje}% - Lote: {len(filas):,} registros | Total: {total_procesados:,}/{total_registros:,}")
+                        
+                except pyodbc.IntegrityError:
+                    conn_dest.rollback()
+                    total_omitidos += len(filas)
+                    total_procesados = total_insertados + total_omitidos
+                    if total_registros and total_registros > 0:
+                        porcentaje = min(95, int((total_procesados / total_registros) * 100))
+                        progress(porcentaje)
+                    log(f"⚠️ Lote omitido: {len(filas):,} registros duplicados.", "warning")
+                except Exception as e:
+                    conn_dest.rollback()
+                    abort(f"❌ Error insertando lote: {str(e)[:100]}")
+                    return {"insertados": total_insertados, "omitidos": total_omitidos}
+    
     except Exception as e:
-        abort(f"[{tabla_simple}] Error global insertando: {e}")
-        return {"insertados": 0, "omitidos": omitidos}
+        if "timeout" in str(e).lower():
+            abort(f"⚠️ Conexión perdida durante migración secuencial. Verifique la red.")
+        elif "login failed" in str(e).lower():
+            abort(f"🔐 Error de autenticación durante migración. Verifique credenciales.")
+        else:
+            abort(f"❌ Error en migración secuencial: {str(e)[:100]}")
 
-    log(f"[{tabla_simple}] Migración finalizada. Insertados: {total_insertados}, Omitidos por duplicado: {omitidos}")
+    log(f"✅ Migración secuencial completada. Total: {total_insertados:,} insertados, {total_omitidos:,} omitidos.", "success")
     progress(100)
-    return {"insertados": total_insertados, "omitidos": omitidos}
+    return {"insertados": total_insertados, "omitidos": total_omitidos}

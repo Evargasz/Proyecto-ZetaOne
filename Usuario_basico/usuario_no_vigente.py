@@ -99,24 +99,33 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
             return
 
         consulta_resultados = self.consulta_resumen_ambientes(ambientes_a_afectar, ambientes_dic, usuario)
-        if not consulta_resultados:
-            messagebox.showerror("Sin conexión", "No se pudo consultar el estado de ningún ambiente. Verifique su conexión.")
-            return
 
         resumen = ""
         total_afectados = 0
+        hubo_errores = False
         for nombre_amb, res in consulta_resultados.items():
             if res['estado'] == "ok":
                 resumen += f"{nombre_amb}: Encontrado(s) {res['no_vigentes']} usuario(s) no vigentes\n"
                 total_afectados += res['no_vigentes']
             else:
                 resumen += f"{nombre_amb}: {res['mensaje']}\n"
+                hubo_errores = True
 
+        # --- LÓGICA CORREGIDA PARA MANEJO DE ERRORES ---
+        # Si no hay nada que actualizar...
         if total_afectados == 0:
-            messagebox.showinfo(
-                "No hay cambios",
-                "No se encontraron usuarios no vigentes para actualizar en los ambientes seleccionados."
-            )
+            # ...y además hubo errores, muestra el resumen de errores.
+            if hubo_errores:
+                messagebox.showerror(
+                    "Error de Conexión",
+                    f"No se pudo consultar uno o más ambientes. Verifique su conexión (VPN).\n\nDetalle:\n{resumen}"
+                )
+            # ...y no hubo errores, entonces sí informa que no hay cambios.
+            else:
+                messagebox.showinfo(
+                    "No hay cambios",
+                    "No se encontraron usuarios no vigentes para actualizar en los ambientes seleccionados."
+                )
             return
 
         if not messagebox.askyesno(
@@ -140,25 +149,21 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
             if not amb:
                 resultado[nombre_amb] = {"estado": "error", "mensaje": "No hay info del ambiente."}
                 continue
+            
+            # REFACTOR: Centralizar la creación de la cadena de conexión
+            # Se podría mover esta lógica a un archivo de utilidades (p. ej. util_db.py)
+            # def crear_cadena_conexion(amb, base=None): ...
+            driver = amb.get('driver', 'SQL Server')
+            conn_str_parts = [
+                f"DRIVER={{{driver}}}",
+                f"SERVER={amb['ip']},{amb['puerto']}" if 'sql server' in driver.lower() else f"SERVER={amb['ip']};PORT={amb['puerto']}",
+                f"DATABASE={amb['base']}",
+                f"UID={amb['usuario']}",
+                f"PWD={amb['clave']}",
+            ]
+            conn_str = ";".join(conn_str_parts) + ";"
+
             try:
-                driver = amb.get('driver', "")
-                if driver == 'Sybase ASE ODBC Driver':
-                    conn_str = (
-                        f"DRIVER={{{driver}}};"
-                        f"SERVER={amb['ip']};"
-                        f"PORT={amb['puerto']};"
-                        f"DATABASE={amb['base']};"
-                        f"UID={amb['usuario']};"
-                        f"PWD={amb['clave']};"
-                    )
-                else:
-                    conn_str = (
-                        f"DRIVER={{{driver}}};"
-                        f"SERVER={amb['ip']},{amb['puerto']};"
-                        f"DATABASE={amb['base']};"
-                        f"UID={amb['usuario']};"
-                        f"PWD={amb['clave']};"
-                    )
                 conn = pyodbc.connect(conn_str, timeout=5)
                 cursor = conn.cursor()
                 query_revisar = "SELECT COUNT(*) FROM cobis..ad_usuario WHERE us_login = ? AND us_estado <> 'V'"
@@ -168,7 +173,13 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
                 conn.close()
                 resultado[nombre_amb] = {"estado": "ok", "no_vigentes": count_no_vigente, "conn_str": conn_str}
             except Exception as e:
-                resultado[nombre_amb] = {"estado": "error", "mensaje": "Revise la conexión al ambiente."}
+                # --- Mensaje de error más específico ---
+                mensaje_error = "Error de conexión."
+                if "timeout" in str(e).lower():
+                    mensaje_error = "Tiempo de espera agotado (verifique VPN)."
+                elif "login failed" in str(e).lower():
+                    mensaje_error = "Credenciales incorrectas."
+                resultado[nombre_amb] = {"estado": "error", "mensaje": mensaje_error}
         return resultado
 
     def _actualizar_multi_amb(self, ambientes_a_afectar, ambientes_dic, usuario, consulta_resultados):

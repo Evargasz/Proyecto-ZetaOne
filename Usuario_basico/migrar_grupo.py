@@ -104,6 +104,8 @@ class AutocompleteEntry(tk.Frame):
             self.entry.insert(0, value)
             self._destroy_listbox()
             self.entry.icursor('end')
+            # --- CORRECCIÓN 1: Generar un evento para notificar la selección ---
+            self.event_generate("<<ItemSelected>>")
 
     def _move_selection(self, direction):
         if not self._listbox:
@@ -505,7 +507,8 @@ class MigracionGruposGUI(tk.Toplevel):
         # Usamos nuestro nuevo widget
         self.combo_grupos = AutocompleteEntry(top_frame, completion_list=[], width=25)
         self.combo_grupos.pack(side=tk.LEFT, padx=5)
-        self.combo_grupos.bind("<<ComboboxSelected>>", self.on_grupo_selected)
+        # --- CORRECCIÓN 1: Escuchar el nuevo evento <<ItemSelected>> ---
+        self.combo_grupos.bind("<<ItemSelected>>", self.on_grupo_selected)
         btn_add = boton_accion(top_frame, texto="Agregar nuevo grupo", comando=self.nuevo_grupo)
         btn_add.pack(side=tk.RIGHT)
         detalles_frame = tk.LabelFrame(self, text="Tablas del grupo (doble clic para editar/añadir/eliminar):")
@@ -564,18 +567,27 @@ class MigracionGruposGUI(tk.Toplevel):
     def populate_group_details(self, grupo_data):
         self.clear_tree()
         self.campos_tabla = []
-        if grupo_data.get("tablas"):
+        tablas_del_grupo = grupo_data.get("tablas", [])
+        if tablas_del_grupo:
+            # --- CORRECCIÓN: Ordenar los datos antes de mostrarlos ---
+            # 1er criterio: 'tabla' o 'tabla llave', 2do criterio: 'llave'
+            tablas_ordenadas = sorted(
+                tablas_del_grupo,
+                key=lambda item: (str(item.get('tabla', item.get('tabla llave', ''))).lower(), str(item.get('llave', '')).lower())
+            )
+
             campos = set()
-            for tabla_dato in grupo_data.get("tablas", []):
+            for tabla_dato in tablas_ordenadas:
                 for k in tabla_dato.keys():
                     campos.add(k)
-            preferencia = ["tabla llave", "llave", "join", "condicion", "tabla"]
+            # --- CORRECCIÓN: Establecer el orden de columnas solicitado ---
+            preferencia = ["tabla", "llave", "join", "condicion"]
             self.campos_tabla = [c for c in preferencia if c in campos] + [c for c in sorted(campos) if c not in preferencia]
             self.tree["columns"] = self.campos_tabla
             for col in self.campos_tabla:
                 self.tree.heading(col, text=col)
                 self.tree.column(col, width=210)
-            for tabla_dato in grupo_data.get("tablas", []):
+            for tabla_dato in tablas_ordenadas:
                 fila = [tabla_dato.get(campo, "") for campo in self.campos_tabla]
                 self.tree.insert("", "end", values=fila)
 
@@ -583,23 +595,64 @@ class MigracionGruposGUI(tk.Toplevel):
         for row in self.tree.get_children():
             self.tree.delete(row)
 
+    # --- CORRECCIÓN 2: Diálogo de edición mejorado ---
     def on_tree_double_click(self, event):
         item = self.tree.identify_row(event.y)
         if not item:
             return
         col = self.tree.identify_column(event.x)
         col_idx = int(col.replace('#', '')) - 1
+        
+        # Crear un Toplevel personalizado para la edición
+        dlg = tk.Toplevel(self)
+        dlg.title(f"Editar '{self.tree['columns'][col_idx]}'")
+        dlg.transient(self)
+        dlg.grab_set()
+        
+        # --- CORRECCIÓN 1: Reducir el tamaño de la ventana de edición ---
+        dlg.geometry("450x160")
+        x = self.winfo_rootx() + (self.winfo_width() // 2) - 225
+        y = self.winfo_rooty() + (self.winfo_height() // 2) - 80
+        dlg.geometry(f"+{x}+{y}")
+
+        etiqueta_titulo(dlg, texto=f"Nuevo valor para '{self.tree['columns'][col_idx]}':").pack(pady=5)
+        
+        # Usar un Text widget para contenido largo
+        text_widget = tk.Text(dlg, wrap="word", height=4, width=60)
+        text_widget.pack(pady=5, padx=10, fill="both", expand=True)
         old_value = self.tree.item(item)['values'][col_idx]
-        new_value = simpledialog.askstring(
-            "Editar valor",
-            f"Nuevo valor para {self.tree['columns'][col_idx]}:",
-            initialvalue=old_value,
-            parent=self
-        )
+        text_widget.insert("1.0", old_value)
+        
+        new_value = None
+        def on_ok():
+            nonlocal new_value
+            new_value = text_widget.get("1.0", "end-1c").strip()
+            dlg.destroy()
+
+        # --- CORRECCIÓN 2: Añadir botones de Aceptar y Cancelar ---
+        btn_frame = tk.Frame(dlg)
+        btn_frame.pack(pady=10)
+        boton_exito(btn_frame, texto="Aceptar", comando=on_ok).pack(side=tk.LEFT, padx=10)
+        boton_rojo(btn_frame, texto="Cancelar", comando=dlg.destroy).pack(side=tk.LEFT, padx=10)
+
+        self.wait_window(dlg)
+
+        # --- Lógica de guardado (ya estaba correcta) ---
+        # --- LÓGICA DE GUARDADO CORREGIDA ---
         if new_value is not None:
+            # 1. Actualiza la vista en la grilla (Treeview)
             row_values = list(self.tree.item(item)['values'])
             row_values[col_idx] = new_value
             self.tree.item(item, values=row_values)
+
+            # 2. Actualiza los datos en memoria para que se guarden en el JSON
+            if self.current_group and 'tablas' in self.current_group:
+                # Encuentra el índice de la fila en la grilla
+                row_index = self.tree.index(item)
+                # Asegúrate de que el índice sea válido para la lista de tablas
+                if 0 <= row_index < len(self.current_group['tablas']):
+                    col_name = self.campos_tabla[col_idx]
+                    self.current_group['tablas'][row_index][col_name] = new_value
 
     def nueva_tabla(self):
         campos = self.campos_tabla if self.campos_tabla else ["tabla llave", "llave", "join", "condicion"]

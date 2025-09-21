@@ -23,10 +23,38 @@ def cargar_historial():
             return []
     return []
 
-def guardar_historial(historial):
+def guardar_historial(historial_existente, nueva_consulta=None):
+    """
+    Guarda el historial de consultas asegurándose de eliminar duplicados
+    y mantener solo los 10 más recientes.
+    """
+    # --- CORRECCIÓN: Se procesa la nueva consulta por separado ---
+    if nueva_consulta:
+        historial_existente.insert(0, nueva_consulta)
+
+    historial_limpio = []
+    vistos = set()
+
+    for consulta in historial_existente:
+        # Normalizar cada consulta para una comparación robusta.
+        base_norm = consulta.get("base", "").strip().lower()
+        tabla_norm = consulta.get("tabla", "").strip().lower()
+        
+        # --- CORRECCIÓN EXPERTA: Leer la condición WHERE de forma retrocompatible ---
+        # Intenta leer la clave correcta, y si no, las antiguas incorrectas.
+        where_str = consulta.get("condicion (where)", consulta.get("condicion(where)", consulta.get("where", "")))
+        where_norm = "".join(where_str.strip().lower().split())
+        
+        identificador_unico = (base_norm, tabla_norm, where_norm)
+        
+        if identificador_unico not in vistos:
+            vistos.add(identificador_unico)
+            historial_limpio.append(consulta)
+
     try:
         with open(HISTORIAL_FILE, 'w', encoding='utf-8') as hfile:
-            json.dump(historial, hfile, ensure_ascii=False, indent=4)
+            # Guardar solo los 10 más recientes de la lista limpia.
+            json.dump(historial_limpio[:10], hfile, ensure_ascii=False, indent=4)
     except Exception as error:
         print(f"Error al guardar historial: {error}")
 
@@ -41,8 +69,26 @@ class HistorialConsultasVen(tk.Toplevel):
         etiqueta_titulo(self, texto="Historial de consultas recientes").pack(pady=10)
 
 
-        historial = cargar_historial()
-        if not historial:
+        historial_bruto = cargar_historial()
+
+        # --- OPTIMIZACIÓN EXPERTA: Filtrar duplicados en memoria antes de mostrar ---
+        # Esto garantiza una vista limpia sin importar el estado del archivo JSON.
+        historial_limpio = []
+        vistos = set()
+        for consulta in historial_bruto:
+            base_norm = consulta.get("base", "").strip().lower()
+            tabla_norm = consulta.get("tabla", "").strip().lower()
+            
+            # Lógica retrocompatible para leer la condición WHERE
+            where_str = consulta.get("condicion (where)", consulta.get("condicion(where)", consulta.get("where", "")))
+            where_norm = "".join(where_str.strip().lower().split())
+            
+            identificador_unico = (base_norm, tabla_norm, where_norm)
+            if identificador_unico not in vistos:
+                vistos.add(identificador_unico)
+                historial_limpio.append(consulta)
+
+        if not historial_limpio:
             etiqueta_titulo(self, texto="No hay historial todavía", font=("Arial", 12, "italic")).pack(pady=30)
             return
         
@@ -65,10 +111,17 @@ class HistorialConsultasVen(tk.Toplevel):
         scrollbar.pack(side="right", fill="y")
 
     #logica de carga de consultas 
-        for i, consulta in enumerate(historial):
+        for i, consulta in enumerate(historial_limpio):
             frame = tk.Frame(scrollable_frame, bd=1, relief="solid", pady=4, padx=6)
 
-            texto_consuta = f"Base: {consulta['base']}\nTabla: {consulta['tabla']}"    
+            # --- CORRECCIÓN: Añadir la condición WHERE a la vista del historial ---
+            where_str = consulta.get("condicion (where)", consulta.get("condicion(where)", consulta.get("where", "")))
+            
+            texto_consuta = f"Base: {consulta.get('base', '')}\nTabla: {consulta.get('tabla', '')}"
+            if where_str:
+                # Ajusta el texto de la condición si es muy largo para que quepa en la ventana
+                condicion_ajustada = '\n'.join(wrap(f"Condición: {where_str}", width=40))
+                texto_consuta += f"\n{condicion_ajustada}"
 
             consutla = etiqueta_titulo(frame, texto=texto_consuta)
             consutla.grid(row=0, column=0, sticky="w")
@@ -84,6 +137,7 @@ class HistorialConsultasVen(tk.Toplevel):
             self.callback_usar(
                 consulta.get("base",""),
                 consulta.get("tabla",""),
-                consulta.get("where", consulta.get("condicion(where)",""))
+                # --- CORRECCIÓN EXPERTA: Leer la condición WHERE de forma retrocompatible al usarla ---
+                consulta.get("condicion (where)", consulta.get("condicion(where)", consulta.get("where", "")))
             )
         self.destroy()  

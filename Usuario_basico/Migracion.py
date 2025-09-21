@@ -109,6 +109,8 @@ class AutocompleteEntry(tk.Frame):
             self.entry.insert(0, value)
             self._destroy_listbox()
             self.entry.icursor('end')
+            # --- CORRECCIÓN: Generar el evento para notificar a la ventana principal ---
+            self.event_generate("<<ItemSelected>>")
 
     def _move_selection(self, direction):
         if not self._listbox:
@@ -371,7 +373,8 @@ class MigracionVentana(tk.Toplevel):
         # Usamos nuestro nuevo widget personalizado
         self.combo_grupo = AutocompleteEntry(self.frame_grupo, completion_list=[g["grupo"] for g in self.catalogo], width=25)
         self.combo_grupo.grid(row=0, column=1)
-        self.combo_grupo.bind('<<ComboboxSelected>>', self.on_grupo_change)
+        # --- CORRECCIÓN: Se enlaza al evento correcto <<ItemSelected>> que sí se dispara ---
+        self.combo_grupo.bind('<<ItemSelected>>', self.on_grupo_change)
 
         if "boton_rojo" in globals():
             self.btn_limpiar_grupo = boton_rojo(self.frame_grupo, texto="Limpiar",
@@ -584,17 +587,18 @@ class MigracionVentana(tk.Toplevel):
         self.ventana_tabla.config(state="disabled")
         self.ventana_grupo.config(state="disabled")
     
-    def habilitar_controles_tabla(self):
+    def habilitar_controles_tabla(self, afectar_migrar_cancelar=True):
         self.btn_consultar.config(state="normal")
         self.btn_limpiar_tabla.config(state="normal")
-        self.btn_migrar.config(state="normal")
         self.entry_db_origen.config(state="normal")
         self.entry_tabla_origen.config(state="normal")
         self.entry_where.config(state="normal")
-        self.btn_cancelar.config(state="normal")
         self.btn_historial.config(state="normal")
         self.ventana_tabla.config(state="normal")
         self.ventana_grupo.config(state="normal")
+        if afectar_migrar_cancelar:
+            self.btn_migrar.config(state="normal")
+            self.btn_cancelar.config(state="normal")
 
     def cancelar_op(self):
         if not self.migrando:
@@ -657,9 +661,10 @@ class MigracionVentana(tk.Toplevel):
                     errores.append(f"Valor para variable ${var}$")
         return errores
 
-    def habilitar_botones(self, enable=True):
+    def habilitar_botones(self, enable=True, afectar_migrar=False):
         st = "normal" if enable else "disabled"
-        self.btn_migrar["state"] = st
+        if afectar_migrar:
+            self.btn_migrar["state"] = st
         self.combo_amb_origen["state"] = "readonly" if enable else "disabled"
         self.combo_amb_destino["state"] = "readonly" if enable else "disabled"
         self.btn_editar_grupos["state"] = st
@@ -773,6 +778,7 @@ class MigracionVentana(tk.Toplevel):
                 return
             self.migrando = True
             self.habilitar_botones(False)
+            self.habilitar_botones(False, afectar_migrar=True)
             self.btn_cancelar.config(state="normal")
             threading.Thread(target=self.do_migrar_grupo, daemon=True).start()
         
@@ -818,12 +824,10 @@ class MigracionVentana(tk.Toplevel):
             cancelar_func=self.is_cancelled
         )
         try:
+            # --- CORRECCIÓN: Se pasa la nueva consulta y el historial por separado a la función centralizada ---
             historial = cargar_historial()
             nuevo = {"base": base, "tabla": tabla_origen, "condicion (where)": where}
-            if nuevo not in historial:
-                historial.insert(0, nuevo)
-                historial = historial[:10]
-                guardar_historial(historial)
+            guardar_historial(historial, nueva_consulta=nuevo) # guardar_historial ahora hace todo el trabajo
         except Exception as e:
             self.log(f"No se pudo guardar en el historial: {e}", nivel="warning")
         self.update_progress(100)
@@ -833,8 +837,10 @@ class MigracionVentana(tk.Toplevel):
         else:
             self.log("Migración tabla a tabla finalizada.", nivel="success")
             messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!")
-        self.habilitar_controles_tabla()
-        self.btn_cancelar.config(state="normal")
+        # Habilita los controles para una nueva consulta, pero mantiene deshabilitados Migrar y Cancelar.
+        self.habilitar_controles_tabla(afectar_migrar_cancelar=False)
+        self.btn_migrar.config(state="disabled")
+        self.btn_cancelar.config(state="disabled")
         self.migrando = False
 
     def do_migrar_grupo(self):
@@ -869,6 +875,9 @@ class MigracionVentana(tk.Toplevel):
         self.log("Migración de grupo finalizada.", nivel="success")
         messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!")
         self.habilitar_botones(True) # Habilitar todos los botones
+        messagebox.showinfo("Migración finalizada", "¡Migración de grupo finalizada con éxito!")
+        self.habilitar_botones(True, afectar_migrar=False) # Habilita controles, pero no el botón de migrar
+        self.btn_migrar.config(state="disabled") # Deshabilita explícitamente el botón de migrar
         self.btn_cancelar.config(state="disabled") # Deshabilitar cancelar al final
         self.migrando = False # 
         

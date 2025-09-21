@@ -144,15 +144,21 @@ class ActualizaFechaContabilidadVentana(tk.Toplevel):
                 cursor.execute("SELECT co_estado FROM cb_corte WHERE co_periodo = ? AND co_corte = ? AND co_empresa = 1", (periodo, corte))
                 row = cursor.fetchone()
                 conn.close()
-                return row[0] if row else None
+                # Devuelve el estado o un valor especial si no se encuentra
+                return (row[0] if row else "NO_ENCONTRADO"), None
             except Exception as ex:
-                return None
+                # Devuelve None en el resultado y el error en el segundo elemento
+                return None, str(ex)
 
-        estado_actual = consulta_estado_actual()
-        if estado_actual is None:
+        estado_actual, error_consulta = consulta_estado_actual()
+        if error_consulta:
+            messagebox.showerror("Error de Conexión", f"No se pudo consultar el estado actual. Verifique la conexión (VPN).\n\nDetalle: {error_consulta}")
+            self._habilitar_ui()
+            return
+
+        if estado_actual == "NO_ENCONTRADO":
             if not self.ask_proceed_on_missing():
                 return
-
         else:
             msg = (
                 f"Estado actual para Periodo: {periodo}, Corte: {corte} es: '{estado_actual}'.\n"
