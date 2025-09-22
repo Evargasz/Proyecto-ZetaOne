@@ -213,15 +213,15 @@ class MigracionVentana(tk.Toplevel):
         self.cancelar_migracion = False
         self.migrando = False
 
-        MigracionVentana.centrar_ventana(self)
-
         # --- CORRECCIÓN: Se usan rutas seguras con recurso_path ---
         from util_rutas import recurso_path # Importación local para claridad
         try:
             self.json_path_grupo = recurso_path("json", CATALOGO_FILE)
-            self.json_ambientes = recurso_path("json", "ambientes.json")
+            # --- CORRECCIÓN: Cargar ambientes desde la función centralizada que lee el .dat ---
+            from Usuario_administrador.handlers.ambientes import cargar_ambientes
+            self.ambientes = cargar_ambientes()
         except Exception as e:
-            messagebox.showerror("Error de Ruta", f"No se pudo resolver la ruta a los archivos de configuración.\n{e}")
+            messagebox.showerror("Error de Carga", f"No se pudieron cargar los archivos de configuración.\n{e}")
             self.destroy()
             return
 
@@ -229,12 +229,6 @@ class MigracionVentana(tk.Toplevel):
         self.catalogo = cargar_json(self.json_path_grupo)
         if self.catalogo is None:
             messagebox.showerror("Error", f"No se pudo cargar {CATALOGO_FILE}. Consulte el log.")
-            self.destroy()
-            return
-
-        self.ambientes = cargar_json(self.json_ambientes)
-        if self.ambientes is None:
-            messagebox.showerror("Error", f"No se pudo cargar ambientes.json. Consulte el log.")
             self.destroy()
             return
 

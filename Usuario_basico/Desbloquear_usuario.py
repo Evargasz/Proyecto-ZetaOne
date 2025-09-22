@@ -33,12 +33,10 @@ class desbloquearUsuVentana(tk.Toplevel):
         self.ambientes = []
         self.ambientes_rel = {}
         try:
-            # Usamos recurso_path para encontrar las rutas correctas
-            ruta_ambientes = recurso_path("json", "ambientes.json")
+            # --- CORRECCIÓN: Cargar ambientes desde la función centralizada que lee el .dat ---
+            from Usuario_administrador.handlers.ambientes import cargar_ambientes
+            self.ambientes = cargar_ambientes()
             ruta_relaciones = recurso_path("json", "ambientesrelacionados.json")
-
-            with open(ruta_ambientes, "r", encoding="utf-8") as f:
-                self.ambientes = json.load(f)
             
             # El archivo de relaciones es opcional, no debe detener la app si no existe
             if os.path.exists(ruta_relaciones):

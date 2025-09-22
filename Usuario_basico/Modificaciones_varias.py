@@ -158,9 +158,9 @@ class ModificacionesVariasVentana(tk.Toplevel):
 
     def _on_update_completo(self):
         """Abre el diálogo para ejecutar un script UPDATE completo."""
-        UpdateCompletoDialog(self, self._ejecutar_desde_script, self.entry_ambiente.get())
+        dialog = UpdateCompletoDialog(self, self._ejecutar_desde_script, self.entry_ambiente.get())
 
-    def _ejecutar_desde_script(self, parsed_data):
+    def _ejecutar_desde_script(self, parsed_data, script_dialog):
         """Recibe los datos parseados del script y lanza el proceso de modificación."""
         ambiente = self.entry_ambiente.get().strip()
         
@@ -181,23 +181,31 @@ class ModificacionesVariasVentana(tk.Toplevel):
             messagebox.showerror("Error de validación", "Debe seleccionar un ambiente en la ventana principal.", parent=self)
             return
 
-        self._iniciar_proceso_modificacion(ambiente, base, tabla, campo, valor_bruto, condicion)
+        self._iniciar_proceso_modificacion(ambiente, base, tabla, campo, valor_bruto, condicion, script_dialog)
 
-    def _iniciar_proceso_modificacion(self, ambiente, base, tabla, campo, valor_bruto, condicion):
+    def _iniciar_proceso_modificacion(self, ambiente, base, tabla, campo, valor_bruto, condicion, script_dialog=None):
         """Lógica central para validar y lanzar la modificación."""
         # --- REQUERIMIENTO: Iniciar progreso inmediatamente ---
         self.bloquear_campos(True)
+        # --- CORRECCIÓN: Iniciar la barra de progreso ANTES de las consultas a BD ---
+        self.progress.lift()
+        self.progress.start(10)
+
         # --- OPTIMIZACIÓN: Hacer la ventana modal para bloquear la ventana padre ---
         # Esto previene que el usuario cierre la aplicación mientras se procesa.
         self.grab_set()
 
         condicion_lower = condicion.lower()
-        # --- CORRECCIÓN 1: Re-añadir la validación de seguridad ---
-        # Esta validación previene comandos SQL peligrosos.
+        # --- CORRECCIÓN: Validación de seguridad mejorada ---
+        # Se usan expresiones regulares con límites de palabra (\b) para evitar falsos positivos
+        # como detectar "go" dentro de "codigo".
+        # Se busca la palabra exacta, rodeada de espacios, inicio/fin de línea, etc.
+        palabras_prohibidas_regex = r"\b(go|drop|truncate|delete)\b"
+
         try:
-            if any(keyword in condicion_lower for keyword in [';', 'go', 'drop', 'truncate', 'delete from']):
+            if ";" in condicion_lower or re.search(palabras_prohibidas_regex, condicion_lower):
                 print("--- DEBUG: ERROR - Condición con palabras clave no permitidas.")
-                messagebox.showerror("Error de validación", "La condición contiene palabras clave no permitidas.", parent=self)
+                messagebox.showerror("Error de validación", "La condición contiene palabras clave no permitidas (go, drop, truncate, delete, ;).", parent=self)
                 return
         finally:
             self._detener_y_desbloquear_si_error()
@@ -248,20 +256,16 @@ class ModificacionesVariasVentana(tk.Toplevel):
 
         confirm_msg = (
             f"Se intentará ejecutar la modificación en los siguientes ambientes:\n\n"
-            f"- {chr(10).join(nombres_ambientes_verificados)}\n\n"
+            f"- " + "\n- ".join(nombres_ambientes_verificados) + "\n\n"
             f"Tabla: {tabla}\n"
             f"Campo: {campo}\n"
             f"Condición: {condicion}\n"
             f"Nuevo Valor (interpretado como {tipo_dato}): {valor_limpio}\n\n"
             "Esta acción puede ser irreversible. ¿Desea continuar?"
         )
-        if not messagebox.askyesno("Confirmar Modificación", confirm_msg, parent=self):
+        if not messagebox.askyesno("Confirmar Modificación", confirm_msg, parent=script_dialog or self):
             self._detener_y_desbloquear_si_error()
             return
-
-        # --- CORRECCIÓN 1: Iniciar la barra de progreso DESPUÉS de la confirmación ---
-        self.progress.lift()
-        self.progress.start(10)
 
         # --- Guardar en historial DESPUÉS de confirmar ---
         try:
@@ -285,11 +289,11 @@ class ModificacionesVariasVentana(tk.Toplevel):
         
         threading.Thread(
             target=self.proceso_de_modificacion,
-            args=(ambientes_verificados, params), # Usar la lista verificada
+            args=(ambientes_verificados, params, script_dialog), # Usar la lista verificada
             daemon=True
         ).start()
 
-    def proceso_de_modificacion(self, ambientes_a_modificar, params):
+    def proceso_de_modificacion(self, ambientes_a_modificar, params, script_dialog=None):
         print("--- DEBUG: 3. Hilo proceso_de_modificacion() INICIADO ---")
         resultados = []
         for amb in ambientes_a_modificar:
@@ -308,15 +312,11 @@ class ModificacionesVariasVentana(tk.Toplevel):
                 with pyodbc.connect(conn_str, timeout=5) as conn:
                     with conn.cursor() as cursor:
                         is_sybase = 'sybase' in amb.get('driver', '').lower()
-                        
-                        # --- CORRECCIÓN: Usar la sintaxis correcta para cada SGBD ---
-                        if is_sybase:
-                            # Para Sybase, cambiamos de base de datos con USE
-                            cursor.execute(f"USE {params['base']}")
-                            table_name_for_query = params['tabla']
-                        else:
-                            # --- CORRECCIÓN: Usar la sintaxis de 3 partes (base.schema.tabla) para SQL Server ---
-                            table_name_for_query = f"{params['base']}.dbo.{params['tabla']}"
+
+                        # --- CORRECCIÓN DEFINITIVA: Cambiar de base de datos con USE para ambos SGBD ---
+                        # Esto evita problemas con nombres de tabla de 3 partes en SQL Server.
+                        cursor.execute(f"USE {params['base']}")
+                        table_name_for_query = params['tabla']
 
 
                         # 1. Respaldo (SELECT)
@@ -343,10 +343,13 @@ class ModificacionesVariasVentana(tk.Toplevel):
                             # El tipo de dato en CONVERT debe coincidir con el de la columna
                             sql_type = params.get('tipo_dato').split('(')[0] # Ej: 'decimal(10,2)' -> 'decimal'
                             update_sql = f"UPDATE {table_name_for_query} SET {params['campo']} = CONVERT({sql_type}, ?) WHERE {params['condicion']}"
-
+                        
+                        # --- CORRECCIÓN: Usar el número de filas del backup en lugar de cursor.rowcount ---
+                        # cursor.rowcount no es fiable con todos los drivers ODBC (especialmente Sybase).
+                        filas_afectadas = len(filas)
                         cursor.execute(update_sql, params['valor'])
-                        filas_afectadas = cursor.rowcount
-                        conn.commit()
+                        # --- CORRECCIÓN: commit() no es necesario con autocommit=True ---
+                        # conn.commit() # Redundante si la conexión se abre con autocommit
                         resultados.append(f"[{amb['nombre']}] - ÉXITO: {filas_afectadas} fila(s) modificada(s).")
 
             except Exception as e:
@@ -358,7 +361,7 @@ class ModificacionesVariasVentana(tk.Toplevel):
 
         resumen_final = "\n".join(resultados)
         print(f"--- DEBUG: 5. Hilo finalizado. Resumen a mostrar:\n{resumen_final}")
-        self.after(0, self._finalizar, resumen_final)
+        self.after(0, self._finalizar, resumen_final, script_dialog)
 
     def _get_column_type(self, amb, base, tabla, campo):
         """Consulta la base de datos para obtener el tipo de dato de una columna."""
@@ -430,7 +433,7 @@ class ModificacionesVariasVentana(tk.Toplevel):
             return valor[1:-1]
         return valor
 
-    def _finalizar(self, mensaje):
+    def _finalizar(self, mensaje, script_dialog=None):
         print("--- DEBUG: 6. _finalizar() INICIADO para actualizar UI ---")
         self.progress.stop()
         self.progress.lower()
@@ -439,6 +442,11 @@ class ModificacionesVariasVentana(tk.Toplevel):
         # --- OPTIMIZACIÓN: Liberar la modalidad de la ventana ---
         # Permite que el usuario vuelva a interactuar con la ventana padre.
         self.grab_release()
+
+        # Si la modificación vino de la ventana de script, detenemos su progreso también.
+        if script_dialog:
+            script_dialog.progress.stop()
+            script_dialog.progress.lower()
 
         self._limpiar_y_bloquear_final()
         
@@ -492,6 +500,7 @@ class ModificacionesVariasVentana(tk.Toplevel):
         self.progress.lower()
         self.grab_release() # Liberar la modalidad si hay un error
         self.bloquear_campos(False)
+        self._limpiar_y_bloquear_final() # Limpia la UI para evitar confusiones
 
     def _cadena_conexion(self, ambiente, base):
         """
@@ -509,9 +518,9 @@ class ModificacionesVariasVentana(tk.Toplevel):
             os.environ['SYBASE_OCS'] = 'OCS-15_0'
 
         if 'sql server' in driver.lower():
-            return f"DRIVER={{{driver}}};SERVER={ambiente['ip']},{ambiente['puerto']};DATABASE={base};UID={ambiente['usuario']};PWD={ambiente['clave']};TrustServerCertificate=yes;"
+            return f"DRIVER={{{driver}}};SERVER={ambiente['ip']},{ambiente['puerto']};DATABASE={base};UID={ambiente['usuario']};PWD={ambiente['clave']};TrustServerCertificate=yes;autocommit=True"
         else:  # Asume Sybase u otro
-            return f"DRIVER={{{driver}}};SERVER={ambiente['ip']};PORT={ambiente['puerto']};DATABASE={base};UID={ambiente['usuario']};PWD={ambiente['clave']};"
+            return f"DRIVER={{{driver}}};SERVER={ambiente['ip']};PORT={ambiente['puerto']};DATABASE={base};UID={ambiente['usuario']};PWD={ambiente['clave']};autocommit=True"
 
     def _respaldar_registros(self, ruta_archivo, columnas, filas, params, ambiente_nombre):        
         # --- Ruta de respaldo mejorada y segura ---
@@ -578,7 +587,11 @@ class ModificacionesVariasVentana(tk.Toplevel):
     def _verificar_existencia(self, amb, base, tabla):
         """Verifica si la base y la tabla existen en un ambiente dado."""
         try:
-            conn_str = self._cadena_conexion(amb, amb.get('base', 'master'))
+            # --- CORRECCIÓN: Extraer el nombre simple de la tabla para la consulta de metadatos ---
+            # Esto soluciona el problema cuando desde el script se pasa "dbo.tabla" en lugar de "tabla"
+            tabla_simple = tabla.split('.')[-1]
+
+            conn_str = self._cadena_conexion(amb, amb.get('base', 'master')).replace('autocommit=True', '') # Quitar autocommit para consultas de metadatos
             with pyodbc.connect(conn_str, timeout=3) as conn:
                 cursor = conn.cursor()
                                 
@@ -588,12 +601,12 @@ class ModificacionesVariasVentana(tk.Toplevel):
                     # Para Sybase, la forma más fiable es intentar usar los objetos.
                     # Si falla, la excepción lo captura y devuelve False.
                     cursor.execute(f"USE {base}")
-                    cursor.execute(f"SELECT COUNT(*) FROM {tabla} WHERE 1=0")                    
+                    cursor.execute(f"SELECT COUNT(*) FROM {tabla} WHERE 1=0")
                     return True # Si ambas líneas se ejecutan, los objetos existen.
                 else: # SQL Server
                     cursor.execute("SELECT COUNT(*) FROM sys.databases WHERE name = ?", base)
                     if cursor.fetchone()[0] == 0: return False
-                    cursor.execute(f"SELECT COUNT(*) FROM {base}.sys.tables WHERE name = ?", tabla)
+                    cursor.execute(f"SELECT COUNT(*) FROM {base}.sys.tables WHERE name = ?", tabla_simple)
                     return cursor.fetchone()[0] > 0
         except Exception:
             # Cualquier excepción (ej. BD no existe, tabla no existe, timeout) significa que no es accesible.
@@ -692,5 +705,5 @@ class UpdateCompletoDialog(tk.Toplevel):
         self.progress.lift() # type: ignore
         self.progress.start(10) # type: ignore
 
-        self.callback_ejecutar(match.groupdict())
+        self.callback_ejecutar(match.groupdict(), self)
         # La ventana ya no se destruye aquí. El usuario lo hará con el botón "Cerrar".

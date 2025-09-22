@@ -397,10 +397,10 @@ class usuBasicoMain(tb.Frame):
 
     def usar_modificaciones_varias(self):
         try:
-            # CORRECCIÓN: Usamos recurso_path para encontrar el archivo de forma segura
-            ruta_ambientes = recurso_path("json", "ambientes.json")
-            with open(ruta_ambientes, 'r', encoding='utf-8') as f:
-                ambientes_lista = json.load(f)
+            # --- CORRECCIÓN: Cargar ambientes desde la función centralizada que lee el .dat ---
+            from Usuario_administrador.handlers.ambientes import cargar_ambientes
+            ambientes_lista = cargar_ambientes()
+
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo cargar 'ambientes.json'.\nLa ventana no puede abrirse.\n\nDetalle: {e}")
             return

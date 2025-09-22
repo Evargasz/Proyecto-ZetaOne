@@ -498,7 +498,7 @@ class usuAdminMain:
                     self.logear_panel(f"Editado ambiente: {data['nombre']} (Anterior: {self.ambientes[editar_idx]['nombre']})")
                     self.ambientes[editar_idx] = data
                 guardar_ambientes(self.ambientes)
-                self.refresh_amb_list()
+                self.refresh_amb_list() # Actualiza la lista en la UI
                 window.destroy()
 
             btn_save = tb.Button(window, text="Guardar", command=snd, bootstyle="success" )

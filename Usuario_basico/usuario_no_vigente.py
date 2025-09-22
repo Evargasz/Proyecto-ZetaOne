@@ -29,11 +29,9 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
         self.ambientes = []
         self.ambientes_rel = {}
         try:
-            # Carga el archivo de ambientes (este es obligatorio)
-            ruta_ambientes = recurso_path("json", "ambientes.json")
-            with open(ruta_ambientes, "r", encoding="utf-8") as f:
-                self.ambientes = json.load(f)
-
+            # --- CORRECCIÓN: Cargar ambientes desde la función centralizada que lee el .dat ---
+            from Usuario_administrador.handlers.ambientes import cargar_ambientes
+            self.ambientes = cargar_ambientes()
             # Carga el archivo de relaciones (este es opcional)
             ruta_relaciones = recurso_path("json", "ambientesrelacionados.json")
             if os.path.exists(ruta_relaciones):

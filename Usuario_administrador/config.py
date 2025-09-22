@@ -5,6 +5,7 @@ import logging
 import shutil
 import base64  # <-- Se añade la importación necesaria
 
+import sys # <-- Se añade import faltante
 # --- Import clave para que las rutas funcionen en el .exe ---
 from util_rutas import recurso_path
 
@@ -58,20 +59,28 @@ def cargar_ambientes() -> List[Dict[str, Any]]:
 # Tu función para guardar se mantiene, aunque ahora la carga es desde el .dat
 def guardar_ambientes(ambientes: List[Dict[str, Any]]) -> None:
     """
-    Guarda la lista de ambientes en un archivo JSON.
-    NOTA: Esta función escribe en 'ambientes.json', no en el '.dat' ofuscado.
+    Guarda la lista de ambientes en el archivo .dat ofuscado.
     """
     try:
-        # Para guardar, necesitamos una ruta escribible, no la temporal del .exe
+        # 1. Convertir la lista de Python a una cadena de texto JSON
+        contenido_json_str = json.dumps(ambientes, indent=2, ensure_ascii=False)
+        contenido_bytes = contenido_json_str.encode('utf-8')
+        
+        # 2. Codificar el contenido a Base64
+        contenido_codificado = base64.b64encode(contenido_bytes)
+
+        # 3. Determinar la ruta de guardado correcta (funciona en desarrollo y en el .exe)
         if getattr(sys, 'frozen', False):
             base_path = os.path.dirname(sys.executable)
         else:
             base_path = os.path.abspath(".")
         
-        ruta_guardado = os.path.join(base_path, "json", "ambientes.json")
+        ruta_guardado = os.path.join(base_path, "json", "ambientes.dat")
         os.makedirs(os.path.dirname(ruta_guardado), exist_ok=True)
 
-        with open(ruta_guardado, "w", encoding="utf-8") as f:
-            json.dump(ambientes, f, indent=2)
+        # 4. Escribir el contenido codificado en el archivo .dat
+        with open(ruta_guardado, 'wb') as f:
+            f.write(contenido_codificado)
+
     except Exception as e:
         logging.error(f"Error al guardar ambientes: {e}")

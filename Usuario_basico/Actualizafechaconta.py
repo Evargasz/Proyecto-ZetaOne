@@ -22,12 +22,11 @@ class ActualizaFechaContabilidadVentana(tk.Toplevel):
         self.resizable(False, False)
 
         # Carga ambientes
-        self.proyecto_base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.json_path = os.path.join(self.proyecto_base, "json", "ambientes.json")
         self.ambientes = []
         try:
-            with open(self.json_path, "r", encoding="utf-8") as f:
-                self.ambientes = json.load(f)
+            # --- CORRECCIÓN: Cargar ambientes desde la función centralizada que lee el .dat ---
+            from Usuario_administrador.handlers.ambientes import cargar_ambientes
+            self.ambientes = cargar_ambientes()
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo cargar ambientes.json:\n{e}")
             self.destroy()
