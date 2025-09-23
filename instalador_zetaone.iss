@@ -9,12 +9,12 @@ AppId={{F7A8E1B2-C3D4-5E6F-A1B2-C3D4E5F6A7B8}}
 
 AppName=ZetaOne
 // --- Versión de la aplicación. Increméntala en cada nueva compilación (ej. 1.1, 1.2, 2.0). ---
-AppVersion=1.2
+AppVersion=1.3
 AppPublisher=ZetaOne Team
 DefaultDirName={autopf}\ZetaOne
 DefaultGroupName=ZetaOne
 OutputDir=.\instalador_generado
-OutputBaseFilename=ZetaOne_Setup_v1.2
+OutputBaseFilename=ZetaOne_Setup_v1.3
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

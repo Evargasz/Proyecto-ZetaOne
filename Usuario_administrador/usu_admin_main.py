@@ -40,14 +40,16 @@ class usuAdminMain:
 
 
             #tamaño de la ventana
-            ventana_ancho = 1366
-            ventana_alto = 780
+            ventana_ancho = 1300 # Reducido para portátiles
+            ventana_alto = 680  # Reducido para portátiles
             pantalla_ancho = self.root.winfo_screenwidth()
             pantalla_alto = self.root.winfo_screenheight()
             x = int((pantalla_ancho / 2) - (ventana_ancho / 2 ))
-            y = int((pantalla_alto / 2) - (ventana_alto / 2))
+            # --- CORRECCIÓN: Se ajusta la posición 'y' para compensar la barra de tareas de Windows ---
+            # Se sube la ventana un poco para que la parte inferior no quede oculta.
+            y = int((pantalla_alto / 2) - (ventana_alto / 2) - 40) # Restamos 40px extra
             self.root.geometry(f"{ventana_ancho}x{ventana_alto}+{x}+{y}")
-            root.resizable(False, False)
+            root.resizable(True, True) # Permitir minimizar/maximizar
 
             # --- CORRECCIÓN: Carga de ícono de ventana de forma segura ---
             try:
