@@ -9,12 +9,12 @@ AppId={{F7A8E1B2-C3D4-5E6F-A1B2-C3D4E5F6A7B8}}
 
 AppName=ZetaOne
 // --- Versión de la aplicación. Increméntala en cada nueva compilación (ej. 1.1, 1.2, 2.0). ---
-AppVersion=1.1
+AppVersion=1.2
 AppPublisher=ZetaOne Team
 DefaultDirName={autopf}\ZetaOne
 DefaultGroupName=ZetaOne
 OutputDir=.\instalador_generado
-OutputBaseFilename=ZetaOne_Setup_v1.1
+OutputBaseFilename=ZetaOne_Setup_v1.2
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -32,7 +32,8 @@ Source: "dist\ZetaOne\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs 
 
 // --- Ahora, AÑADIMOS flags a los archivos de configuración para protegerlos. ---
 // 'onlyifdoesntexist' evita que se sobrescriba la configuración del usuario en una actualización.
-Source: "dist\ZetaOne\json\ambientes.json"; DestDir: "{app}\json"; Flags: uninsneveruninstall onlyifdoesntexist
+// --- CORRECCIÓN: Se protege el archivo ofuscado 'ambientes.dat' en lugar del antiguo 'ambientes.json' ---
+Source: "dist\ZetaOne\json\ambientes.dat"; DestDir: "{app}\json"; Flags: uninsneveruninstall onlyifdoesntexist
 Source: "dist\ZetaOne\json\ambientesrelacionados.json"; DestDir: "{app}\json"; Flags: uninsneveruninstall onlyifdoesntexist
 Source: "dist\ZetaOne\json\Favoritos.json"; DestDir: "{app}\json"; Flags: uninsneveruninstall onlyifdoesntexist
 Source: "dist\ZetaOne\json\HistorialConsultas.json"; DestDir: "{app}\json"; Flags: uninsneveruninstall onlyifdoesntexist
