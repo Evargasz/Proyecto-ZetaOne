@@ -23,17 +23,7 @@ class credenciales:
     def __init__(self, root, controlador):
         self.root = root
         self.controlador = controlador
-        
-    #Config de ventana
         self.root.title("ZetaOne")
-        ventana_ancho = 250
-        ventana_alto = 250
-        pantalla_ancho = self.root.winfo_screenwidth()
-        pantalla_alto = self.root.winfo_screenheight()
-        x = int((pantalla_ancho / 2) - (ventana_ancho / 2 ))
-        y = int((pantalla_alto / 2) - (ventana_alto / 2))
-        self.root.geometry(f"{ventana_ancho}x{ventana_alto}+{x}+{y}")
-        root.resizable(False, False)
         
     #icono
         ruta = recurso_path("imagenes_iconos","Zeta99.ico")
@@ -44,7 +34,7 @@ class credenciales:
         ruta_carpeta = os.path.dirname(__file__)
         ruta_imagen = os.path.join(ruta_carpeta, "imagenes_iconos", "ZetaOne_bg_op2.jpg")
         self.bg_image = Image.open(ruta_imagen)
-        self.bg_image = self.bg_image.resize((250, 250))  # ajusta al tamaño de la ventana
+        self.bg_image = self.bg_image.resize((250, 250))  # tamaño fijo
         self.bg_photo = ImageTk.PhotoImage(self.bg_image)
         self.background_label = tk.Label(self.root, image=self.bg_photo)
         self.background_label.place(x=0, y=0, relwidth=1, relheight=1)

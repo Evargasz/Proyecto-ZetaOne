@@ -12,24 +12,16 @@ class PantallaInicio:
         self.root = root
         self.controlador = controlador
         self.root.title("ZetaOne")
-        ventana_ancho = 400
-        ventana_alto = 350
-        pantalla_ancho = self.root.winfo_screenwidth()
-        pantalla_alto = self.root.winfo_screenheight()
-        x = int((pantalla_ancho / 2) - (ventana_ancho / 2 ))
-        y = int((pantalla_alto / 2) - (ventana_alto / 2))
-        self.root.geometry(f"{ventana_ancho}x{ventana_alto}+{x}+{y}")
-        root.resizable(False, False)
 
         # Icono
         ruta = recurso_path("imagenes_iconos", "Zeta99.ico")
         self.root.iconbitmap(ruta)
 
-        # Imagen de fondo ajustada al nuevo tamaño
+        # Imagen de fondo fija 400x350
         ruta_carpeta = os.path.dirname(__file__)
         ruta_imagen = os.path.join(ruta_carpeta, "imagenes_iconos", "ZetaOne_bg_op2.jpg")
         self.bg_image = Image.open(ruta_imagen)
-        self.bg_image = self.bg_image.resize((ventana_ancho, ventana_alto))
+        self.bg_image = self.bg_image.resize((400, 350))
         self.bg_photo = ImageTk.PhotoImage(self.bg_image)
         self.background_label = tk.Label(self.root, image=self.bg_photo)
         self.background_label.image = self.bg_photo  # IMPORTANTE

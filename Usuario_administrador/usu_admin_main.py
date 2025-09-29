@@ -20,7 +20,10 @@ from .widgets.tooltip import ToolTip
 
 from .validacion_dialog import lanzar_validacion
 from .catalogacion_dialog import CatalogacionDialog
-from .Catalogacion_CTS import CatalogacionCTS
+try:
+    from .Catalogacion_CTS import CatalogacionCTS
+except ImportError:
+    CatalogacionCTS = None
 
 #importaciones frame izquierdo (panel de ambientes)
 from .handlers.ambientes import cargar_ambientes, guardar_ambientes, probar_conexion_amb
@@ -39,16 +42,6 @@ class usuAdminMain:
             print(style.element_names())
 
 
-            #tamaño de la ventana
-            ventana_ancho = 1300 # Reducido para portátiles
-            ventana_alto = 680  # Reducido para portátiles
-            pantalla_ancho = self.root.winfo_screenwidth()
-            pantalla_alto = self.root.winfo_screenheight()
-            x = int((pantalla_ancho / 2) - (ventana_ancho / 2 ))
-            # --- CORRECCIÓN: Se ajusta la posición 'y' para compensar la barra de tareas de Windows ---
-            # Se sube la ventana un poco para que la parte inferior no quede oculta.
-            y = int((pantalla_alto / 2) - (ventana_alto / 2) - 40) # Restamos 40px extra
-            self.root.geometry(f"{ventana_ancho}x{ventana_alto}+{x}+{y}")
             root.resizable(True, True) # Permitir minimizar/maximizar
 
             # --- CORRECCIÓN: Carga de ícono de ventana de forma segura ---
@@ -135,7 +128,7 @@ class usuAdminMain:
 
             self.btn_cata_cts = tb.Button(barra_sd, text="catalogacion de CTS", command=self.abrir_Catalog_CTS, width=31, bootstyle="dark-outline-button")
             self.btn_cata_cts.grid(row=0, column=2, padx=(6, 6), sticky="e")
-
+            
             #parte principal
             archivos_frame = tb.LabelFrame(
                 self.frame, text="Archivos Detectados",
@@ -186,6 +179,12 @@ class usuAdminMain:
             self.selected_sd_folder = ""
             self.multi_sd_flag = False
             self.repetidos_log = []
+            
+        def abrir_Catalog_CTS(self):
+            if CatalogacionCTS:
+                CatalogacionCTS(self.app_root)
+            else:
+                messagebox.showerror("Error", "Funcionalidad no disponible.\nFalta instalar: pip install paramiko")
          
         def toggle_log(self):
             if self.toggle_log_callback:
@@ -286,8 +285,7 @@ class usuAdminMain:
             st.configure(state="disabled")
             self.logear_panel("Mostrada ventana de fuentes repetidos.")
 
-        def abrir_Catalog_CTS(self):
-            CatalogacionCTS(self.app_root)
+
 
         def validar_seleccionados(self):
             seleccionados_iids = self.tree.selection()

@@ -59,14 +59,7 @@ class usuBasicoMain(tb.Frame):
 
         # Configuración de ventana
         self.root.title("ZetaOne || Usuario Basico")
-        ventana_ancho = 820
-        ventana_alto = 600
-        pantalla_ancho = self.root.winfo_screenwidth()
-        pantalla_alto = self.root.winfo_screenheight()
-        x = int((pantalla_ancho / 2) - (ventana_ancho / 2))
-        y = int((pantalla_alto / 2) - (ventana_alto / 2))
-        self.root.geometry(f"{ventana_ancho}x{ventana_alto}+{x}+{y}")
-        self.root.resizable(False, False)
+        self.root.resizable(True, True)
 
         #icono
         ruta_icono = recurso_path("imagenes_iconos", "Zeta99.ico")
@@ -109,6 +102,12 @@ class usuBasicoMain(tb.Frame):
                 "desc": "Modificar datos básicos",
                 "Favoritos": False,
                 "accion": self.usar_modificaciones_varias
+            },
+            {
+                "titulo": "Asistente de captura y grabación",
+                "desc": "Captura pantallas y graba videos de aplicaciones",
+                "Favoritos": False,
+                "accion": self.usar_asistente_captura
             }
         ]
 
@@ -125,15 +124,22 @@ class usuBasicoMain(tb.Frame):
         self.color_boton_activo = "#20ABFC"
         self.color_boton_default = "#F2F2F2"
 
-        # 1. SIDEBAR IZQUIERDA
+        # 1. SIDEBAR IZQUIERDA - Responsive
         self.sidebar = tb.Frame(self.root, bootstyle="light", width=200)
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
+        
+        # Configurar peso para redimensionamiento
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(1, weight=1)
         self.armar_sidebar()
 
-        # 2. ÁREA PRINCIPAL DERECHA
+        # 2. ÁREA PRINCIPAL DERECHA - Responsive
         self.main_frame = tk.Frame(self.root, bg="#F7F7F7")
         self.main_frame.pack(side="right", fill="both", expand=True)
+        
+        # Bind para ajustar contenido al redimensionar
+        self.root.bind('<Configure>', self.on_window_resize)
         self.armar_area_principal()
 
     #-------------------------------------------frame de la izquierda------------------------------------------
@@ -153,16 +159,14 @@ class usuBasicoMain(tb.Frame):
         # Muestra el mensaje de bienvenida
         nombre_usuario = getpass.getuser()
         bienvenida_lbl = etiqueta_titulo(self.sidebar, f"BIENVENIDO\n  {nombre_usuario}", font=("Arial", 12))
-        bienvenida_lbl.pack(pady=(0, 300))
+        bienvenida_lbl.pack(pady=(0, 200))
 
-        # Botón para volver
-        self.btn_volver = boton_accion(self.sidebar, "volver", comando=self.volver,
-                                    width=15)
-        self.btn_volver.pack(side="top", pady=(0, 0))
-
-        # Botón para salir
+        # Botones de navegación (Volver arriba, Salir abajo según mejores prácticas UX)
         self.btn_salir = boton_rojo(self.sidebar, "salir", comando=self.salir, width=15)
-        self.btn_salir.pack(side="bottom", pady=(0, 30))
+        self.btn_salir.pack(side="bottom", pady=(0, 20))
+        
+        self.btn_volver = boton_accion(self.sidebar, "volver", comando=self.volver, width=15)
+        self.btn_volver.pack(side="bottom", pady=(0, 5))
     #------------------------------------------frame de la derecha---------------------------------------------
     def armar_area_principal(self): #frame derecha
         barra_superior = tb.Frame(self.main_frame)
@@ -229,15 +233,47 @@ class usuBasicoMain(tb.Frame):
         )
         self.boton_recargar.pack(side="left", padx=5)
 
-        self.cards_frame = tb.Frame(self.main_frame)
-        self.cards_frame.pack(fill="both", expand=True, padx=40, pady=(0, 20))
+        # Canvas con scrollbar para contenido dinámico
+        canvas_frame = tk.Frame(self.main_frame, bg="#F7F7F7")
+        canvas_frame.pack(fill="both", expand=True, padx=40, pady=(0, 20))
+        
+        self.canvas = tk.Canvas(canvas_frame, bg="#F7F7F7")
+        self.scrollbar = tk.Scrollbar(canvas_frame, orient="vertical", command=self.canvas.yview)
+        self.scrollable_frame = tk.Frame(self.canvas, bg="#F7F7F7")
+        
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
+        
+        # Frame para las cards dentro del scrollable
+        self.cards_frame = tk.Frame(self.scrollable_frame, bg="#F7F7F7")
+        self.cards_frame.pack(fill="both", expand=True)
+        
+        # Variable para controlar columnas dinámicas
+        self.columnas_actuales = 2
+        
+        # Bind mousewheel al canvas
+        self.canvas.bind("<MouseWheel>", self._on_mousewheel)
 
         self.mostrar_funcionalidades()
 
     def mostrar_funcionalidades(self, filtro_favoritos=False):
-                
-        for widget in self.cards_frame.winfo_children():
-            widget.destroy()
+        # Verificar que el widget existe antes de usarlo
+        try:
+            if not hasattr(self, 'cards_frame') or not self.cards_frame.winfo_exists():
+                return
+            
+            for widget in self.cards_frame.winfo_children():
+                widget.destroy()
+        except tk.TclError:
+            return  # Widget destruido, salir silenciosamente
 
         if filtro_favoritos:
             funcionalidades_a_mostrar = [f for f in self.funcionalidades if f.get("Favoritos")]
@@ -249,6 +285,7 @@ class usuBasicoMain(tb.Frame):
                     justify="center"
                 )
                 mensaje.pack(expand=True, pady=50)
+                self.after_idle(lambda: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
                 return
         else:
             funcionalidades_a_mostrar = self.funcionalidades
@@ -268,35 +305,67 @@ class usuBasicoMain(tb.Frame):
                 justify="center"
             )
             mensaje.pack(expand=True, pady=50)
+            self.after_idle(lambda: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
             return
 
-        columnas = 2
+        # Detectar si la ventana está maximizada
+        ventana_maximizada = self.root.state() == 'zoomed'
+        
+        if ventana_maximizada:
+            # Solo si está maximizada, usar más columnas
+            try:
+                ancho_disponible = self.canvas.winfo_width() if hasattr(self, 'canvas') else self.main_frame.winfo_width()
+                if ancho_disponible > 1200:  # Solo si hay mucho espacio
+                    self.columnas_actuales = 3
+                else:
+                    self.columnas_actuales = 2
+            except:
+                self.columnas_actuales = 2
+        else:
+            # Ventana normal: siempre 2 columnas
+            self.columnas_actuales = 2
+        
         fila = 0
         columna = 0
         for func in funcionalidades_a_mostrar:
-            card_frame = tk.Frame(self.cards_frame, bd=1, relief="solid", bg="#f9f9f9")
-            card_frame.grid(row=fila, column=columna, padx=10, pady=10, sticky="nsew")
-            etiqueta_titulo(card_frame, texto=func["titulo"], font=("Arial", 11, "bold")).pack(pady=(6, 3))
-            etiqueta_titulo(card_frame, texto=func["desc"], font=("Arial", 9)).pack(pady=(0, 7), padx=11)
-            es_fav = func.get("Favoritos", False)
+            card_frame = tk.Frame(self.cards_frame, bd=1, relief="solid", bg="#f9f9f9", width=280, height=120)
+            card_frame.grid(row=fila, column=columna, padx=8, pady=8, sticky="nsew")
+            card_frame.grid_propagate(False)  # Mantener tamaño fijo
+            
+            # Título más compacto
+            etiqueta_titulo(card_frame, texto=func["titulo"], font=("Arial", 10, "bold")).pack(pady=(4, 2))
+            # Descripción más compacta
+            etiqueta_titulo(card_frame, texto=func["desc"], font=("Arial", 8)).pack(pady=(0, 4), padx=8)
+            
             btn_acceso = tb.Button(
                 card_frame,
                 text="Añadir a favoritos" if not func.get("Favoritos") else "Quitar de favoritos",
                 bootstyle="primary-outline" if not func.get("Favoritos") else "primary",
                 command=lambda f=func: self.toggle_Favoritos(f))
-            btn_acceso.pack(side="left", padx=(14, 8), pady=6)
+            btn_acceso.pack(side="left", padx=(8, 4), pady=4)
             
             btn_usar = boton_accion(
                 card_frame,
                 "Usar",
                 comando=func["accion"]
                 )
-            btn_usar.pack(side="right", padx=10, pady=6)
+            btn_usar.pack(side="right", padx=8, pady=4)
 
             columna += 1
-            if columna >= columnas:
+            if columna >= self.columnas_actuales:
                 columna = 0
                 fila += 1
+                
+        # Configurar el grid para que las columnas se expandan uniformemente
+        for i in range(self.columnas_actuales):
+            self.cards_frame.columnconfigure(i, weight=1, minsize=280)
+        
+        # Configurar filas para tamaño uniforme
+        for j in range(fila + 1):
+            self.cards_frame.rowconfigure(j, weight=0, minsize=120)
+        
+        # Actualizar scroll region después de agregar cards
+        self.after_idle(lambda: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
 
     #---------------------------------Funciones de botones------------------------------------
     #Navegacion
@@ -336,6 +405,21 @@ class usuBasicoMain(tb.Frame):
         self.boton_filtro_favoritos.config()
         self.mostrar_funcionalidades(filtro_favoritos=False)
 
+    def _on_mousewheel(self, event):
+        """Permite scroll con rueda del mouse"""
+        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+    
+    def on_window_resize(self, event):
+        """Ajusta el layout cuando se redimensiona la ventana"""
+        # Solo procesar eventos de la ventana principal
+        if event.widget == self.root:
+            # Verificar que los widgets existan antes de actualizar
+            try:
+                if hasattr(self, 'cards_frame') and self.cards_frame.winfo_exists():
+                    self.after_idle(lambda: self.mostrar_funcionalidades(self.filtro_favoritos))
+            except tk.TclError:
+                pass  # Widget ya destruido, ignorar
+    
     def recargar_cards(self):
         self.entry_busqueda.delete(0, tk.END)
         self.entry_busqueda.insert(0, self.placeholder_text)
@@ -411,6 +495,83 @@ class usuBasicoMain(tb.Frame):
         ventana_modificaciones.grab_set()
         self.root.wait_window(ventana_modificaciones)
         self.habilitar_sidebar(True)
+
+    def usar_asistente_captura(self):
+        """Abre el asistente de captura y grabación"""
+        try:
+            from Usuario_basico.asistente_captura import abrir_asistente_captura
+            self.habilitar_sidebar(False)
+            ventana_asistente = abrir_asistente_captura(self.root)
+            self.root.wait_window(ventana_asistente)
+            self.habilitar_sidebar(True)
+        except ImportError as e:
+            respuesta = messagebox.askyesno(
+                "Dependencias Faltantes", 
+                "Esta funcionalidad requiere librerías adicionales.\n\n"
+                "¿Deseas instalarlas automáticamente?\n\n"
+                "(Alternativa: ejecuta instalar_dependencias_captura.bat)"
+            )
+            if respuesta:
+                self.instalar_dependencias_captura()
+        except Exception as e:
+            messagebox.showerror(
+                "Error", 
+                f"Error inesperado al abrir el asistente.\n\nDetalle: {e}"
+            )
+
+    def instalar_dependencias_captura(self):
+        """Instala las dependencias necesarias para el asistente de captura"""
+        try:
+            import subprocess
+            import sys
+            from tkinter import scrolledtext
+            
+            # Mostrar ventana de progreso
+            progress_window = tk.Toplevel(self.root)
+            progress_window.title("Instalando Dependencias")
+            progress_window.geometry("400x200")
+            progress_window.resizable(False, False)
+            
+            # Centrar ventana
+            x = (progress_window.winfo_screenwidth() // 2) - 200
+            y = (progress_window.winfo_screenheight() // 2) - 100
+            progress_window.geometry(f"400x200+{x}+{y}")
+            
+            etiqueta_titulo(progress_window, "Instalando dependencias...", font=("Arial", 12, "bold")).pack(pady=20)
+            
+            progress_text = scrolledtext.ScrolledText(progress_window, height=8, width=50)
+            progress_text.pack(padx=20, pady=10, fill="both", expand=True)
+            
+            progress_window.update()
+            
+            # Lista de paquetes
+            paquetes = [
+                "pyautogui", "keyboard", "python-docx", "pywinauto", "pillow",
+                "opencv-python", "mss", "pygetwindow", "pywin32", "paramiko"
+            ]
+            
+            for paquete in paquetes:
+                progress_text.insert(tk.END, f"Instalando {paquete}...\n")
+                progress_text.see(tk.END)
+                progress_window.update()
+                
+                try:
+                    subprocess.check_call([sys.executable, "-m", "pip", "install", paquete], 
+                                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    progress_text.insert(tk.END, f"✓ {paquete} instalado\n")
+                except:
+                    progress_text.insert(tk.END, f"✗ Error instalando {paquete}\n")
+                
+                progress_text.see(tk.END)
+                progress_window.update()
+            
+            progress_text.insert(tk.END, "\n¡Instalación completada!\nReinicia ZetaOne para usar la funcionalidad.")
+            progress_text.see(tk.END)
+            
+            boton_exito(progress_window, "Cerrar", comando=progress_window.destroy).pack(pady=10)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error instalando dependencias: {e}\n\nEjecuta manualmente: instalar_dependencias_captura.bat")
 
     def habilitar_sidebar(self, habilitar=True):
         estado = "normal" if habilitar else "disabled"

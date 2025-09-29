@@ -2193,14 +2193,7 @@
   },
   {
     "grupo": "cl",
-    "tablas": [
-      {
-        "tabla": "cob_temporal..cca_oper_conv_libranza",
-        "llave": "",
-        "join": "",
-        "condicion": ""
-      }
-    ]
+    "tablas": []
   },
   {
     "grupo": "cl_cab_embargo",
@@ -2305,6 +2298,54 @@
     "grupo": "cli_tot_AHO",
     "tablas": [
       {
+        "tabla": "cob_ahorros..ah_acumulador",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.ac_cta_banco = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_ciudad_deposito",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.cd_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_ctabloqueada",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.cb_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_cuenta",
+        "llave": "",
+        "join": "",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_his_bloqueo",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hb_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_his_cierre",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hc_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_his_inmovilizadas",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.hi_cuenta = ah_cta_banco",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
+        "tabla": "cob_ahorros..ah_programado",
+        "llave": "cob_ahorros..ah_cuenta",
+        "join": "tbl.pr_cuenta = ah_cuenta",
+        "condicion": "ah_cliente = $codigo cliente$"
+      },
+      {
         "tabla": "cob_ahorros..ah_recalculo_interes",
         "llave": "cob_ahorros..ah_cuenta",
         "join": "tbl.ri_cuenta = ah_cta_banco",
@@ -2353,52 +2394,10 @@
         "condicion": "ah_cliente = $codigo cliente$"
       },
       {
-        "tabla": "cob_ahorros..ah_acumulador",
-        "llave": "cob_ahorros..ah_cuenta",
-        "join": "tbl.ac_cta_banco = ah_cta_banco",
-        "condicion": "ah_cliente = $codigo cliente$"
-      },
-      {
-        "tabla": "cob_ahorros..ah_ciudad_deposito",
-        "llave": "cob_ahorros..ah_cuenta",
-        "join": "tbl.cd_cuenta = ah_cuenta",
-        "condicion": "ah_cliente = $codigo cliente$"
-      },
-      {
-        "tabla": "cob_ahorros..ah_ctabloqueada",
-        "llave": "cob_ahorros..ah_cuenta",
-        "join": "tbl.cb_cuenta = ah_cuenta",
-        "condicion": "ah_cliente = $codigo cliente$"
-      },
-      {
-        "tabla": "cob_ahorros..ah_cuenta",
-        "llave": "",
-        "join": "",
-        "condicion": "ah_cliente = $codigo cliente$"
-      },
-      {
-        "tabla": "cob_ahorros..ah_his_bloqueo",
-        "llave": "cob_ahorros..ah_cuenta",
-        "join": "tbl.hb_cuenta = ah_cuenta",
-        "condicion": "ah_cliente = $codigo cliente$"
-      },
-      {
-        "tabla": "cob_ahorros..ah_his_cierre",
-        "llave": "cob_ahorros..ah_cuenta",
-        "join": "tbl.hc_cuenta = ah_cuenta",
-        "condicion": "ah_cliente = $codigo cliente$"
-      },
-      {
-        "tabla": "cob_ahorros..ah_his_inmovilizadas",
-        "llave": "cob_ahorros..ah_cuenta",
-        "join": "tbl.hi_cuenta = ah_cta_banco",
-        "condicion": "ah_cliente = $codigo cliente$"
-      },
-      {
-        "tabla": "cob_ahorros..ah_programado",
-        "llave": "cob_ahorros..ah_cuenta",
-        "join": "tbl.pr_cuenta = ah_cuenta",
-        "condicion": "ah_cliente = $codigo cliente$"
+        "tabla": "cob_ahorros",
+        "llave": "ninguna",
+        "join": "prueba",
+        "condicion": "prueba"
       }
     ]
   },

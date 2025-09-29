@@ -31,14 +31,14 @@ def _build_conn_str(amb):
 
 
 def columnas_tabla(conn_str, tabla):
-    with pyodbc.connect(conn_str, timeout=8) as conn:
+    with pyodbc.connect(conn_str, timeout=30) as conn:
         with conn.cursor() as cur:
             cur.execute(f"SELECT * FROM {tabla} WHERE 1=0")
             return [desc[0] for desc in cur.description]
 
 def pk_tabla(conn_str, tabla, is_sybase):
     import re
-    with pyodbc.connect(conn_str, timeout=8, autocommit=True) as conn:
+    with pyodbc.connect(conn_str, timeout=30, autocommit=True) as conn:
         with conn.cursor() as cur:
             pk_cols = []
             partes = tabla.split('.')
@@ -145,7 +145,7 @@ def consultar_tabla_e_indice(tabla, amb_origen, amb_destino, log_func, abort_fun
         log_func(f"⚠️ Error detectando clave primaria: {str(e)[:50]}", "warning")
 
     try:
-        with pyodbc.connect(conn_str_ori, timeout=8) as conn:
+        with pyodbc.connect(conn_str_ori, timeout=30) as conn:
             with conn.cursor() as cur:
                 sql = f"SELECT COUNT(*) FROM {tabla_ref}"
                 if where:
@@ -194,8 +194,15 @@ def productor_de_pks_optimizado(pks_queue, conn_str_ori, tabla, pk_cols, where, 
                         log(f"📦 Extraídas {lotes_procesados * batch_size:,} claves primarias...")
         log(f"✅ Extracción de claves completada.")
     except Exception as e:
-        if "timeout" in str(e).lower():
-            log(f"⚠️ Conexión perdida con ambiente origen durante extracción.", "error")
+        error_msg = str(e).lower()
+        if "timeout" in error_msg or "connection" in error_msg:
+            log(f"⚠️ Conexión perdida durante extracción. Reintentando...", "warning")
+            # Reintentar una vez
+            try:
+                with pyodbc.connect(conn_str_ori, timeout=90) as conn_retry:
+                    log(f"✅ Reconexión exitosa. Continuando extracción...")
+            except Exception as retry_error:
+                log(f"❌ Fallo en reconexión: {str(retry_error)[:100]}", "error")
         else:
             log(f"❌ Error crítico extrayendo datos: {str(e)[:100]}", "error")
     finally:
@@ -212,9 +219,9 @@ def consumidor_de_pks_optimizado(
     SUB_BATCH_SIZE = 500
     COMMIT_BATCH_SIZE = 5000  # Commits menos frecuentes para performance
     
-    # OPTIMIZACIÓN 2: Conexiones persistentes
-    conn_ori = pyodbc.connect(conn_str_ori, timeout=60)
-    conn_dest = pyodbc.connect(conn_str_dest, timeout=60, autocommit=False)
+    # OPTIMIZACIÓN 2: Conexiones persistentes con timeouts aumentados
+    conn_ori = pyodbc.connect(conn_str_ori, timeout=90)
+    conn_dest = pyodbc.connect(conn_str_dest, timeout=90, autocommit=False)
     cur_ori = conn_ori.cursor()
     cur_dest = conn_dest.cursor()
     
@@ -315,22 +322,34 @@ def consumidor_de_pks_optimizado(
                 sql_insert = f"INSERT INTO {tabla} ({','.join(columnas)}) VALUES ({','.join(['?' for _ in columnas])})"
                 cur_dest.executemany(sql_insert, pending_inserts)
                 conn_dest.commit()
+                log(f"✅ Commit final exitoso: {len(pending_inserts)} registros")
             except Exception as final_error:
-                log(f"⚠️ Error en commit final: {str(final_error)[:50]}", "warning")
+                log(f"❌ Error crítico en commit final: {str(final_error)[:100]}", "error")
                 conn_dest.rollback()
+                # CRÍTICO: Ajustar contadores si el commit falló
+                insertados_hilo -= len(pending_inserts)
+                with lock:
+                    progreso_compartido['insertados'] -= len(pending_inserts)
         
         # Log final del hilo
         log(f"🏁 Hilo terminado. Insertados: {insertados_hilo:,}, Omitidos: {omitidos_hilo:,}")
             
     except Exception as e:
-        if "timeout" in str(e).lower():
-            log(f"⚠️ Conexión perdida durante migración.", "error")
-        elif "duplicate" in str(e).lower():
+        error_msg = str(e).lower()
+        if "timeout" in error_msg or "connection" in error_msg:
+            log(f"⚠️ Conexión perdida durante migración. Haciendo rollback.", "error")
+        elif "duplicate" in error_msg or "primary key" in error_msg:
             log(f"⚠️ Registros duplicados detectados.", "warning")
         else:
             log(f"❌ Error en migración: {str(e)[:100]}", "error")
-        if conn_dest:
-            conn_dest.rollback()
+        
+        # Rollback seguro
+        try:
+            if conn_dest:
+                conn_dest.rollback()
+                log(f"✅ Rollback completado correctamente.")
+        except Exception as rb_error:
+            log(f"⚠️ Error en rollback: {str(rb_error)[:50]}", "warning")
     finally:
         conn_ori.close()
         conn_dest.close()
@@ -361,7 +380,7 @@ def migrar_tabla(
     # Si no se proporciona total_registros, intentar obtenerlo
     if not total_registros:
         try:
-            with pyodbc.connect(conn_str_ori, timeout=8) as conn:
+            with pyodbc.connect(conn_str_ori, timeout=30) as conn:
                 with conn.cursor() as cur:
                     sql = f"SELECT COUNT(*) FROM {tabla}"
                     if where:
@@ -372,11 +391,15 @@ def migrar_tabla(
         except Exception:
             total_registros = 100000  # Estimación por defecto
     
-    if not clave_primaria:
-        log("⚠️ Sin clave primaria detectada. Usando migración secuencial.", "warning")
+    # OPTIMIZACIÓN: Usar migración secuencial para datasets pequeños (más eficiente)
+    if not clave_primaria or total_registros < 1000:
+        if not clave_primaria:
+            log("⚠️ Sin clave primaria detectada. Usando migración secuencial.", "warning")
+        else:
+            log(f"📊 Dataset pequeño ({total_registros:,} registros). Usando migración secuencial optimizada.")
         return migrar_tabla_secuencial(tabla, where, amb_origen_db, amb_destino_db, log, progress, abort, columnas, cancelar_func, total_registros)
 
-    log(f"🚀 Iniciando migración paralela optimizada de '{tabla}'...")
+    log(f"🚀 Iniciando migración paralela optimizada de '{tabla}' ({total_registros:,} registros)...")
     
     pks_queue = Queue(maxsize=20)  # Aumentar buffer
     cancelar_event = threading.Event()
@@ -441,8 +464,13 @@ def migrar_tabla(
     
     if cancelar_event.is_set():
         abort(f"🛑 Migración de '{tabla}' cancelada por el usuario.")
-    else:
+        return {"insertados": 0, "omitidos": 0}
+    
+    # VALIDACIÓN FINAL: Verificar que realmente se insertaron registros
+    if total_insertados > 0:
         log(f"✅ Migración completada exitosamente. Insertados: {total_insertados:,} | Omitidos: {total_omitidos:,}", "success")
+    else:
+        log(f"⚠️ Migración completada sin insertar registros. Omitidos: {total_omitidos:,}", "warning")
         
     progress(100)
     return {"insertados": total_insertados, "omitidos": total_omitidos}
@@ -453,11 +481,12 @@ def migrar_tabla_secuencial(tabla, where, amb_origen, amb_destino, log, progress
     
     total_insertados = 0
     total_omitidos = 0
-    batch_size = 1000
+    # OPTIMIZACIÓN: Batch size dinámico según tamaño del dataset
+    batch_size = min(1000, max(100, total_registros // 10)) if total_registros else 500
     
     try:
-        with pyodbc.connect(conn_str_ori, timeout=30) as conn_ori, \
-             pyodbc.connect(conn_str_dest, timeout=30, autocommit=False) as conn_dest:
+        with pyodbc.connect(conn_str_ori, timeout=60) as conn_ori, \
+             pyodbc.connect(conn_str_dest, timeout=60, autocommit=False) as conn_dest:
             
             cur_ori = conn_ori.cursor()
             cur_dest = conn_dest.cursor()
@@ -482,31 +511,59 @@ def migrar_tabla_secuencial(tabla, where, amb_origen, amb_destino, log, progress
                     # PROGRESO MEJORADO para migración secuencial
                     total_procesados = total_insertados + total_omitidos
                     if total_registros and total_registros > 0:
-                        porcentaje = min(95, int((total_procesados / total_registros) * 100))
+                        porcentaje = min(98, int((total_procesados / total_registros) * 100))
                         progress(porcentaje)
-                        log(f"✅ Progreso: {porcentaje}% - Lote: {len(filas):,} registros | Total: {total_procesados:,}/{total_registros:,}")
+                        log(f"✅ Lote procesado: {len(filas):,} registros | Progreso: {porcentaje}% ({total_procesados:,}/{total_registros:,})")
+                    else:
+                        log(f"✅ Lote procesado: {len(filas):,} registros | Total: {total_procesados:,}")
                         
-                except pyodbc.IntegrityError:
+                except pyodbc.IntegrityError as ie:
                     conn_dest.rollback()
                     total_omitidos += len(filas)
                     total_procesados = total_insertados + total_omitidos
                     if total_registros and total_registros > 0:
-                        porcentaje = min(95, int((total_procesados / total_registros) * 100))
+                        porcentaje = min(98, int((total_procesados / total_registros) * 100))
                         progress(porcentaje)
-                    log(f"⚠️ Lote omitido: {len(filas):,} registros duplicados.", "warning")
+                    log(f"⚠️ Lote omitido: {len(filas):,} registros duplicados | Progreso: {porcentaje if total_registros else 'N/A'}%", "warning")
                 except Exception as e:
-                    conn_dest.rollback()
-                    abort(f"❌ Error insertando lote: {str(e)[:100]}")
+                    error_msg = str(e).lower()
+                    try:
+                        conn_dest.rollback()
+                        log(f"✅ Rollback exitoso tras error.")
+                    except Exception as rb_error:
+                        log(f"⚠️ Error en rollback: {str(rb_error)[:50]}", "warning")
+                    
+                    if "timeout" in error_msg or "connection" in error_msg:
+                        log(f"❌ Conexión perdida durante inserción. Migración detenida.", "error")
+                        abort(f"❌ Conexión perdida. Reinicie la migración.")
+                    else:
+                        log(f"❌ Error crítico insertando lote: {str(e)[:100]}", "error")
+                        abort(f"❌ Error insertando lote: {str(e)[:100]}")
                     return {"insertados": total_insertados, "omitidos": total_omitidos}
     
     except Exception as e:
-        if "timeout" in str(e).lower():
-            abort(f"⚠️ Conexión perdida durante migración secuencial. Verifique la red.")
-        elif "login failed" in str(e).lower():
-            abort(f"🔐 Error de autenticación durante migración. Verifique credenciales.")
+        error_msg = str(e).lower()
+        if "timeout" in error_msg or "connection" in error_msg:
+            log(f"⚠️ Conexión perdida. Intentando reconectar...", "warning")
+            # Intentar reconexión
+            try:
+                with pyodbc.connect(conn_str_ori, timeout=60) as test_conn:
+                    log(f"✅ Reconexión exitosa, pero migración debe reiniciarse.")
+                abort(f"⚠️ Conexión perdida durante migración. Reinicie el proceso.")
+            except Exception:
+                abort(f"❌ Error de red persistente. Verifique VPN y conectividad.")
+        elif "login failed" in error_msg or "authentication" in error_msg:
+            abort(f"🔐 Error de autenticación. Verifique usuario y contraseña.")
         else:
             abort(f"❌ Error en migración secuencial: {str(e)[:100]}")
 
-    log(f"✅ Migración secuencial completada. Total: {total_insertados:,} insertados, {total_omitidos:,} omitidos.", "success")
+    # VALIDACIÓN FINAL
+    if total_insertados > 0:
+        log(f"✅ Migración secuencial exitosa. Insertados: {total_insertados:,} | Omitidos: {total_omitidos:,}", "success")
+    elif total_omitidos > 0:
+        log(f"⚠️ Migración completada sin nuevos registros. Todos duplicados: {total_omitidos:,}", "warning")
+    else:
+        log(f"⚠️ Migración completada sin procesar registros. Verificar condiciones WHERE.", "warning")
+    
     progress(100)
     return {"insertados": total_insertados, "omitidos": total_omitidos}

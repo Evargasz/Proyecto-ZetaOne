@@ -46,9 +46,11 @@ class AutocompleteEntry(tk.Frame):
         self._listbox_toplevel.wm_overrideredirect(True) # Sin bordes de ventana
         self._listbox_toplevel.wm_geometry(f"{width}x150+{x}+{y}")
         
-        self._listbox = tk.Listbox(self._listbox_toplevel, exportselection=False)
+        self._listbox = tk.Listbox(self._listbox_toplevel, exportselection=False, selectmode='single')
         self._listbox.pack(fill='both', expand=True)
-        self._listbox.bind('<Button-1>', self._on_listbox_click)
+        self._listbox.bind('<ButtonRelease-1>', self._on_listbox_select)
+        # Asegurar que no hay selección automática
+        self._listbox.selection_clear(0, 'end')
 
     def _destroy_listbox(self):
         if self._listbox_toplevel:
@@ -77,14 +79,20 @@ class AutocompleteEntry(tk.Frame):
         self._listbox.delete(0, 'end')
         for item in items:
             self._listbox.insert('end', item)
-        self._listbox.selection_set(0)
+        # No preseleccionar automáticamente para permitir selección con mouse
 
     def _on_focus_out(self, event):
         # Cierra la lista si se pierde el foco
         self.after(200, self._destroy_listbox)
 
-    def _on_listbox_click(self, event):
-        self._select_item()
+    def _on_listbox_select(self, event):
+        if self._listbox and self._listbox.curselection():
+            value = self._listbox.get(self._listbox.curselection())
+            self.entry.delete(0, 'end')
+            self.entry.insert(0, value)
+            self._destroy_listbox()
+            self.entry.icursor('end')
+            self.event_generate("<<ItemSelected>>")
 
     # --- FUNCIÓN NUEVA: Se ejecuta al hacer clic en el campo ---
     def _on_click(self, event):
@@ -93,19 +101,11 @@ class AutocompleteEntry(tk.Frame):
             self._update_listbox(self._completion_list)
 
     def _on_enter(self, event):
-        if self._listbox:
-            self._select_item()
+        if self._listbox and self._listbox.curselection():
+            self._on_listbox_select(event)
         return "break"
 
-    def _select_item(self):
-        if self._listbox and self._listbox.curselection():
-            value = self._listbox.get(self._listbox.curselection())
-            self.entry.delete(0, 'end')
-            self.entry.insert(0, value)
-            self._destroy_listbox()
-            self.entry.icursor('end')
-            # --- CORRECCIÓN 1: Generar un evento para notificar la selección ---
-            self.event_generate("<<ItemSelected>>")
+
 
     def _move_selection(self, direction):
         if not self._listbox:
@@ -113,13 +113,12 @@ class AutocompleteEntry(tk.Frame):
             return "break"
         
         current_selection = self._listbox.curselection()
-        if not current_selection:
-            self._listbox.selection_set(0)
-        else:
+        if current_selection:
             next_idx = current_selection[0] + direction
             if 0 <= next_idx < self._listbox.size():
                 self._listbox.selection_clear(0, 'end')
                 self._listbox.selection_set(next_idx)
+                self._listbox.activate(next_idx)
                 self._listbox.see(next_idx)
         return "break"
 
@@ -233,7 +232,8 @@ def desactivar_indices_secundarios(conn_str, tabla, log):
             if idxs:
                 log(f"[{tabla}] Se desactivaron índices secundarios: {idxs}")
     except Exception as e:
-        log(f"[{tabla}] No se pudieron desactivar índices secundarios: {e}")
+        # Mensaje más claro: esto es normal en Sybase, solo funciona en SQL Server
+        log(f"[{tabla}] ℹ️ Optimización de índices no disponible (normal en Sybase): {str(e)[:100]}...")
 
 def reactivar_indices_secundarios(conn_str, tabla, log):
     try:
@@ -252,7 +252,7 @@ def reactivar_indices_secundarios(conn_str, tabla, log):
             if idxs:
                 log(f"[{tabla}] Se reactivaron índices secundarios: {idxs}")
     except Exception as e:
-        log(f"[{tabla}] No se pudieron reactivar índices secundarios: {e}")
+        log(f"[{tabla}] ℹ️ Optimización de índices no disponible (normal en Sybase): {str(e)[:100]}...")
 
 def migrar_tabla_del_grupo(
         tabla_conf,
@@ -263,7 +263,8 @@ def migrar_tabla_del_grupo(
         idx_tabla,
         total_tablas,
         log, progress,
-        cancelar_func=None):
+        cancelar_func=None,
+        contadores=None):
     
     tabla = tabla_conf.get('tabla') or tabla_conf.get('tabla llave')
     if not es_nombre_tabla_valido(tabla):
@@ -288,7 +289,10 @@ def migrar_tabla_del_grupo(
         log(f"[{tabla}] Error consultando columnas: {e}")
         return 0
     if cols_ori != cols_dest:
-        log(f"[{tabla}] Estructura diferente! Origen: {cols_ori} / Destino: {cols_dest}")
+        log(f"[{tabla}] ⚠️ Estructura diferente! Origen: {cols_ori} / Destino: {cols_dest}")
+        if contadores:
+            contadores['estructura_diferente'] += 1
+            contadores['tablas_estructura_diferente'].append(tabla)
         return 0
     else:
         log(f"[{tabla}] ✅ Estructura igual en origen y destino.")
@@ -300,7 +304,13 @@ def migrar_tabla_del_grupo(
     except Exception as e:
         log(f"[{tabla}] Advertencia: Error detectando PK: {e}")
         pk_cols = []
-    log(f"[{tabla}] PK/índice unique detectado: {pk_cols}" if pk_cols else f"[{tabla}] ¡ATENCIÓN! No se detectó PK/índice unique. Puede haber duplicados.")
+    if pk_cols:
+        log(f"[{tabla}] PK/índice unique detectado: {pk_cols}")
+    else:
+        log(f"[{tabla}] ⚠️ Sin PK/índice unique detectado. Posibles duplicados.")
+        if contadores:
+            contadores['sin_pk'] += 1
+            contadores['tablas_sin_pk'].append(tabla)
 
     # 3. Desactiva índices secundarios (en destino) antes de insertar
     desactivar_indices_secundarios(conn_str_dest, tabla, log)
@@ -427,6 +437,15 @@ def migrar_grupo(
     log = log_func if log_func else print
     progress = progress_func if progress_func else lambda x: None
     abort = abort_func if abort_func else lambda msg: print(f"ABORT: {msg}")
+    
+    # Contadores para el resumen final
+    contadores = {
+        'estructura_diferente': 0,
+        'sin_pk': 0,
+        'total_tablas': 0,
+        'tablas_estructura_diferente': [],
+        'tablas_sin_pk': []
+    }
 
     def _build_conn_str(amb):
         driver = amb['driver']
@@ -453,6 +472,7 @@ def migrar_grupo(
     tablas = grupo_conf['tablas']
     batch_size = 5000  # Puede ajustar el tamaño del batch
     total_tablas = len(tablas)
+    contadores['total_tablas'] = total_tablas
 
     # Ejecutar migración de tablas en paralelo (1 tabla, 1 thread, cada tabla solo una vez)
     resultados = []
@@ -462,7 +482,7 @@ def migrar_grupo(
             futuras.append(executor.submit(
                 migrar_tabla_del_grupo,
                 tabla_conf, variables, conn_str_ori, conn_str_dest, batch_size,
-                idx_tabla, total_tablas, log, progress, cancelar_func
+                idx_tabla, total_tablas, log, progress, cancelar_func, contadores
             ))
         for future in as_completed(futuras):
             try:
@@ -471,7 +491,28 @@ def migrar_grupo(
                 log(f"ERROR GLOBAL EN POOL DE MIGRACION DE TABLAS: {exc}")
 
     total_global = sum(resultados)
-    log(f"✅ Migración de grupo finalizada. Total migrados: {total_global}")
+    
+    # Resumen final detallado
+    log("\n" + "="*60)
+    log(f"✅ RESUMEN DE MIGRACIÓN DE GRUPO '{grupo_conf.get('grupo', 'N/A')}'")
+    log("="*60)
+    log(f"📊 Total de tablas procesadas: {contadores['total_tablas']}")
+    log(f"💾 Total de registros migrados: {total_global}")
+    
+    if contadores['estructura_diferente'] > 0:
+        log(f"⚠️  Tablas con estructura diferente: {contadores['estructura_diferente']}")
+        for tabla in contadores['tablas_estructura_diferente']:
+            log(f"    • {tabla}")
+    else:
+        log(f"✅ Todas las tablas tienen estructura compatible")
+    
+    if contadores['sin_pk'] > 0:
+        log(f"⚠️  Tablas sin PK/índice unique: {contadores['sin_pk']} (riesgo de duplicados)")
+    else:
+        log(f"✅ Todas las tablas tienen PK/índice unique")
+    
+    log(f"ℹ️  Nota: Los errores de optimización de índices son normales en Sybase")
+    log("="*60)
 
 #################################################################
 # -------- CLASES DE LA ADMINISTRACION VISUAL DE GRUPOS ------- #

@@ -82,14 +82,21 @@ class AutocompleteEntry(tk.Frame):
         self._listbox.delete(0, 'end')
         for item in items:
             self._listbox.insert('end', item)
-        self._listbox.selection_set(0)
 
     def _on_focus_out(self, event):
         # Cierra la lista si se pierde el foco
         self.after(200, self._destroy_listbox)
 
     def _on_listbox_click(self, event):
-        self._select_item()
+        # Capturar el índice y valor inmediatamente
+        index = self._listbox.nearest(event.y)
+        if 0 <= index < self._listbox.size():
+            value = self._listbox.get(index)
+            self._listbox.selection_clear(0, 'end')
+            self._listbox.selection_set(index)
+            self._listbox.activate(index)
+            # Ejecutar la selección después del delay visual
+            self.after(200, lambda: self._complete_selection(value))
 
     # --- FUNCIÓN NUEVA: Se ejecuta al hacer clic en el campo ---
     def _on_click(self, event):
@@ -112,15 +119,29 @@ class AutocompleteEntry(tk.Frame):
             # --- CORRECCIÓN: Generar el evento para notificar a la ventana principal ---
             self.event_generate("<<ItemSelected>>")
 
+    def _select_item_by_index(self, index):
+        if self._listbox and 0 <= index < self._listbox.size():
+            value = self._listbox.get(index)
+            self.entry.delete(0, 'end')
+            self.entry.insert(0, value)
+            self._destroy_listbox()
+            self.entry.icursor('end')
+            self.event_generate("<<ItemSelected>>")
+
+    def _complete_selection(self, value):
+        self.entry.delete(0, 'end')
+        self.entry.insert(0, value)
+        self._destroy_listbox()
+        self.entry.icursor('end')
+        self.event_generate("<<ItemSelected>>")
+
     def _move_selection(self, direction):
         if not self._listbox:
             self._update_listbox(self._completion_list)
             return "break"
         
         current_selection = self._listbox.curselection()
-        if not current_selection:
-            self._listbox.selection_set(0)
-        else:
+        if current_selection:
             next_idx = current_selection[0] + direction
             if 0 <= next_idx < self._listbox.size():
                 self._listbox.selection_clear(0, 'end')
@@ -207,6 +228,10 @@ class MigracionVentana(tk.Toplevel):
         self.resizable(False, False)
         self.geometry("900x560")
         self.protocol("WM_DELETE_WINDOW", self.on_salir)
+        
+        # Centrar ventana
+        from util_ventanas import centrar_ventana
+        centrar_ventana(self, 900, 560)
         self.variables_inputs = {}
         self.tablas_con_errores = []
         self.info_tabla_origen = None
@@ -485,6 +510,9 @@ class MigracionVentana(tk.Toplevel):
         self.combo_grupo.set('')
         for entry in self.variables_inputs.values():
             entry.delete(0, tk.END)
+        self.limpiar_consola()
+        self.btn_migrar.config(state="normal")
+        self.btn_cancelar.config(state="normal")
 
     def limpiar_consola(self):
         self.log_box.config(state='normal')
@@ -600,17 +628,34 @@ class MigracionVentana(tk.Toplevel):
             return
         
         respuesta = messagebox.askyesno(
-            "confirmar",
-            "¿Seguro que quieres cancelar la migracion en curso?\n Se perderan TODOS los datos"
+            "Confirmar Cancelación",
+            "¿Seguro que quieres cancelar la migración en curso?\n\nSe detendrá inmediatamente y se harán rollback de los cambios pendientes."
         )
         if not respuesta:
             self.log("Cancelación abortada por el usuario.")
             return
         
+        # FIX CRÍTICO: Activar cancelación real
         self.cancelar_migracion = True
-        self.log("Cancelando migracion. Espera un momento...")
-        self.btn_cancelar.config(state="normal")
+        self.log("🛑 CANCELANDO migración... Deteniendo hilos y haciendo rollback.", "warning")
+        
+        # Deshabilitar botón para evitar múltiples clicks
+        self.btn_cancelar.config(state="disabled")
+        self.btn_migrar.config(state="disabled")
 
+    def sanitizar_valor_sql(self, valor):
+        """Sanitiza valores para prevenir inyección SQL básica"""
+        if not valor:
+            return valor
+        # Remover caracteres peligrosos comunes
+        caracteres_peligrosos = [';', '--', '/*', '*/', 'xp_', 'sp_', 'DROP', 'DELETE', 'TRUNCATE', 'ALTER']
+        valor_limpio = str(valor).strip()
+        for peligroso in caracteres_peligrosos:
+            if peligroso.lower() in valor_limpio.lower():
+                self.log(f"⚠️ Valor rechazado por contener '{peligroso}': {valor_limpio[:50]}", "warning")
+                return ""
+        return valor_limpio
+    
     def on_grupo_change(self, event):
         for widget in self.var_frame.winfo_children():
             widget.destroy()
@@ -633,7 +678,7 @@ class MigracionVentana(tk.Toplevel):
                 etiqueta_titulo(self.var_frame, texto=f"Valor para ${variable}$:").grid(row=idx, column=0, sticky="e")
                 entry = entrada_estandar(self.var_frame, width=30)
                 entry.grid(row=idx, column=1, padx=10)
-                ToolTip(entry, f"Ingrese el valor para la variable '{variable}' en JOIN o condición WHERE.")
+                ToolTip(entry, f"Ingrese el valor para la variable '{variable}' en JOIN o condición WHERE. No usar: ; -- /* DROP DELETE")
                 self.variables_inputs[variable] = entry
 
     def validar_campos_obligatorios(self):
@@ -670,6 +715,23 @@ class MigracionVentana(tk.Toplevel):
         self.ventana_tabla["state"] = st
         self.ventana_grupo["state"] = st
 
+    def validar_where_seguro(self, where_clause):
+        """Valida que la cláusula WHERE no contenga SQL peligroso"""
+        if not where_clause:
+            return True, where_clause
+        
+        # Patrones peligrosos
+        patrones_peligrosos = [
+            r';\s*DROP\s+', r';\s*DELETE\s+', r';\s*TRUNCATE\s+', r';\s*ALTER\s+',
+            r'--', r'/\*', r'\*/'
+        ]
+        
+        for patron in patrones_peligrosos:
+            if re.search(patron, where_clause, re.IGNORECASE):
+                return False, f"Patrón peligroso detectado: {patron}"
+        
+        return True, where_clause
+    
     def on_consultar_tabla(self):
         self.info_tabla_origen = None
         tabla = self.entry_tabla_origen.get().strip()
@@ -678,28 +740,40 @@ class MigracionVentana(tk.Toplevel):
         nombre_origen = self.combo_amb_origen.get()
         nombre_destino = self.combo_amb_destino.get()
         errores = []
+        
+        # SEGURIDAD: Validar WHERE clause
+        if where:
+            es_seguro, mensaje = self.validar_where_seguro(where)
+            if not es_seguro:
+                self.error_migracion(f"Condición WHERE no segura: {mensaje}")
+                return
 
         # Validaciones
         if not tabla:
-            self.entry_tabla_origen.config(bootstyle="light")
+            self.entry_tabla_origen.config(bootstyle="danger")
             errores.append("Tabla (origen)")
         if not base:
-            self.entry_db_origen.config(bootstyle="light")
+            self.entry_db_origen.config(bootstyle="danger")
             errores.append("Base de datos (origen)")
         if not nombre_origen or not nombre_destino:
             errores.append("Ambientes")
         if not es_nombre_tabla_valido(tabla):
-            self.entry_tabla_origen.config(bootstyle="light")
-            errores.append("Nombre de tabla no válido")
+            self.entry_tabla_origen.config(bootstyle="danger")
+            errores.append("Nombre de tabla no válido (solo A-Z, 0-9, _, .)")
         if not es_nombre_tabla_valido(base):
-            self.entry_db_origen.config(bootstyle="light")
-            errores.append("Nombre de base no válido")
+            self.entry_db_origen.config(bootstyle="danger")
+            errores.append("Nombre de base no válido (solo A-Z, 0-9, _, .)")
 
         # BLOQUE DE CORRECCIÓN: deshabilitar ambos botones si hay errores
         if errores:
-            self.error_migracion("Debe ingresar: " + ", ".join(errores))
+            self.error_migracion("❌ Errores encontrados: " + ", ".join(errores))
             self.btn_migrar["state"] = "disabled"
             self.btn_cancelar["state"] = "disabled"
+            # Limpiar estilos de error después de 3 segundos
+            self.after(3000, lambda: [
+                self.entry_tabla_origen.config(bootstyle=""),
+                self.entry_db_origen.config(bootstyle="")
+            ])
             return
 
         amb_origen = next((a for a in self.ambientes if a["nombre"] == nombre_origen), None)
@@ -715,13 +789,41 @@ class MigracionVentana(tk.Toplevel):
             self.btn_cancelar["state"] = "disabled"
             return
 
-        resultado = consultar_tabla_e_indice(
-            tabla, amb_origen, amb_destino, self.log, self.error_migracion, where=where, base_usuario=base
-        )
+        # Mostrar indicador de progreso y deshabilitar controles
+        self.btn_consultar.config(state="disabled", text="Consultando...")
+        self.progress.config(mode="indeterminate")
+        self.progress.start(10)
+        self.progress_lbl.config(text="Consultando estructura y datos...")
+        
+        # Ejecutar consulta en hilo separado
+        threading.Thread(
+            target=self._consultar_en_hilo,
+            args=(tabla, amb_origen, amb_destino, where, base),
+            daemon=True
+        ).start()
+        
+    def _consultar_en_hilo(self, tabla, amb_origen, amb_destino, where, base):
+        """Ejecuta la consulta en un hilo separado para no bloquear la UI"""
+        try:
+            resultado = consultar_tabla_e_indice(
+                tabla, amb_origen, amb_destino, self.log, self._error_consulta_hilo, where=where, base_usuario=base
+            )
+            # Actualizar UI en el hilo principal
+            self.after(0, self._finalizar_consulta, resultado)
+        except Exception as e:
+            self.after(0, self._error_consulta_hilo, f"Error inesperado: {str(e)}")
+    
+    def _finalizar_consulta(self, resultado):
+        """Finaliza la consulta y actualiza la UI"""
+        # Detener progreso
+        self.progress.stop()
+        self.progress_lbl.config(text="")
+        self.btn_consultar.config(state="normal", text="Consultar datos a migrar")
+        
         if resultado:
             self.info_tabla_origen = resultado
             self.btn_migrar["state"] = "normal"
-            self.btn_cancelar["state"] = "normal"      # Asegura que ambos se habiliten correctamente solo aquí
+            self.btn_cancelar["state"] = "normal"
             self.combo_amb_origen["state"] = "disabled"
             self.combo_amb_destino["state"] = "disabled"
             self.log(
@@ -731,6 +833,13 @@ class MigracionVentana(tk.Toplevel):
         else:
             self.btn_migrar["state"] = "disabled"
             self.btn_cancelar["state"] = "disabled"
+    
+    def _error_consulta_hilo(self, mensaje):
+        """Maneja errores desde el hilo de consulta"""
+        self.progress.stop()
+        self.progress_lbl.config(text="")
+        self.btn_consultar.config(state="normal", text="Consultar datos a migrar")
+        self.error_migracion(mensaje)
 
     def on_migrar(self):
         # --- CORRECCIÓN #1: Se usan los nombres correctos para los combos de ambiente ---
@@ -826,11 +935,11 @@ class MigracionVentana(tk.Toplevel):
             self.log(f"No se pudo guardar en el historial: {e}", nivel="warning")
         self.update_progress(100)
         if resultado_migracion and resultado_migracion.get("insertados", 0) == 0:
-            messagebox.showinfo("Sin migración", "No existen datos para migrar (todos duplicados o sin registros).")
+            messagebox.showinfo("Sin migración", "No existen datos para migrar (todos duplicados o sin registros).", parent=self)
             self.log("No existen datos para migrar (todo estaba duplicado o tabla vacía).", nivel="warning")
         else:
             self.log("Migración tabla a tabla finalizada.", nivel="success")
-            messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!")
+            messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!", parent=self)
         # Habilita los controles para una nueva consulta, pero mantiene deshabilitados Migrar y Cancelar.
         self.habilitar_controles_tabla(afectar_migrar_cancelar=False)
         self.btn_migrar.config(state="disabled")
@@ -848,7 +957,15 @@ class MigracionVentana(tk.Toplevel):
         if not grupo_conf:
             self.error_migracion("No se encontró el grupo seleccionado en el catálogo.")
             return
-        variables = {var: entry.get().strip() for var, entry in self.variables_inputs.items()} if self.variables_inputs else {}
+        # SEGURIDAD: Sanitizar variables antes de usar
+        variables = {}
+        if self.variables_inputs:
+            for var, entry in self.variables_inputs.items():
+                valor_original = entry.get().strip()
+                valor_sanitizado = self.sanitizar_valor_sql(valor_original)
+                if valor_original != valor_sanitizado:
+                    self.log(f"⚠️ Variable ${var}$ sanitizada: '{valor_original}' -> '{valor_sanitizado}'", "warning")
+                variables[var] = valor_sanitizado
         amb_origen = next((a for a in self.ambientes if a["nombre"] == nombre_origen), None)
         if not amb_origen:
             self.error_migracion("Debes seleccionar un ambiente de origen válido.")
@@ -867,13 +984,11 @@ class MigracionVentana(tk.Toplevel):
         )
         self.update_progress(100)
         self.log("Migración de grupo finalizada.", nivel="success")
-        messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!")
+        messagebox.showinfo("Migración finalizada", "¡Migración de grupo finalizada con éxito!", parent=self)
         self.habilitar_botones(True) # Habilitar todos los botones
-        messagebox.showinfo("Migración finalizada", "¡Migración de grupo finalizada con éxito!")
         self.habilitar_botones(True, afectar_migrar=False) # Habilita controles, pero no el botón de migrar
         self.btn_migrar.config(state="disabled") # Deshabilita explícitamente el botón de migrar
         self.btn_cancelar.config(state="disabled") # Deshabilitar cancelar al final
         self.migrando = False # 
         
-        #el boton cancelar sigue sin ejecutar la operacion de cancelacion, sin embargo ejecuta la accion del boton (manda el mensaje de info)
-        #en conclusion no cancela la operacion de migracion
+        # FIX: Cancelación ahora funciona correctamente

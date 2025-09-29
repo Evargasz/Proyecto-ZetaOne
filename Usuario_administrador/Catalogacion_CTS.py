@@ -1,5 +1,10 @@
 import os
-import paramiko
+try:
+    import paramiko
+    PARAMIKO_DISPONIBLE = True
+except ImportError:
+    PARAMIKO_DISPONIBLE = False
+    paramiko = None
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import ttkbootstrap as tb
@@ -42,6 +47,9 @@ def asegurar_directorio_remoto(sftp, ruta, log_callback=None):
         if log_callback: log_callback(f"❌ Error al verificar/crear directorio {ruta}: {e}")
 
 def subir_archivos(origen, destino_xml, destino_jar, log_callback=None):
+    if not PARAMIKO_DISPONIBLE:
+        if log_callback: log_callback("❌ Error: paramiko no está instalado")
+        return False
     transport = paramiko.Transport((HOST, 22))
     transport.connect(username=USER, password=PASSWORD)
     sftp = paramiko.SFTPClient.from_transport(transport)
@@ -67,6 +75,9 @@ def subir_archivos(origen, destino_xml, destino_jar, log_callback=None):
     if log_callback: log_callback("\n✅ Transferencia completada")
 
 def validar_conexion(host, user, password, log_callback=None):
+    if not PARAMIKO_DISPONIBLE:
+        if log_callback: log_callback("❌ Error: paramiko no está instalado")
+        return False
     try:
         cliente = paramiko.SSHClient()
         cliente.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -159,6 +170,10 @@ class CatalogacionCTS(tk.Toplevel):
         self.txt_log['state'] = 'disabled'
 
     def catalogar(self):
+        if not PARAMIKO_DISPONIBLE:
+            messagebox.showerror("Dependencia Faltante", "Esta funcionalidad requiere 'paramiko'.\n\nInstala con: pip install paramiko")
+            return
+            
         origen = self.origen.get()
         ambiente = self.ambiente.get()
         ruta_dest = self.ruta_destino.get()
