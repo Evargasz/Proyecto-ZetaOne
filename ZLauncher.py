@@ -4,20 +4,27 @@ from ventana_credenciales import credenciales
 from Usuario_administrador.usu_admin_main import usuAdminMain
 from Usuario_basico.usu_basico_main import usuBasicoMain
 
-# llamado a los styles
+#llamado a los styles
 from ttkbootstrap import Style
 from styles import configurar_estilos
+
+# --- Versión de la Aplicación ---
+__version__ = "1.4.0" # Ejemplo: Major.Minor.Patch
 
 class controladorVentanas:
     def __init__(self, root):
         self.root = root
         self.style = Style(theme="litera")
         configurar_estilos(self.style)
-        self.mostrar_pantalla_inicio()
+        self.mostrar_pantalla_inicio()        
 
     def limpiar_root(self):
-        """Destruye todos los widgets hijos de la ventana raíz."""
+        """Destruye todos los widgets y resetea la configuración de geometría."""
         for widget in self.root.winfo_children():
+            # Desvincula el widget de su gestor de geometría antes de destruirlo
+            widget.pack_forget()
+            widget.grid_forget()
+            widget.place_forget()
             widget.destroy()
 
     def _configurar_y_centrar_ventana(self, ancho, alto, redimensionable=False):
@@ -53,22 +60,22 @@ class controladorVentanas:
 
     def mostrar_pantalla_inicio(self):
         self.limpiar_root()
-        self._configurar_y_centrar_ventana(400, 350)
+        self._configurar_y_centrar_ventana(400, 350, redimensionable=False)
         PantallaInicio(self.root, self)
         
     def mostrar_credenciales(self):
         self.limpiar_root()
-        self._configurar_y_centrar_ventana(250, 250)
+        self._configurar_y_centrar_ventana(250, 250, redimensionable=False)
         credenciales(self.root, self)
 
     def mostrar_admin(self):
         self.limpiar_root()
-        self._configurar_y_centrar_ventana(1200, 650, redimensionable=True)
+        self._configurar_y_centrar_ventana(1300, 680, redimensionable=True)
         usuAdminMain.iniciar_ventana(self.root, self)
 
     def mostrar_basico(self):
         self.limpiar_root()
-        self._configurar_y_centrar_ventana(900, 650)
+        self._configurar_y_centrar_ventana(900, 650, redimensionable=True)
         usuBasicoMain(self.root, self)
 
 if __name__ == "__main__":

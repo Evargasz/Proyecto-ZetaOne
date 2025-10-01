@@ -59,7 +59,8 @@ class usuBasicoMain(tb.Frame):
 
         # Configuración de ventana
         self.root.title("ZetaOne || Usuario Basico")
-        self.root.resizable(True, True)
+        # La geometría y el estado resizable ahora son manejados por ZLauncher.py
+        self.root.minsize(900, 650)  # Tamaño mínimo ajustado para 2 columnas completas
 
         #icono
         ruta_icono = recurso_path("imagenes_iconos", "Zeta99.ico")
@@ -497,11 +498,11 @@ class usuBasicoMain(tb.Frame):
         self.habilitar_sidebar(True)
 
     def usar_asistente_captura(self):
-        """Abre el asistente de captura y grabación"""
+        """Abre el asistente de captura y grabación modular"""
         try:
-            from Usuario_basico.asistente_captura import abrir_asistente_captura
+            from Usuario_basico.asistente_captura_modular import abrir_asistente_captura_modular
             self.habilitar_sidebar(False)
-            ventana_asistente = abrir_asistente_captura(self.root)
+            ventana_asistente = abrir_asistente_captura_modular(self.root)
             self.root.wait_window(ventana_asistente)
             self.habilitar_sidebar(True)
         except ImportError as e:

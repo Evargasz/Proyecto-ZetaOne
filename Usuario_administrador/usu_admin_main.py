@@ -38,11 +38,8 @@ class usuAdminMain:
         def __init__(self, root, controlador):
             self.root = root
             self.root.title("Homologador Sybase SD - Multiambiente Validación/Catalogación")
-            style = tb.Style()
-            print(style.element_names())
-
-
-            root.resizable(True, True) # Permitir minimizar/maximizar
+            # La geometría y el estado resizable ahora son manejados por ZLauncher.py.
+            # Esto evita conflictos y centraliza el control de la ventana principal.
 
             # --- CORRECCIÓN: Carga de ícono de ventana de forma segura ---
             try:
@@ -128,7 +125,7 @@ class usuAdminMain:
 
             self.btn_cata_cts = tb.Button(barra_sd, text="catalogacion de CTS", command=self.abrir_Catalog_CTS, width=31, bootstyle="dark-outline-button")
             self.btn_cata_cts.grid(row=0, column=2, padx=(6, 6), sticky="e")
-            
+
             #parte principal
             archivos_frame = tb.LabelFrame(
                 self.frame, text="Archivos Detectados",
@@ -179,7 +176,7 @@ class usuAdminMain:
             self.selected_sd_folder = ""
             self.multi_sd_flag = False
             self.repetidos_log = []
-            
+
         def abrir_Catalog_CTS(self):
             if CatalogacionCTS:
                 CatalogacionCTS(self.app_root)

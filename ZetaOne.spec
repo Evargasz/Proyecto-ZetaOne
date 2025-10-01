@@ -28,7 +28,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='ZetaOne',
+    name='ZetaOne_v1.4.0',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -39,7 +39,8 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='imagenes_iconos\\Zeta99.ico' # Añade el ícono a tu ejecutable
+    icon='imagenes_iconos\\Zeta99.ico', # Añade el ícono a tu ejecutable
+    version='version_info.txt'
 )
 coll = COLLECT(
     exe,
@@ -49,5 +50,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='ZetaOne'
+    name='ZetaOne_v1.4.0'
 )
