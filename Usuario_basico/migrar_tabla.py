@@ -11,6 +11,25 @@ from queue import Queue, Empty
 
 # ==================== LOGICA DE BACKEND MIGRACION ====================
 
+def _manage_trigger(cursor, tabla, action, log_func=None):
+    """
+    Maneja habilitación/deshabilitación de triggers de forma segura
+    action: 'DISABLE' o 'ENABLE'
+    """
+    if not tabla or 'ca_transaccion' not in tabla.lower():
+        return  # Solo aplicar a ca_transaccion
+    
+    try:
+        trigger_name = 'tg_ca_transaccion'
+        sql = f"ALTER TABLE ca_transaccion {action} TRIGGER {trigger_name}"
+        cursor.execute(sql)
+        if log_func:
+            status = "deshabilitado" if action == "DISABLE" else "rehabilitado"
+            log_func(f"🔧 Trigger {trigger_name} {status}", "info")
+    except Exception as e:
+        if log_func:
+            log_func(f"⚠️ Error {action.lower()} trigger: {str(e)[:50]}", "warning")
+
 def _build_conn_str(amb):
     driver = amb.get('driver', '')
     if 'sybase' in driver.lower():
@@ -290,19 +309,79 @@ def consumidor_de_pks_optimizado(
 
                         if filas_a_insertar:
                             try:
+                                # ANÁLISIS PREVIO DE CAMPOS DE FECHA
+                                nuevos_registros = [tuple(row) for row in filas_a_insertar]
+                                
+                                # Verificar campos de fecha ANTES del insert
+                                for i, registro in enumerate(nuevos_registros[:3]):  # Solo primeros 3 para no saturar log
+                                    for j, valor in enumerate(registro):
+                                        if j < len(columnas):
+                                            campo = columnas[j]
+                                            if 'fecha' in campo.lower() or 'date' in campo.lower() or 'time' in campo.lower() or 'fec' in campo.lower():
+                                                log(f"📅 Registro {i}: {campo} = '{valor}' (tipo: {type(valor).__name__})", "info")
+                                                
+                                                # Validación específica de fechas
+                                                if valor and str(valor).strip() not in ['None', '', 'NULL', '0000-00-00', '1900-01-01']:
+                                                    try:
+                                                        from datetime import datetime
+                                                        if isinstance(valor, str) and len(str(valor)) > 10:
+                                                            datetime.strptime(str(valor)[:19], '%Y-%m-%d %H:%M:%S')
+                                                        elif isinstance(valor, str):
+                                                            datetime.strptime(str(valor), '%Y-%m-%d')
+                                                    except Exception as fecha_error:
+                                                        log(f"⚠️ FECHA INVÁLIDA - Registro {i}: {campo} = '{valor}' - Error: {fecha_error}", "warning")
+                                
                                 # Acumular inserciones para commits por lotes
-                                pending_inserts.extend([tuple(row) for row in filas_a_insertar])
+                                pending_inserts.extend(nuevos_registros)
                                 insertados_hilo += len(filas_a_insertar)
                                 
                                 # Commit en lotes grandes para mejorar rendimiento
                                 if len(pending_inserts) >= COMMIT_BATCH_SIZE:
+                                    log(f"🔄 Insertando lote de {len(pending_inserts)} registros...", "info")
+                                    
+                                    # DESHABILITAR TRIGGER PARA LOTES PARALELOS
+                                    _manage_trigger(cur_dest, tabla, "DISABLE")
+                                    
                                     sql_insert = f"INSERT INTO {tabla} ({','.join(columnas)}) VALUES ({','.join(['?' for _ in columnas])})"
                                     cur_dest.executemany(sql_insert, pending_inserts)
                                     conn_dest.commit()
+                                    
+                                    # REHABILITAR TRIGGER
+                                    _manage_trigger(cur_dest, tabla, "ENABLE")
+                                    
                                     pending_inserts.clear()
+                                    log(f"✅ Lote insertado exitosamente", "info")
                                 
                             except Exception as insert_error:
-                                log(f"⚠️ Error en insert: {str(insert_error)[:50]}", "warning")
+                                # REHABILITAR TRIGGER EN CASO DE ERROR
+                                _manage_trigger(cur_dest, tabla, "ENABLE")
+                                
+                                log(f"❌ Error crítico insertando lote: {str(insert_error)[:200]}", "error")
+                                
+                                # ANÁLISIS DETALLADO DEL ERROR
+                                log(f"📊 Analizando {len(pending_inserts)} registros en el lote fallido...", "error")
+                                
+                                # Mostrar estructura de columnas
+                                log(f"📋 Columnas de la tabla: {', '.join(columnas)}", "error")
+                                
+                                # Analizar cada registro del lote fallido
+                                for i, registro in enumerate(pending_inserts[:5]):  # Primeros 5 registros
+                                    log(f"\n🔍 REGISTRO {i}:", "error")
+                                    for j, valor in enumerate(registro):
+                                        if j < len(columnas):
+                                            campo = columnas[j]
+                                            tipo_valor = type(valor).__name__
+                                            log(f"  {campo}: '{valor}' ({tipo_valor})", "error")
+                                            
+                                            # Análisis especial para campos de fecha
+                                            if any(x in campo.lower() for x in ['fecha', 'date', 'time', 'fec']):
+                                                if valor is None:
+                                                    log(f"    ⚠️ FECHA NULA en {campo}", "error")
+                                                elif str(valor).strip() == '':
+                                                    log(f"    ⚠️ FECHA VACÍA en {campo}", "error")
+                                                else:
+                                                    log(f"    📅 Valor fecha: '{valor}' (longitud: {len(str(valor))})", "error")
+                                
                                 conn_dest.rollback()
                                 pending_inserts.clear()
                                 continue
@@ -319,12 +398,35 @@ def consumidor_de_pks_optimizado(
         # Commit final de registros pendientes
         if pending_inserts:
             try:
+                log(f"🔄 Commit final: {len(pending_inserts)} registros pendientes...", "info")
+                
+                # DESHABILITAR TRIGGER PARA COMMIT FINAL
+                _manage_trigger(cur_dest, tabla, "DISABLE")
+                
                 sql_insert = f"INSERT INTO {tabla} ({','.join(columnas)}) VALUES ({','.join(['?' for _ in columnas])})"
                 cur_dest.executemany(sql_insert, pending_inserts)
                 conn_dest.commit()
+                
+                # REHABILITAR TRIGGER TRAS COMMIT FINAL
+                _manage_trigger(cur_dest, tabla, "ENABLE")
+                
                 log(f"✅ Commit final exitoso: {len(pending_inserts)} registros")
             except Exception as final_error:
-                log(f"❌ Error crítico en commit final: {str(final_error)[:100]}", "error")
+                # REHABILITAR TRIGGER EN CASO DE ERROR FINAL
+                _manage_trigger(cur_dest, tabla, "ENABLE")
+                
+                log(f"❌ Error crítico en commit final: {str(final_error)[:200]}", "error")
+                
+                # Análisis detallado del error final
+                log(f"🔍 Analizando error en commit final con {len(pending_inserts)} registros...", "error")
+                for i, registro in enumerate(pending_inserts[:3]):
+                    log(f"\n📋 REGISTRO FINAL {i}:", "error")
+                    for j, valor in enumerate(registro):
+                        if j < len(columnas):
+                            campo = columnas[j]
+                            if any(x in campo.lower() for x in ['fecha', 'date', 'time', 'fec']):
+                                log(f"  📅 {campo}: '{valor}' (tipo: {type(valor).__name__}, longitud: {len(str(valor)) if valor else 0})", "error")
+                
                 conn_dest.rollback()
                 # CRÍTICO: Ajustar contadores si el commit falló
                 insertados_hilo -= len(pending_inserts)
@@ -351,6 +453,10 @@ def consumidor_de_pks_optimizado(
         except Exception as rb_error:
             log(f"⚠️ Error en rollback: {str(rb_error)[:50]}", "warning")
     finally:
+        # ASEGURAR QUE EL TRIGGER ESTÉ HABILITADO AL FINALIZAR
+        if conn_dest:
+            _manage_trigger(cur_dest, tabla, "ENABLE")
+        
         conn_ori.close()
         conn_dest.close()
 
@@ -502,44 +608,142 @@ def migrar_tabla_secuencial(tabla, where, amb_origen, amb_destino, log, progress
                 if not filas:
                     break
                 
+                # VERIFICACIÓN DE DUPLICADOS ANTES DEL INSERT
+                registros_originales = [tuple(row) for row in filas]
+                registros_a_insertar = []
+                omitidos_en_lote = 0
+                
+                # Obtener índices de la clave primaria
+                pk_cols = ['tr_operacion', 'tr_secuencial']  # Clave primaria conocida
+                pk_indices = []
+                for pk_col in pk_cols:
+                    try:
+                        pk_indices.append(columnas.index(pk_col))
+                    except ValueError:
+                        log(f"⚠️ Campo de clave primaria {pk_col} no encontrado", "warning")
+                
+                if pk_indices:
+                    # Verificar cada registro si ya existe
+                    for registro in registros_originales:
+                        pk_values = [registro[i] for i in pk_indices]
+                        
+                        # Construir consulta de verificación
+                        condiciones = " AND ".join([f"{pk_cols[i]}=?" for i in range(len(pk_cols))])
+                        sql_check = f"SELECT COUNT(*) FROM {tabla} WHERE {condiciones}"
+                        
+                        try:
+                            cur_dest.execute(sql_check, pk_values)
+                            existe = cur_dest.fetchone()[0] > 0
+                            
+                            if existe:
+                                omitidos_en_lote += 1
+                                log(f"⚠️ Registro duplicado omitido: tr_operacion={pk_values[0]}, tr_secuencial={pk_values[1]}", "warning")
+                            else:
+                                registros_a_insertar.append(registro)
+                        except Exception as check_error:
+                            log(f"⚠️ Error verificando duplicado: {str(check_error)[:50]}", "warning")
+                            registros_a_insertar.append(registro)  # Si falla la verificación, intentar insertar
+                else:
+                    # Si no se pueden obtener los índices de PK, usar todos los registros
+                    registros_a_insertar = registros_originales
+                
+                total_omitidos += omitidos_en_lote
+                log(f"📊 Lote: {len(registros_a_insertar)} nuevos, {omitidos_en_lote} duplicados omitidos", "info")
+                
+                if not registros_a_insertar:
+                    log(f"⚠️ Todos los registros del lote ya existen. Continuando...", "warning")
+                    continue
+                
+                # DESHABILITAR TRIGGER TEMPORALMENTE
+                _manage_trigger(cur_dest, tabla, "DISABLE", log)
+                
                 sql_insert = f"INSERT INTO {tabla} ({','.join(columnas)}) VALUES ({','.join(['?' for _ in columnas])})"
                 try:
-                    cur_dest.executemany(sql_insert, [tuple(row) for row in filas])
+                    log(f"🔄 Insertando {len(registros_a_insertar)} registros nuevos (trigger deshabilitado)...", "info")
+                    cur_dest.executemany(sql_insert, registros_a_insertar)
                     conn_dest.commit()
-                    total_insertados += len(filas)
+                    total_insertados += len(registros_a_insertar)
+                    log(f"✅ Lote insertado exitosamente: {len(registros_a_insertar)} registros", "info")
+                    
+                    # REHABILITAR TRIGGER
+                    _manage_trigger(cur_dest, tabla, "ENABLE", log)
                     
                     # PROGRESO MEJORADO para migración secuencial
                     total_procesados = total_insertados + total_omitidos
                     if total_registros and total_registros > 0:
                         porcentaje = min(98, int((total_procesados / total_registros) * 100))
                         progress(porcentaje)
-                        log(f"✅ Lote procesado: {len(filas):,} registros | Progreso: {porcentaje}% ({total_procesados:,}/{total_registros:,})")
+                        log(f"✅ Progreso: {porcentaje}% | Insertados: {total_insertados:,} | Omitidos: {total_omitidos:,} | Total: {total_procesados:,}/{total_registros:,}")
                     else:
-                        log(f"✅ Lote procesado: {len(filas):,} registros | Total: {total_procesados:,}")
+                        log(f"✅ Procesados: {total_procesados:,} | Insertados: {total_insertados:,} | Omitidos: {total_omitidos:,}")
                         
                 except pyodbc.IntegrityError as ie:
+                    # Manejar errores de integridad (duplicados que no se detectaron)
                     conn_dest.rollback()
-                    total_omitidos += len(filas)
-                    total_procesados = total_insertados + total_omitidos
-                    if total_registros and total_registros > 0:
-                        porcentaje = min(98, int((total_procesados / total_registros) * 100))
-                        progress(porcentaje)
-                    log(f"⚠️ Lote omitido: {len(filas):,} registros duplicados | Progreso: {porcentaje if total_registros else 'N/A'}%", "warning")
+                    total_omitidos += len(registros_a_insertar)
+                    log(f"⚠️ Lote omitido por integridad: {str(ie)[:100]}", "warning")
                 except Exception as e:
                     error_msg = str(e).lower()
+                    log(f"❌ Error en lote completo: {str(e)[:100]}", "error")
+                    
+                    # REHABILITAR TRIGGER EN CASO DE ERROR
+                    _manage_trigger(cur_dest, tabla, "ENABLE", log)
+                    
+                    # INSERTAR REGISTRO POR REGISTRO PARA IDENTIFICAR PROBLEMÁTICOS
+                    log(f"🔍 Insertando registro por registro para omitir problemáticos...", "info")
+                    conn_dest.rollback()  # Rollback del lote fallido
+                    
+                    insertados_individuales = 0
+                    omitidos_individuales = 0
+                    
+                    for i, registro in enumerate(registros_a_insertar):
+                        try:
+                            cur_dest.execute(sql_insert, registro)
+                            conn_dest.commit()
+                            insertados_individuales += 1
+                            
+                            # Log cada 10 registros exitosos
+                            if insertados_individuales % 10 == 0:
+                                log(f"✅ {insertados_individuales} registros insertados individualmente", "info")
+                                
+                        except Exception as reg_error:
+                            conn_dest.rollback()
+                            omitidos_individuales += 1
+                            
+                            # Identificar el tipo de error
+                            if "fechas de referencia" in str(reg_error).lower():
+                                # Extraer fechas problemáticas del registro
+                                fecha_mov = registro[columnas.index('tr_fecha_mov')] if 'tr_fecha_mov' in columnas else 'N/A'
+                                fecha_ref = registro[columnas.index('tr_fecha_ref')] if 'tr_fecha_ref' in columnas else 'N/A'
+                                tr_operacion = registro[columnas.index('tr_operacion')] if 'tr_operacion' in columnas else 'N/A'
+                                tr_secuencial = registro[columnas.index('tr_secuencial')] if 'tr_secuencial' in columnas else 'N/A'
+                                
+                                log(f"⚠️ Registro {i} omitido por fechas inconsistentes:", "warning")
+                                log(f"  🔑 PK: tr_operacion={tr_operacion}, tr_secuencial={tr_secuencial}", "warning")
+                                log(f"  📅 tr_fecha_mov={fecha_mov}, tr_fecha_ref={fecha_ref}", "warning")
+                                log(f"  ❌ Error: {str(reg_error)[:100]}", "warning")
+                            else:
+                                log(f"⚠️ Registro {i} omitido: {str(reg_error)[:50]}", "warning")
+                    
+                    total_insertados += insertados_individuales
+                    total_omitidos += omitidos_individuales
+                    
+                    log(f"📊 Resultado individual: {insertados_individuales} insertados, {omitidos_individuales} omitidos", "info")
+                    
                     try:
                         conn_dest.rollback()
                         log(f"✅ Rollback exitoso tras error.")
                     except Exception as rb_error:
                         log(f"⚠️ Error en rollback: {str(rb_error)[:50]}", "warning")
                     
+                    # ASEGURAR QUE EL TRIGGER SE REHABILITE
+                    _manage_trigger(cur_dest, tabla, "ENABLE")
+                    
                     if "timeout" in error_msg or "connection" in error_msg:
                         log(f"❌ Conexión perdida durante inserción. Migración detenida.", "error")
                         abort(f"❌ Conexión perdida. Reinicie la migración.")
-                    else:
-                        log(f"❌ Error crítico insertando lote: {str(e)[:100]}", "error")
-                        abort(f"❌ Error insertando lote: {str(e)[:100]}")
-                    return {"insertados": total_insertados, "omitidos": total_omitidos}
+                        return {"insertados": total_insertados, "omitidos": total_omitidos}
+                    # Si no es error de conexión, continuar con el siguiente lote
     
     except Exception as e:
         error_msg = str(e).lower()
@@ -559,11 +763,11 @@ def migrar_tabla_secuencial(tabla, where, amb_origen, amb_destino, log, progress
 
     # VALIDACIÓN FINAL
     if total_insertados > 0:
-        log(f"✅ Migración secuencial exitosa. Insertados: {total_insertados:,} | Omitidos: {total_omitidos:,}", "success")
+        log(f"✅ Migración secuencial exitosa. Insertados: {total_insertados:,} | Omitidos (duplicados): {total_omitidos:,}", "success")
     elif total_omitidos > 0:
-        log(f"⚠️ Migración completada sin nuevos registros. Todos duplicados: {total_omitidos:,}", "warning")
+        log(f"ℹ️ No existen datos para migrar (todo estaba duplicado o tabla vacía).", "info")
     else:
-        log(f"⚠️ Migración completada sin procesar registros. Verificar condiciones WHERE.", "warning")
+        log(f"⚠️ No se procesaron registros. Verificar condiciones WHERE o conectividad.", "warning")
     
     progress(100)
     return {"insertados": total_insertados, "omitidos": total_omitidos}

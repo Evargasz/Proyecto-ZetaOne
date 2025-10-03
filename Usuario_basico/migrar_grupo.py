@@ -144,6 +144,25 @@ class AutocompleteEntry(tk.Frame):
 
 CATALOGO_FILE = "catalogo_migracion.json"
 
+def _manage_trigger(cursor, tabla, action, log_func=None):
+    """
+    Maneja habilitación/deshabilitación de triggers de forma segura
+    action: 'DISABLE' o 'ENABLE'
+    """
+    if not tabla or 'ca_transaccion' not in tabla.lower():
+        return  # Solo aplicar a ca_transaccion
+    
+    try:
+        trigger_name = 'tg_ca_transaccion'
+        sql = f"ALTER TABLE ca_transaccion {action} TRIGGER {trigger_name}"
+        cursor.execute(sql)
+        if log_func:
+            status = "deshabilitado" if action == "DISABLE" else "rehabilitado"
+            log_func(f"[{tabla}] 🔧 Trigger {trigger_name} {status}")
+    except Exception as e:
+        if log_func:
+            log_func(f"[{tabla}] ⚠️ Error {action.lower()} trigger: {str(e)[:50]}")
+
 def es_nombre_tabla_valido(nombre):
     # Permite solo letras, números, guion bajo y punto, sin espacios ni caracteres especiales
     return bool(re.match(r'^[A-Za-z0-9_.]+$', nombre or ''))
@@ -362,6 +381,10 @@ def migrar_tabla_del_grupo(
                     break
                 if cancelar_func and cancelar_func():
                     log(f"[{tabla}] Migracion  de grupo cancelada por el usuario. rollback de cambios si es necesario.")
+                    
+                    # REHABILITAR TRIGGER AL CANCELAR
+                    _manage_trigger(cur_dest, tabla, "ENABLE", log)
+                    
                     try:
                         conn_dest.rollback()
                     except Exception:
@@ -400,13 +423,23 @@ def migrar_tabla_del_grupo(
                     insertables = [[getattr(row, col) for col in colnames] for row in filas]
 
                 if insertables:
+                    # DESHABILITAR TRIGGER ANTES DE INSERTAR
+                    _manage_trigger(cur_dest, tabla, "DISABLE", log)
+                    
                     sql_insert = f"INSERT INTO {tabla} ({','.join(colnames)}) VALUES ({','.join(['?' for _ in colnames])})"
                     try:
                         cur_dest.executemany(sql_insert, insertables)
                         migrados += len(insertables)
                         conn_dest.commit()
                         log(f"[{tabla}] Batch {lote_num} migrado: {len(insertables)} registros insertados.")
+                        
+                        # REHABILITAR TRIGGER TRAS INSERCIÓN EXITOSA
+                        _manage_trigger(cur_dest, tabla, "ENABLE", log)
+                        
                     except Exception as e:
+                        # REHABILITAR TRIGGER EN CASO DE ERROR
+                        _manage_trigger(cur_dest, tabla, "ENABLE", log)
+                        
                         log(f"[{tabla}] Error insertando batch {lote_num}: {e}")
                         conn_dest.rollback()
                 progress(
@@ -414,10 +447,27 @@ def migrar_tabla_del_grupo(
                 )
     except Exception as e:
         log(f"[{tabla}] Error global durante migración: {e}")
+        
+        # ASEGURAR QUE EL TRIGGER ESTÉ HABILITADO EN CASO DE ERROR GLOBAL
+        try:
+            with pyodbc.connect(conn_str_dest, timeout=8) as conn_dest_cleanup:
+                cur_dest_cleanup = conn_dest_cleanup.cursor()
+                _manage_trigger(cur_dest_cleanup, tabla, "ENABLE", log)
+        except Exception:
+            pass
+        
         reactivar_indices_secundarios(conn_str_dest, tabla, log)
         return migrados
 
-    # 9. Reactiva índices secundarios tras el insert
+    # 9. Asegurar que el trigger esté habilitado al finalizar
+    try:
+        with pyodbc.connect(conn_str_dest, timeout=8) as conn_dest_final:
+            cur_dest_final = conn_dest_final.cursor()
+            _manage_trigger(cur_dest_final, tabla, "ENABLE", log)
+    except Exception:
+        pass
+    
+    # 10. Reactiva índices secundarios tras el insert
     reactivar_indices_secundarios(conn_str_dest, tabla, log)
     progress(int(100 * (idx_tabla+1) / total_tablas))
     log(f"[{tabla}] FIN migración de tabla. Registros migrados: {migrados} / Omitidos (duplicados): {omitidos} / Progreso global: {idx_tabla+1}/{total_tablas}")
