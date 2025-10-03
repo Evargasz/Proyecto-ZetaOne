@@ -18,6 +18,7 @@ json/*
 !json/usuarios.json
 !json/ambientes.json
 !json/ambientesrelacionados.json
+!json/clave.key
 
 # Otras excepciones específicas (si lo deseas)
 json/HistorialConsultas.json
