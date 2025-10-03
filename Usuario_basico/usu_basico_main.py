@@ -106,7 +106,7 @@ class usuBasicoMain(tb.Frame):
             },
             {
                 "titulo": "Asistente de captura y grabación",
-                "desc": "Captura pantallas y graba videos de aplicaciones",
+                "desc": "Captura pantallas subrayadas y graba\nvideos de aplicaciones",
                 "Favoritos": False,
                 "accion": self.usar_asistente_captura
             }
@@ -568,9 +568,7 @@ class usuBasicoMain(tb.Frame):
             
             progress_text.insert(tk.END, "\n¡Instalación completada!\nReinicia ZetaOne para usar la funcionalidad.")
             progress_text.see(tk.END)
-            
-            boton_exito(progress_window, "Cerrar", comando=progress_window.destroy).pack(pady=10)
-            
+                        
         except Exception as e:
             messagebox.showerror("Error", f"Error instalando dependencias: {e}\n\nEjecuta manualmente: instalar_dependencias_captura.bat")
 

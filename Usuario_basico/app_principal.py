@@ -5,6 +5,7 @@ import time
 import os
 import json
 from docx import Document
+import keyboard
 
 # Importamos la lógica de nuestros scripts existentes
 from capturador_pantallas import (

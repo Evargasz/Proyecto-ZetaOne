@@ -7,6 +7,9 @@ from docx import Document
 from docx.shared import Inches
 from pywinauto import Desktop, uia_defines
 from PIL import Image, ImageDraw
+import math
+from io import BytesIO
+import win32clipboard
 
 # Configuración de aplicaciones desde config.json
 def cargar_objetivos_configurados():
@@ -224,19 +227,57 @@ def capturar_y_guardar(seleccion, carpeta_capturas, contador):
             
             if 0 <= relative_x < screenshot.width and 0 <= relative_y < screenshot.height:
                 draw = ImageDraw.Draw(screenshot)
-                # Cruz amarilla en la posición del cursor
-                size = 15
-                draw.line([relative_x-size, relative_y, relative_x+size, relative_y], fill="yellow", width=3)
-                draw.line([relative_x, relative_y-size, relative_x, relative_y+size], fill="yellow", width=3)
+                # flecha amarilla en la posición del cursor
+                flecha(draw, cursor_x, cursor_y, offset=30, largo=60)
                 print("✓ Marcador de cursor aplicado")
 
         nombre_archivo = os.path.join(carpeta_capturas, f"captura_{contador:03d}.png")
         screenshot.save(nombre_archivo)
         os.startfile(nombre_archivo)
+        copy_clipboard(screenshot)
         return nombre_archivo, screenshot
     except Exception as e:
         print(f"Error durante la captura: {e}")
         return None
+    
+def flecha(draw, cursor_x, cursor_y, offset=0, largo=60, color="yellow"):
+    """Dibuja una flecha cuyo extremo apunta justo donde está el cursor."""
+
+
+    #define el ángulo de entrada de la flecha 
+    angulo = math.radians(45)  
+
+    #calcula el vector de direccion (no se :P)
+    dx = math.cos(angulo)
+    dy = math.sin(angulo)
+
+    #punto donde empieza la flecha
+    start_x = cursor_x + (offset + largo) * dx
+    start_y = cursor_y + (offset + largo) * dy
+    base_x = cursor_x + offset * dx 
+    base_y = cursor_y + offset * dy
+
+    flecha_angle = math.atan2(cursor_y - base_y, cursor_x - base_x)
+    # Dibuja el cuerpo de la flecha (recta principal hacia el cursor)
+    draw.line([(start_x, start_y), (base_x, base_y)], fill=color, width=3)
+
+    #dibuja la cabeza de la flecha 
+    head_len = 15  # longitud de la cabeza de la flecha
+    for head_angle in [-math.radians(30), math.radians(30)]:
+        theta = flecha_angle + head_angle
+        x2 = base_x - head_len * math.cos(theta)
+        y2 = base_y - head_len * math.sin(theta)
+        draw.line([(base_x, base_y), (x2, y2)], fill=color, width=3)
+    
+def copy_clipboard(img):
+    output = BytesIO()
+    img.convert("RGB").save(output, "BMP")
+    data = output.getvalue()[14:]
+    output.close()
+    win32clipboard.OpenClipboard()
+    win32clipboard.EmptyClipboard()
+    win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+    win32clipboard.CloseClipboard()
 
 def main():
     if not APLICACIONES_CONOCIDAS:
