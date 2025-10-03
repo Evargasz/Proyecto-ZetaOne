@@ -374,5 +374,3 @@ def main_con_objetivo(objetivo_preseleccionado):
 
 if __name__ == "__main__":
     main()
-
-    #
