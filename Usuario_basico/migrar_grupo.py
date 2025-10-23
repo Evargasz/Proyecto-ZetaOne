@@ -254,6 +254,19 @@ def desactivar_indices_secundarios(conn_str, tabla, log):
         # Mensaje más claro: esto es normal en Sybase, solo funciona en SQL Server
         log(f"[{tabla}] ℹ️ Optimización de índices no disponible (normal en Sybase): {str(e)[:100]}...")
 
+def _get_column_types(conn_str, tabla):
+    """Devuelve un diccionario de {nombre_col: tipo_pyodbc} para una tabla."""
+    if not es_nombre_tabla_valido(tabla):
+        return {}
+    try:
+        with pyodbc.connect(conn_str, timeout=5) as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT * FROM {tabla} WHERE 1=0")
+            return {col[0].lower(): col[1] for col in cursor.description}
+    except Exception as e:
+        logging.warning(f"No se pudieron obtener los tipos de columna para '{tabla}': {e}")
+        return {}
+
 def reactivar_indices_secundarios(conn_str, tabla, log):
     try:
         with pyodbc.connect(conn_str, timeout=8, autocommit=True) as conn:
@@ -293,9 +306,47 @@ def migrar_tabla_del_grupo(
     llave = tabla_conf.get('llave', "")
     join = tabla_conf.get('join', "")
     condicion = tabla_conf.get('condicion', "")
+    
+    # --- CORRECCIÓN: Usar consultas parametrizadas y corregir literales ---
+    params = []
     where = condicion
-    for var, val in variables.items():
-        where = where.replace(f"${var}$", val)
+
+    # 1. Sustituir variables por '?' para parametrización
+    if variables:
+        # Usar regex para encontrar todas las variables como $var$
+        for var_match in re.finditer(r'\$(\w+)\$', where):
+            var_name = var_match.group(1)
+            if var_name in variables:
+                # Reemplazar la variable por '?' y añadir el valor a la lista de parámetros
+                where = where.replace(var_match.group(0), '?', 1)
+                params.append(variables[var_name])
+
+    # 2. Si no se usaron parámetros, intentar corregir literales de string sin comillas
+    if not params and where:
+        col_types = _get_column_types(conn_str_ori, tabla)
+        if col_types:
+            string_types = (
+                pyodbc.SQL_CHAR, pyodbc.SQL_VARCHAR, pyodbc.SQL_LONGVARCHAR,
+                pyodbc.SQL_WCHAR, pyodbc.SQL_WVARCHAR, pyodbc.SQL_WLONGVARCHAR,
+                pyodbc.SQL_TYPE_DATE, pyodbc.SQL_TYPE_TIME, pyodbc.SQL_TYPE_TIMESTAMP
+            )
+            
+            # Regex para encontrar `columna = valor` (o similar) donde valor es un literal sin comillas.
+            pattern = re.compile(r"([a-zA-Z0-9_]+)\s*(=|!=|<>|LIKE)\s*([a-zA-Z0-9_]+)")
+
+            def quote_replacer(match):
+                col, op, val = match.groups()
+                
+                # Heurística: si el nombre de la columna existe y el valor no es un nombre de columna,
+                # y el tipo de la columna es string, entonces añadir comillas.
+                if col.lower() in col_types and val.lower() not in col_types:
+                    col_type = col_types.get(col.lower())
+                    if col_type in string_types:
+                        return f"{col} {op} '{val}'" # Añadir comillas
+                
+                return match.group(0) # Devolver sin cambios si no cumple las condiciones
+
+            where = pattern.sub(quote_replacer, where)
 
     log(f"[{tabla}] INICIO migración de tabla ({idx_tabla+1}/{total_tablas})")
     progress(int(100 * (idx_tabla) / total_tablas))
@@ -369,7 +420,7 @@ def migrar_tabla_del_grupo(
              pyodbc.connect(conn_str_dest, timeout=60, autocommit=False) as conn_dest:
 
             cur_ori = conn_ori.cursor()
-            cur_ori.execute(sql)
+            cur_ori.execute(sql, params)
             colnames = [d[0] for d in cur_ori.description]
             cur_dest = conn_dest.cursor()
 
@@ -400,14 +451,14 @@ def migrar_tabla_del_grupo(
                     if pk_vals_a_insertar:
                         # Para evitar queries megagrandes, buscamos solo los PKs de este batch
                         filtros = []
-                        params = []
+                        params_insert = []
                         for pk in pk_vals_a_insertar:
                             filtro = " AND ".join([f"{col} = ?" for col in pk_cols])
                             filtros.append(f"({filtro})")
-                            params.extend(pk)
+                            params_insert.extend(pk)
                         filtros_sql = " OR ".join(filtros)
                         query = f"SELECT {','.join(pk_cols)} FROM {tabla} WHERE {filtros_sql}" if filtros_sql else f"SELECT {','.join(pk_cols)} FROM {tabla} WHERE 1=0"
-                        cur_dest.execute(query, params)
+                        cur_dest.execute(query, params_insert)
                         pks_dest = set(tuple(row) for row in cur_dest.fetchall())
                     else:
                         pks_dest = set()
@@ -704,7 +755,7 @@ class MigracionGruposGUI(tk.Toplevel):
         dlg.geometry("450x160")
         x = self.winfo_rootx() + (self.winfo_width() // 2) - 225
         y = self.winfo_rooty() + (self.winfo_height() // 2) - 80
-        dlg.geometry(f"+{x}+{y}")
+        dlg.geometry(f"{x}+{y}")
 
         etiqueta_titulo(dlg, texto=f"Nuevo valor para '{self.tree['columns'][col_idx]}':").pack(pady=5)
         
@@ -851,5 +902,3 @@ class TablaDialog(tk.Toplevel):
 
     def cancel(self):
         self.destroy()
-
-           #asda

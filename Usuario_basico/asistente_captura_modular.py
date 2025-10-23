@@ -43,7 +43,6 @@ class AsistenteCapturaModular(tk.Toplevel):
         self.objetivos_base = []
         
         # Variables de selección
-        self.captura_var = tk.StringVar()
         self.video_var = tk.StringVar()
         
         # Variables de control de objetivo actual
@@ -117,24 +116,8 @@ class AsistenteCapturaModular(tk.Toplevel):
     def crear_seccion_captura(self, parent):
         captura_frame = tb.LabelFrame(parent, text="📸 Capturador de Pantallas", padding=8)
         captura_frame.pack(fill="x", pady=(0, 5))
-        
-        # Selector de objetivo
-        selector_frame = tb.Frame(captura_frame)
-        selector_frame.pack(fill="x", pady=(0, 5))
-        
-        tb.Label(selector_frame, text="Objetivo:", font=("Arial", 9, "bold")).pack(side="left", padx=(0, 5))
-        
-        self.captura_combo = tb.Combobox(
-            selector_frame,
-            textvariable=self.captura_var,
-            state="readonly",
-            font=("Arial", 9),
-            width=35
-        )
-        self.captura_combo.pack(side="left", fill="x", expand=True)
-        self.captura_combo.bind("<<ComboboxSelected>>", self.on_captura_objetivo_changed)
-        
-        info_text = "F8: Capturar ventana seleccionada | ESC: Salir del capturador"
+
+        info_text = "F8: Capturar ventana bajo el cursor | ESC: Salir del capturador"
         etiqueta_titulo(captura_frame, texto=info_text, font=("Arial", 8)).pack(pady=(5, 5))
         
         self.btn_captura = tb.Button(
@@ -144,7 +127,7 @@ class AsistenteCapturaModular(tk.Toplevel):
             bootstyle="success",
             width=25
         )
-        self.btn_captura.pack(pady=(0, 5))
+        self.btn_captura.pack(pady=(5, 5))
 
     def crear_seccion_video(self, parent):
         video_frame = tb.LabelFrame(parent, text="🎥 Grabador de Video", padding=8)
@@ -300,24 +283,18 @@ class AsistenteCapturaModular(tk.Toplevel):
             self.log("El capturador ya está ejecutándose")
             return
         
-        objetivo_seleccionado = self.captura_var.get()
-        if not objetivo_seleccionado:
-            self.log("ERROR: Selecciona un objetivo antes de iniciar")
-            messagebox.showwarning("Objetivo Requerido", "Selecciona un objetivo antes de iniciar el capturador.")
-            return
-        
         try:
-            self.log(f"Iniciando capturador para: {objetivo_seleccionado}")
+            self.log("Iniciando capturador en modo AUTODETECT")
             self.log("Instrucciones: F8 = Capturar | ESC = Salir")
             self.btn_captura.config(text="⏹️ Capturador Activo", bootstyle="warning")
             
-            # Guardar objetivo actual
-            self.objetivo_captura_actual = objetivo_seleccionado
+            # El objetivo ahora es fijo, no se guarda desde la UI
+            self.objetivo_captura_actual = "AUTODETECT"
             
-            # Crear script temporal con objetivo preseleccionado
+            # Llamar con el nuevo modo "AUTODETECT"
             script_captura = f'''
 from Usuario_basico.capturador_pantallas import main_con_objetivo
-main_con_objetivo("{objetivo_seleccionado}")
+main_con_objetivo("AUTODETECT")
 '''
             
             self.proceso_captura = subprocess.Popen([
@@ -407,16 +384,8 @@ main_con_objetivo("{objetivo_seleccionado}")
         self.objetivo_video_actual = None
         self.log("Grabador detenido por usuario")
 
-    def on_captura_objetivo_changed(self, event=None):
-        """Se ejecuta cuando cambia el objetivo de captura"""
-        nuevo_objetivo = self.captura_var.get()
-        
-        # Si hay un capturador activo y el objetivo cambió
-        if (self.proceso_captura and self.proceso_captura.poll() is None and 
-            self.objetivo_captura_actual and nuevo_objetivo != self.objetivo_captura_actual):
-            
-            self.log(f"Objetivo cambiado de '{self.objetivo_captura_actual}' a '{nuevo_objetivo}' - Cerrando capturador")
-            self.cerrar_capturador()
+
+
     
     def on_video_objetivo_changed(self, event=None):
         """Se ejecuta cuando cambia el objetivo de video"""
@@ -492,18 +461,8 @@ main_con_objetivo("{objetivo_seleccionado}")
     
     def actualizar_combos(self):
         """Actualiza los combobox con los objetivos disponibles"""
-        if not hasattr(self, 'captura_combo') or not hasattr(self, 'video_combo'):
+        if not hasattr(self, 'video_combo'):
             return
-        
-        # Opciones para captura (incluye pantalla completa)
-        opciones_captura = list(self.objetivos_base)
-        if len(self.objetivos_base) >= 2:
-            opciones_captura.append(f"{self.objetivos_base[0]} y {self.objetivos_base[1]}")
-        opciones_captura.append("Pantalla Completa")
-        
-        self.captura_combo['values'] = opciones_captura
-        if opciones_captura:
-            self.captura_combo.current(0)
         
         # Opciones para video (solo objetivos configurados)
         opciones_video = list(self.objetivos_base)

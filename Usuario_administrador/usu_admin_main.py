@@ -1,11 +1,13 @@
 #importaciones generales
 import tkinter as tk
-from tkinter import filedialog, scrolledtext, messagebox
+from tkinter import filedialog, scrolledtext, messagebox, simpledialog
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 import os
 import datetime
+import json
 import threading # <-- SOLUCIÓN: Se añade el import que faltaba
+import re
 
 # --- Import clave para que las rutas funcionen en el .exe ---
 from util_rutas import recurso_path
@@ -15,11 +17,10 @@ from .handlers.explorador import explorar_sd_folder
 from .util_repetidos import quitar_repetidos
 
 #Importacion de estilos
-from styles import boton_principal, boton_accion, boton_exito, boton_rojo
+from .handlers.catalogacion import catalogar_plan_ejecucion, mostrar_resultado_catalogacion
 from .widgets.tooltip import ToolTip
 
-from .validacion_dialog import lanzar_validacion
-from .catalogacion_dialog import CatalogacionDialog
+from .validacion_dialog import ValidacionAutomatizadaDialog
 try:
     from .Catalogacion_CTS import CatalogacionCTS
 except ImportError:
@@ -164,7 +165,8 @@ class usuAdminMain:
             #botones
             tb.Button(barra_accion, text="Seleccionar Todos", command=self.seleccionar_todos, bootstyle="success-outline").pack(side="left", padx=8) #verder borde
             tb.Button(barra_accion, text="Deseleccionar", command=self.deseleccionar_todos, bootstyle="secondary-outline").pack(side="left", padx=7) #gris borde
-            tb.Button(barra_accion, text="Validar Seleccionados", command=self.validar_seleccionados, bootstyle="warning-outline").pack(side="left", padx=18) #amarillo borde
+            self.btn_validar_auto = tb.Button(barra_accion, text="Validar", command=self.validar_seleccionados, bootstyle="warning-outline", state="disabled")
+            self.btn_validar_auto.pack(side="left", padx=18)
             tb.Button(barra_accion, text="Log de Operaciones 📝", command=self.toggle_log, bootstyle="TButton").pack(side="left", padx=18) #azul
             tb.Button(barra_accion, text="Salir", command=self.salir, bootstyle="danger", width=10).pack(side="right", padx=18) #Rojo
             tb.Button(barra_accion, text="volver", command=self.volver_creden, bootstyle="dark", width=10).pack(side="right", padx=18) #gris
@@ -229,6 +231,15 @@ class usuAdminMain:
                 self.escanear_archivos_inner()
 
         def escanear_archivos_inner(self):
+            # --- INICIO: Resetear estado del flujo ---
+            self.btn_validar_auto.config(state="disabled")
+            self.ambientes_panel.set_bloqueo_ambientes_hijos(bloqueado=False)
+            self.archivos_del_txt = []
+            
+            # --- CORRECCIÓN: Limpiar la grilla antes de agregar nuevos elementos ---
+            self.tree.delete(*self.tree.get_children())
+            # --- FIN: Resetear estado del flujo ---
+
             carpeta = self.selected_sd_folder
             multi = self.multi_sd_flag
             if not carpeta:
@@ -236,22 +247,103 @@ class usuAdminMain:
                 self.repetidos_log = []
                 self.logear_panel("Intento de escaneo con carpeta inválida.")
                 return
+
             archivos_candidatos = explorar_sd_folder(carpeta, multi_sd=multi)
+
+            # --- CAMBIO: Excluir archivos .sqr de la lista de candidatos ---
+            archivos_candidatos = [a for a in archivos_candidatos if not a.get('nombre_archivo', '').lower().endswith('.sqr')]
+            self.logear_panel("Filtrando y excluyendo archivos .sqr.")
+
             if not archivos_candidatos:
-                self.tree.delete(*self.tree.get_children())
                 self.archivos_unicos = []
                 self.repetidos_log = []
                 self.logear_panel("No se detectaron archivos candidatos en la carpeta.")
                 return
-            self.archivos_unicos, self.repetidos_log = quitar_repetidos(archivos_candidatos)
-            self.tree.delete(*self.tree.get_children())
+
+            # --- CAMBIO: Lógica de ordenamiento según el archivo .txt ---
+
+            # 1. Obtener archivos únicos sin ordenar
+            # --- CORRECCIÓN: La función quitar_repetidos devuelve una tupla (lista, lista) ---
+            archivos_unicos_lista, self.repetidos_log = quitar_repetidos(archivos_candidatos)
+            archivos_unicos_map = {a['nombre_archivo']: a for a in archivos_unicos_lista}
+
+            # 2. Leer el orden del archivo .txt
+            orden_del_txt = []
+            txt_files = [os.path.join(r, f) for r, _, fs in os.walk(carpeta) for f in fs if f.lower().endswith('.txt')]
+            
+            # --- SUGERENCIA: Mapa para almacenar datos extra del TXT ---
+            datos_extra_txt = {}
+
+            if txt_files:
+                for txt_file in txt_files:
+                    with open(txt_file, 'r', encoding='utf-8', errors='ignore') as f:
+                        next(f, None) # Omitir cabecera
+                        for line in f:
+                            nombre_archivo = os.path.basename(line.strip().replace('\\', '/'))
+                            if nombre_archivo and not nombre_archivo.lower().endswith('.sqr'):
+                                orden_del_txt.append(nombre_archivo)
+
+                            # --- SUGERENCIA: Procesar la línea para datos extra ---
+                            parts = [p.strip() for p in line.strip().split(';')]
+                            if len(parts) >= 3:
+                                ruta_relativa, db, sp_logico = parts[0], parts[1], parts[2]
+                                nombre_archivo_extra = os.path.basename(ruta_relativa.replace('\\', '/'))
+                                if nombre_archivo_extra:
+                                    datos_extra_txt[nombre_archivo_extra] = {
+                                        "db_override": db if db else None,
+                                        "sp_name_override": sp_logico if sp_logico else None
+                                    }
+
+
+            # --- CAMBIO: Lógica de ordenamiento multi-nivel (SD -> orden .txt) ---
+            def get_sd_number(path):
+                # Extrae el número de una carpeta SD (ej: 'SD12345' -> 12345)
+                match = re.search(r'SD(\d+)', path, re.IGNORECASE)
+                return int(match.group(1)) if match else float('inf')
+
+            # Crear un mapa para obtener el índice de orden del .txt rápidamente
+            orden_txt_map = {nombre: i for i, nombre in enumerate(orden_del_txt)}
+
+            # 3. Reordenar la lista de archivos únicos
+            self.logear_panel("Ordenando archivos por SD y manifiesto .txt.")
+            
+            # Se aplica una clave de ordenamiento con múltiples criterios:
+            # 1. Número de SD (ascendente).
+            # 2. Posición en el archivo .txt (los no listados van al final).
+            # 3. Nombre del archivo (alfabético, como desempate).
+            self.archivos_unicos = sorted(
+                archivos_unicos_map.values(),
+                key=lambda archivo: (
+                    get_sd_number(archivo['rel_path']),
+                    orden_txt_map.get(archivo['nombre_archivo'], float('inf')),
+                    archivo['nombre_archivo']
+                )
+            )
+            # --- FIN DEL CAMBIO ---
+            
             for idx, a in enumerate(self.archivos_unicos):
+                # --- SUGERENCIA: Añadir los datos extra al diccionario del archivo ---
+                if a['nombre_archivo'] in datos_extra_txt:
+                    a.update(datos_extra_txt[a['nombre_archivo']])
+                else:
+                    a.update({"db_override": None, "sp_name_override": None})
+
                 fecha = datetime.datetime.fromtimestamp(a['fecha_mod']).strftime('%Y-%m-%d %H:%M:%S')
                 ruta_corta = a['rel_path']
                 tag = "alt" if idx % 2 == 1 else ""
                 self.tree.insert("", "end", iid=str(idx), values=(a['nombre_archivo'], ruta_corta, fecha), tags=(tag,))
             self.tree.tag_configure('alt', background="#f3f9fb")
             self.logear_panel(f"Escaneados {len(self.archivos_unicos)} archivos únicos. Repetidos: {len(self.repetidos_log)}.")
+
+            # --- CORRECCIÓN: Se restaura la validación automática contra el .txt ---
+            self.logear_panel("Iniciando validación automática de archivos .txt...")
+            messagebox.showinfo(
+                "Validación Automática",
+                "Se están validando los archivos listados en la carpeta con el/los archivo(s) .txt encontrados. Por favor, espere...",
+                parent=self.frame
+            )
+            threading.Thread(target=self._validacion_txt_thread, daemon=True).start()
+            # --- FIN DE LA CORRECCIÓN ---
 
         def get_tooltip_for_row(self, iid):
             try:
@@ -278,40 +370,262 @@ class usuAdminMain:
                 st.insert(tk.END, f"  Elegido:     {escog['rel_path']}  [Fecha: {datetime.datetime.fromtimestamp(escog['fecha_mod']).strftime('%Y-%m-%d %H:%M:%S')}]\n")
                 for desc in entry['descartados']:
                     st.insert(tk.END, f"  Descartado:  {desc['rel_path']}  [Fecha: {datetime.datetime.fromtimestamp(desc['fecha_mod']).strftime('%Y-%m-%d %H:%M:%S')}]\n")
-                st.insert(tk.END, "-"*110+"\n")
+                st.insert(tk.END, "--------------------------------------------------------------------------------------------------------------\n")
             st.configure(state="disabled")
             self.logear_panel("Mostrada ventana de fuentes repetidos.")
+        
+        def _validacion_txt_thread(self):
+            """
+            (Worker Thread) Busca archivos .txt, los cruza con la grilla y prepara el resumen.
+            """
+            try:
+                # 1. Encontrar todos los archivos .txt
+                txt_files = []
+                for root, _, files in os.walk(self.selected_sd_folder):
+                    for file in files:
+                        if file.lower().endswith(".txt"):
+                            txt_files.append(os.path.join(root, file))
 
+                if not txt_files:
+                    # No hay .txt, el flujo no puede continuar como automático
+                    self.app_root.after(0, self._finalizar_validacion_txt, "No se encontraron archivos .txt. No se puede realizar la validación automática.", True, False)
+                    return
 
+                # 2. Leer todas las rutas de los .txt
+                nombres_archivo_en_txt = []
+                for txt_file in txt_files:
+                    with open(txt_file, 'r', encoding='utf-8', errors='ignore') as f:
+                        # --- CAMBIO: Omitir la primera línea del archivo .txt ---
+                        try:
+                            next(f)  # Salta la primera línea que es el título.
+                        except StopIteration:
+                            continue # Si el archivo está vacío o solo tiene el título, pasa al siguiente.
+
+                        for line in f:
+                            cleaned_line = line.strip().replace('\\', '/')
+                            if cleaned_line:
+                                # --- CAMBIO: Extraer solo el nombre del archivo de la ruta ---
+                                nombre_archivo = os.path.basename(cleaned_line)
+                                # --- CAMBIO: Ignorar archivos .sqr listados en el .txt ---
+                                if nombre_archivo.lower().endswith('.sqr'):
+                                    continue
+
+                                nombres_archivo_en_txt.append(nombre_archivo)
+                
+                self.archivos_del_txt = nombres_archivo_en_txt # Guardar para el procesamiento final
+
+                # 3. Obtener nombres de archivo de la grilla (archivos .sp, .sql, .tg)
+                nombres_en_grid = {a['nombre_archivo'] for a in self.archivos_unicos}
+                nombres_en_txt_set = set(self.archivos_del_txt)
+
+                # 4. Realizar el cruce
+                archivos_ok_count = len(nombres_en_grid.intersection(nombres_en_txt_set))
+                en_grid_no_en_txt = list(nombres_en_grid - nombres_en_txt_set)
+                en_txt_no_en_grid = list(nombres_en_txt_set - nombres_en_grid)
+
+                # 5. Preparar mensaje de resumen
+                discrepancias = bool(en_grid_no_en_txt or en_txt_no_en_grid)
+                if not discrepancias:
+                    resumen = "Todos los archivos detectados en la carpeta coinciden exactamente con los listados en el archivo .txt."
+                else:
+                    resumen = f"""Validación completada con discrepancias.
+Archivos en carpeta referenciados en el .txt: {archivos_ok_count}.
+
+Archivos en carpeta NO referenciados en el .txt:
+{chr(10).join(f'- {f}' for f in en_grid_no_en_txt) if en_grid_no_en_txt else 'Ninguno.'}
+
+Archivos en el .txt NO encontrados físicamente en la carpeta:
+{chr(10).join(f'- {f}' for f in en_txt_no_en_grid) if en_txt_no_en_grid else 'Ninguno.'}
+"""
+                
+                # 6. Enviar el resultado al hilo principal
+                self.app_root.after(0, self._finalizar_validacion_txt, resumen, discrepancias, True)
+
+            except Exception as e:
+                error_msg = f"Ocurrió un error inesperado durante la validación de archivos .txt: {e}"
+                self.app_root.after(0, self._finalizar_validacion_txt, error_msg, True, False)
+
+        def _finalizar_validacion_txt(self, resumen: str, hay_discrepancias: bool, exito: bool):
+            """
+            (Main Thread) Muestra el resumen, bloquea ambientes y habilita el botón final.
+            """
+            log_resumen = resumen.replace('\n', ' | ') # Log sin saltos de línea para que sea más legible
+            self.logear_panel(log_resumen)
+
+            # --- CAMBIO: Guardar el resultado en un archivo de texto ---
+            try:
+                carpeta_validaciones = r"C:\ZetaOne\Validaciones"
+                os.makedirs(carpeta_validaciones, exist_ok=True)
+                
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                nombre_archivo = f"resultado_validacion_{timestamp}.txt"
+                ruta_archivo = os.path.join(carpeta_validaciones, nombre_archivo)
+                
+                with open(ruta_archivo, 'w', encoding='utf-8') as f:
+                    f.write(f"--- Resultado de Validación Automática ---\n")
+                    f.write(f"Fecha: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                    f.write(f"Carpeta Escaneada: {self.selected_sd_folder}\n")
+                    f.write("-" * 40 + "\n\n")
+                    f.write(resumen)
+                
+                self.logear_panel(f"Resultado de la validación guardado en: {ruta_archivo}")
+            except Exception as e:
+                error_msg = f"No se pudo guardar el archivo de resultado de validación: {e}"
+                self.logear_panel(error_msg)
+                messagebox.showerror("Error de Archivo", error_msg, parent=self.frame)
+            # --- FIN DEL CAMBIO ---
+            
+            if hay_discrepancias:
+                messagebox.showwarning("Validación con Discrepancias", resumen, parent=self.frame)
+            else:
+                messagebox.showinfo("Validación Exitosa", resumen, parent=self.frame)
+
+            # --- CAMBIO: Habilitar botón y bloquear ambientes solo si la validación fue exitosa ---
+            if exito:
+                self.ambientes_panel.set_bloqueo_ambientes_hijos(bloqueado=True)
+                self.btn_validar_auto.config(state="normal")
+                self.logear_panel("Botón 'Validar' habilitado.")
+            else:
+                # Si hubo un error (ej. no se encontró .txt), mantener el botón deshabilitado
+                self.btn_validar_auto.config(state="disabled")
+                self.logear_panel("La validación no fue exitosa. El flujo automático se detiene.")
 
         def validar_seleccionados(self):
-            seleccionados_iids = self.tree.selection()
-            if not seleccionados_iids:
-                messagebox.showwarning("Validación", "Seleccione uno o más archivos de la lista.", parent=self.frame)
-                self.logear_panel("Intento de validar sin selección de archivos.")
+            # Ahora esta función es el punto de entrada para el procesamiento final
+            
+            # 1. Obtener macroambientes seleccionados
+            ambientes_seleccionados_idx = self.ambientes_panel.get_seleccionados()
+            if not ambientes_seleccionados_idx:
+                messagebox.showwarning("Sin Ambientes", "Debe seleccionar al menos un macroambiente para continuar.", parent=self.frame)
                 return
+            macros_seleccionados = [self.ambientes_panel.ambientes[i] for i in ambientes_seleccionados_idx]
 
-            seleccionados_archivos = [int(iid) for iid in seleccionados_iids]
-            ambientes_panel = self.ambientes_panel
-
-            selamb_idx = ambientes_panel.get_seleccionados()          
-            if not selamb_idx:
-                messagebox.showwarning("Validación", "No ha seleccionado ambientes para validar.", parent=self.frame)
-                self.logear_panel("Intento de validar sin selección de ambientes.")
+            # 2. Obtener archivos seleccionados
+            # --- CAMBIO: Obtener los archivos seleccionados en el orden en que se muestran en la grilla ---
+            items_en_orden = self.tree.get_children('')
+            items_seleccionados_en_orden = [item for item in items_en_orden if item in self.tree.selection()]
+            if not items_seleccionados_en_orden:
+                messagebox.showwarning("Sin Archivos", "Debe seleccionar al menos un archivo de la lista para continuar.", parent=self.frame)
                 return
+            archivos_seleccionados = [self.archivos_unicos[int(iid)] for iid in items_seleccionados_en_orden]
 
-            no_conectados = [idx for idx in selamb_idx if ambientes_panel.estado_conex_ambs[idx] is not True]
-            if no_conectados:
-                nombres = [ambientes_panel.ambientes[i]['nombre'] for i in no_conectados]
-                msg = "Debe seleccionar solo ambientes con CONEXIÓN exitosa (verde) antes de validar.\n" \
-                    "Los siguientes ambientes no tienen conexión exitosa:\n" + \
-                    "\n".join(f"- {n}" for n in nombres)
-                messagebox.showwarning("Ambiente", msg, parent=self.frame)
-                self.logear_panel("Intento de validar ambientes sin conexión OK.")
-                return
+            # 3. Construir el plan de ejecución con la lógica inteligente
+            plan_ejecucion = self.construir_plan_ejecucion(archivos_seleccionados, macros_seleccionados)
 
-            self.logear_panel("Validando seleccionados contra multiambiente (detalle en log).")
-            lanzar_validacion(self.frame, self.archivos_unicos, seleccionados_archivos, ambientes_panel)
+            # 4. Mostrar diálogo de confirmación y ejecutar si se acepta
+            dialogo = ValidacionAutomatizadaDialog(self.frame, plan_ejecucion, macros_seleccionados)
+            self.frame.wait_window(dialogo) # Espera a que el diálogo se cierre
+
+            if dialogo.resultado == "ejecutar":
+                self.logear_panel("Confirmación de catalogación aceptada. Iniciando proceso...")
+                
+                # --- CAMBIO: Iniciar el proceso de catalogación real ---
+                descripcion = simpledialog.askstring(
+                    "Descripción de Cambios", 
+                    "Ingrese una breve descripción para este lote de catalogación:",
+                    parent=self.frame
+                )
+                if descripcion is None: # Si el usuario presiona cancelar
+                    self.logear_panel("Catalogación cancelada por el usuario.")
+                    return
+
+                final_plan = dialogo.plan_ejecucion
+                threading.Thread(target=self._worker_catalogacion, args=(final_plan, descripcion), daemon=True).start()
+                # --- FIN DEL CAMBIO ---
+            else:
+                self.logear_panel("Proceso cancelado por el usuario desde el diálogo de confirmación.")
+
+        def construir_plan_ejecucion(self, archivos, macros_seleccionados):
+            """
+            Aplica la lógica inteligente para asignar cada archivo a sus ambientes de destino.
+            """
+            # --- LÓGICA COMPLETAMENTE REESTRUCTURADA SEGÚN NUEVAS REGLAS ---
+            plan = []
+            todos_ambientes_map = {a['nombre']: a for a in self.ambientes_panel.ambientes}
+            
+            for archivo in archivos:
+                ruta = archivo['rel_path'].lower()
+                ambientes_destino_nombres = set()
+                regla_aplicada = "Regla por defecto" # Valor inicial
+
+                # Las reglas se evalúan en orden de prioridad
+                if 'central' in ruta:
+                    # REGLA 1: Contiene "central" -> Asignar a macros
+                    for macro in macros_seleccionados:
+                        ambientes_destino_nombres.add(macro['nombre'])
+                    regla_aplicada = "Ruta contiene 'central'"
+                
+                elif 'local' in ruta:
+                    # --- LÓGICA REESTRUCTURADA CON PRIORIDADES ---
+                    # REGLA 2: "local" + "ATMcompensa..."
+                    if any(segmento.startswith('atmcompensa') for segmento in ruta.replace('\\', '/').split('/')):
+                        for macro in macros_seleccionados:
+                            for nombre_hijo in self.ambientes_panel.ambientes_relacionados.get(macro['nombre'], []):
+                                hijo_obj = todos_ambientes_map.get(nombre_hijo)
+                                # Asigna a hijo SQL Server cuyo nombre contenga "CMP"
+                                if hijo_obj and 'sql server' in hijo_obj.get('driver', '').lower() and 'cmp' in nombre_hijo.lower():
+                                    ambientes_destino_nombres.add(nombre_hijo)
+                        regla_aplicada = "Ruta contiene 'local' y segmento 'ATMcompensa...'"
+
+                    # REGLA 3: "local" + "atm" (pero no la anterior)
+                    elif 'atm' in ruta:
+                        for macro in macros_seleccionados:
+                            for nombre_hijo in self.ambientes_panel.ambientes_relacionados.get(macro['nombre'], []):
+                                hijo_obj = todos_ambientes_map.get(nombre_hijo)
+                                if hijo_obj and 'sql server' in hijo_obj.get('driver', '').lower() and 'atm' in nombre_hijo.lower():
+                                    ambientes_destino_nombres.add(nombre_hijo)
+                        regla_aplicada = "Ruta contiene 'local' y 'atm'"
+                    
+                    # REGLA 4: "local" (pero no las anteriores)
+                    else:
+                        for macro in macros_seleccionados:
+                            for nombre_hijo in self.ambientes_panel.ambientes_relacionados.get(macro['nombre'], []):
+                                hijo_obj = todos_ambientes_map.get(nombre_hijo)
+                                if hijo_obj and 'sybase' in hijo_obj.get('driver', '').lower():
+                                    ambientes_destino_nombres.add(nombre_hijo)
+                        regla_aplicada = "Ruta contiene 'local' (Sybase)"
+                
+                # REGLA FINAL: Si ninguna regla anterior asignó ambientes, se aplica la regla por defecto
+                if not ambientes_destino_nombres:
+                    for macro in macros_seleccionados:
+                        ambientes_destino_nombres.add(macro['nombre'])
+                    # Si la regla por defecto se aplica, es porque no hubo coincidencia con las reglas anteriores
+                    if regla_aplicada == "Regla por defecto":
+                        regla_aplicada = "Regla por defecto (no hubo coincidencia)"
+
+                # Loguear la decisión tomada
+                self.logear_panel(f"Archivo '{archivo['nombre_archivo']}' -> {regla_aplicada}. Ambientes: {', '.join(ambientes_destino_nombres) or 'Ninguno'}")
+
+                # Advertir si se encontraron múltiples coincidencias para una regla de hijo
+                if len(ambientes_destino_nombres) > len(macros_seleccionados) and 'central' not in ruta and 'local' not in regla_aplicada:
+                    self.logear_panel(f"  ADVERTENCIA: Se encontraron múltiples ambientes hijos para la regla '{regla_aplicada}'. Se asignarán a todos los encontrados.")
+
+                # Convertir nombres a objetos de ambiente
+                ambientes_finales = [todos_ambientes_map[nombre] for nombre in ambientes_destino_nombres if nombre in todos_ambientes_map]
+
+                if ambientes_finales:
+                    plan.append({
+                        "archivo": archivo,
+                        "ambientes": ambientes_finales
+                    })
+                else:
+                    self.logear_panel(f"  ADVERTENCIA: El archivo '{archivo['nombre_archivo']}' no fue asignado a ningún ambiente válido tras aplicar la regla '{regla_aplicada}'.")
+            
+            return plan
+        
+        def _worker_catalogacion(self, plan, descripcion):
+            """
+            (Worker Thread) Ejecuta el plan de catalogación y muestra los resultados.
+            """
+            # Bloquear UI
+            self.app_root.after(0, self.btn_validar_auto.config, {"state": "disabled"})
+            
+            resultados = catalogar_plan_ejecucion(plan, descripcion, log_func=self.logear_panel)
+            
+            # Desbloquear UI y mostrar resultados
+            self.app_root.after(0, self.btn_validar_auto.config, {"state": "normal"})
+            self.app_root.after(0, mostrar_resultado_catalogacion, self.frame, resultados)
+
 
         def lanzar_catalogacion(self):
             def aceptar(nombre, descripcion):
@@ -325,6 +639,9 @@ class usuAdminMain:
 
         def __init__(self, parent, logtxt=None):
             self.frame = tb.LabelFrame(parent, text="Ambientes Configurados", bootstyle="primary", padding=(12, 8))
+            
+            # --- CORRECCIÓN: Inicializar el atributo al principio del constructor ---
+            self.hijos_bloqueados_permanentemente = False
             
             # --- CORRECCIÓN: Carga segura de imágenes de estado ---
             try:
@@ -340,6 +657,15 @@ class usuAdminMain:
             self.ambientes = cargar_ambientes()
             self.estado_conex_ambs = [None] * len(self.ambientes)
             self.logtxt = logtxt
+
+            self.ambientes_relacionados = {}
+            try:
+                with open(recurso_path('json', 'ambientesrelacionados.json'), 'r') as f:
+                    self.ambientes_relacionados = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError) as e:
+                self.logear_panel(f"ADVERTENCIA: No se pudo cargar 'ambientesrelacionados.json': {e}")
+
+            self.checkbuttons = {} # Map name to {'var': ..., 'widget': ...}
 
             # Boton para probar conexión
             self.btn_testamb = tb.Button(
@@ -395,6 +721,8 @@ class usuAdminMain:
             for widget in self.check_frame.winfo_children():
                 widget.destroy()
             self.ambientes_vars.clear()
+            self.checkbuttons.clear()
+
             for idx, amb in enumerate(self.ambientes):
                 var = tk.BooleanVar()
                 self.ambientes_vars.append(var)
@@ -410,22 +738,56 @@ class usuAdminMain:
                     bootstyle = "danger"
                     icono = self.imagen_x
 
-                chk = tb.Checkbutton(self.check_frame, text=label, variable=var, bootstyle=bootstyle)
+                chk = tb.Checkbutton(self.check_frame, text=label, variable=var, bootstyle=bootstyle, command=self.actualizar_selecciones_relacionadas)
                 chk.grid(row=idx, sticky='w', padx=2, pady=0)
 
                 lbl_estado = tb.Label(self.check_frame, image=icono)
                 lbl_estado.image = icono
                 lbl_estado.grid(row=idx, column=1, padx=(8, 2), sticky='w')
+                
+                self.checkbuttons[amb['nombre']] = {'var': var, 'widget': chk}
+            
+            self.actualizar_selecciones_relacionadas()
+
+        def actualizar_selecciones_relacionadas(self):
+            # --- CAMBIO: El bloqueo de hijos solo se aplica si el flujo automático está activo ---
+            if self.hijos_bloqueados_permanentemente:
+                # 1. Find all selected parents
+                selected_parents = set()
+                for parent_name in self.ambientes_relacionados:
+                    if parent_name in self.checkbuttons and self.checkbuttons[parent_name]['var'].get():
+                        selected_parents.add(parent_name)
+
+                # 2. Create a set of all children that should be disabled
+                children_to_disable = set()
+                for parent in selected_parents:
+                    children_to_disable.update(self.ambientes_relacionados.get(parent, []))
+
+                # 3. Iterate through all checkbuttons to update their state
+                for amb_name, chk_info in self.checkbuttons.items():
+                    is_child_of_selected_parent = amb_name in children_to_disable
+
+                    if is_child_of_selected_parent:
+                        if chk_info['widget'].cget('state') != 'disabled':
+                            chk_info['var'].set(False)
+                            chk_info['widget'].config(state='disabled')
+                    else:
+                        # Solo desbloquear si no está bloqueado permanentemente (lo cual es el caso aquí)
+                        if chk_info['widget'].cget('state') == 'disabled':
+                            chk_info['widget'].config(state='normal')
+            # Si el bloqueo permanente no está activo, no se hace nada y el usuario puede seleccionar libremente.
+
 
         def add_amb(self):
             self.editar_amb_dialog(nuevo=True)
 
         def edit_amb(self):
-            sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
-            if len(sel) != 1:
+            # --- CORRECCIÓN: El nombre de la variable era 'sel' en la función de borrado ---
+            sel_indices = [i for i, v in enumerate(self.ambientes_vars) if v.get()] # sel
+            if len(sel_indices) != 1:
                 messagebox.showerror("Editar ambiente", "Seleccione UN solo ambiente", parent=self.frame)
                 return
-            self.editar_amb_dialog(nuevo=False, editar_idx=sel[0])
+            self.editar_amb_dialog(nuevo=False, editar_idx=sel_indices[0])
 
         def del_amb(self):
             sel = [i for i, v in enumerate(self.ambientes_vars) if v.get()]
@@ -452,6 +814,35 @@ class usuAdminMain:
             idx = sel[0]
             nombre_ambiente=self.ambientes[idx]['nombre']
             gestionar_ambientes_relacionados(nombre_ambiente, master=self.frame)
+
+        def set_bloqueo_ambientes_hijos(self, bloqueado: bool):
+            """Bloquea o desbloquea la selección de ambientes hijos."""
+            # --- LÓGICA DE BLOQUEO RESTAURADA ---
+            self.hijos_bloqueados_permanentemente = bloqueado
+            
+            # Construir un set con todos los ambientes que son hijos de alguien
+            ambientes_hijos = set()
+            for hijos in self.ambientes_relacionados.values():
+                ambientes_hijos.update(hijos)
+
+            for amb_name, chk_info in self.checkbuttons.items():
+                # Si el ambiente es un hijo, se bloquea/desbloquea
+                if amb_name in ambientes_hijos:
+                    if bloqueado:
+                        chk_info['var'].set(False)  # Deseleccionar por seguridad
+                        chk_info['widget'].config(state='disabled')
+                    else:
+                        chk_info['widget'].config(state='normal')
+            
+            if bloqueado:
+                self.logear_panel("Bloqueando selección de ambientes hijos.")
+                messagebox.showinfo(
+                    "Ambientes Bloqueados",
+                    "La selección de ambientes relacionados ha sido bloqueada. Solo puede elegir ambientes principales.",
+                    parent=self.frame
+                )
+            else:
+                self.logear_panel("Desbloqueando todos los ambientes para selección.")
         
         def editar_amb_dialog(self, nuevo=True, editar_idx=None):
             window = tb.Toplevel(self.frame)
@@ -469,6 +860,10 @@ class usuAdminMain:
                 ent = tb.Entry(window, width=32, show=show, bootstyle="secondary")
                 ent.grid(row=i, column=1, padx=8, pady=4, sticky="we")
                 vals[key] = ent
+
+            # --- CAMBIO: Posicionar el cursor en el primer campo de entrada ("Nombre") ---
+            if "nombre" in vals:
+                vals["nombre"].focus_set()
 
             window.columnconfigure(1, weight=1)
 
@@ -503,7 +898,7 @@ class usuAdminMain:
             btn_salir = tb.Button(window, text="Cancelar", command=window.destroy, bootstyle="secondary", width=10)
             btn_salir.grid(row=len(fields), column=1, pady=6, padx=8, sticky="we")
             
-            window.grab_set()
+            window.grab_set() 
         
         # --- SOLUCIÓN: Se restaura el método original que sí funciona ---
         def test_ambs(self):

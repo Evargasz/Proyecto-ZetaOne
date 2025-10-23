@@ -68,6 +68,9 @@ class UsuarioNoVigenteVentana(tk.Toplevel):
         lbl_usuario.place(x=30, y=60)
         self.ent_usuario = entrada_estandar(self)
         self.ent_usuario.place(x=120, y=60, width=180)
+        
+        # --- CAMBIO: Posicionar el cursor en el campo de usuario al abrir ---
+        self.ent_usuario.focus_set()
 
         self.progress = ttk.Progressbar(self, mode="indeterminate")
         self.progress.place(x=30, y=110, width=340)

@@ -1,360 +1,579 @@
-from tkinter import Toplevel, ttk, messagebox
 import tkinter as tk
+from tkinter import Toplevel, ttk, messagebox, simpledialog
 import datetime
-from Usuario_administrador.handlers.validacion import validar_archivos_multiambiente
-from Usuario_administrador.handlers.catalogacion import catalogar_archivos_multiambiente, mostrar_resultado_catalogacion
-from .styles import FUENTE_GENERAL, FUENTE_BOTON
+import os
+import threading # Already imported, no change needed here
+import re
+import json
+from util_rutas import recurso_path
+from util_ventanas import centrar_ventana
+from Usuario_administrador.handlers.ambientes import cargar_relaciones_hijos
+# --- CORRECCIÓN: La importación de estilos no era necesaria aquí.
+# Se elimina para evitar posibles errores si el archivo 'styles.py' no existe en esa ubicación.
 
-def centrar_ventana(win, width, height, parent=None):
-    win.update_idletasks()
-    if parent is not None:
-        root_parent = parent.winfo_toplevel()
-        root_parent.update_idletasks()
-        x0 = root_parent.winfo_rootx()
-        y0 = root_parent.winfo_rooty()
-        pw = root_parent.winfo_width()
-        ph = root_parent.winfo_height()
-        x = x0 + (pw // 2) - (width // 2)
-        y = y0 + (ph // 2) - (height // 2) - 20
-    else:
-        pantalla_ancho = win.winfo_screenwidth()
-        pantalla_alto = win.winfo_screenheight()
-        x = (pantalla_ancho // 2) - (width // 2)
-        y = (pantalla_alto // 2) - (height // 2) - 20
-    win.geometry(f"{width}x{height}+{x}+{y}")
-
-def logear(parent, msg):
+def _extraer_info_desde_encabezado(ruta_archivo):
+    """
+    Lee un archivo .sp y extrae el nombre de la base de datos y del SP
+    desde los comentarios del encabezado.
+    Ej: /* Base de datos: cob_atm */
+        /* Stored procedure: sp_consulta_asigna_tc */
+    """
+    db_name = None
+    sp_name = None
     try:
-        if hasattr(parent, 'master') and hasattr(parent.master, 'arch_panel'):
-            arch_panel = parent.master.arch_panel
-            if hasattr(arch_panel, "logtxt"):
-                arch_panel.logtxt.insert(tk.END, msg + "\n")
-                arch_panel.logtxt.see(tk.END)
-        elif hasattr(parent, "logtxt"):
-            parent.logtxt.insert(tk.END, msg + "\n")
-            parent.logtxt.see(tk.END)
-        else:
-            print(msg)
-    except Exception as e:
-        print(f"(No se pudo loguear en widget) {msg}")
+        with open(ruta_archivo, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                # Búsqueda flexible que ignora espacios y mayúsculas/minúsculas
+                match_db = re.search(r'Base\s+de\s+datos\s*:\s*(\w+)', line, re.IGNORECASE)
+                if match_db:
+                    db_name = match_db.group(1).strip()
 
-def lanzar_validacion(parent, archivos_unicos, seleccionados_idx, ambientes_panel):
-    # Protección para la obtención de ambientes seleccionados
+                match_sp = re.search(r'Stored\s+procedure\s*:\s*(\w+)', line, re.IGNORECASE)
+                if match_sp:
+                    sp_name = match_sp.group(1).strip()
+
+                # Si ya encontramos ambos, no es necesario seguir leyendo
+                if db_name and sp_name:
+                    break
+    except Exception:
+        pass # Si hay un error de lectura, devolvemos None
+
+    return db_name, sp_name
+
+def _extraer_db_de_sp(ruta_archivo):
+    """
+    Lee un archivo .sp y extrae el nombre de la base de datos de la línea 'use <database>'.
+    """
     try:
-        # Intentar obtener los ambientes seleccionados con la mejor API disponible
-        if hasattr(ambientes_panel, 'get_seleccionados'):
-            selamb_idx = ambientes_panel.get_seleccionados()
-            ambientes = [ambientes_panel.ambientes[i] for i in selamb_idx]
-        elif hasattr(ambientes_panel, 'lbamb') and ambientes_panel.lbamb is not None:
-            selamb_idx = ambientes_panel.lbamb.curselection()
-            ambientes = [ambientes_panel.ambientes[i] for i in selamb_idx]
+        with open(ruta_archivo, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                linea_limpia = line.strip().lower()
+                if linea_limpia.startswith('use '):
+                    # Extrae la palabra después de 'use'
+                    partes = line.strip().split()
+                    if len(partes) > 1:
+                        return partes[1].strip()
+    except Exception:
+        return None
+    return None
+
+def _extraer_sp_name_de_sp(ruta_archivo):
+    """
+    Lee un archivo .sp y extrae el nombre del Stored Procedure de la línea 'create procedure <sp_name>'.
+    """
+    try:
+        with open(ruta_archivo, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                # Busca 'create procedure' o 'create proc', ignorando mayúsculas/minúsculas y espacios extra
+                match = re.search(r'create\s+(?:procedure|proc)\s+([\w\.]+)', line, re.IGNORECASE)
+                if match:
+                    # El nombre del SP puede tener formato db.owner.name, solo queremos el nombre.
+                    nombre_completo = match.group(1)
+                    nombre_simple = nombre_completo.split('.')[-1]
+                    return nombre_simple.strip()
+    except Exception:
+        return None
+    return None
+
+
+
+
+class ValidacionAutomatizadaDialog(Toplevel):
+    def __init__(self, parent, plan_ejecucion, macros_seleccionados=None):
+        super().__init__(parent)
+        self.title("Confirmar Plan de Ejecución")
+        # --- CAMBIO: Ampliar ventana, centrar y permitir maximizar ---
+        self.geometry("1100x700")
+        self.resizable(True, True)
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.grab_set()
+
+        centrar_ventana(self)
+        # --- FIN DEL CAMBIO ---
+
+        self.plan_ejecucion = plan_ejecucion
+        self.plan_plano = [] # --- CAMBIO: Lista plana para tareas individuales (archivo, ambiente)
+        self.macros_seleccionados = macros_seleccionados or []
+        self.validated_iids = set() # --- REQUERIMIENTO: Almacenar los IIDs de los ítems validados
+        self.checked_states = {} # --- REQUERIMIENTO: Almacenar el estado de los checkboxes
+        # --- MEJORA: Estructura para manejar pestañas si hay múltiples macros ---
+        self.es_multi_ambiente = len(self.macros_seleccionados) > 1
+        self.notebook = None
+        self.tabs_info = {} # {tab_id: {'tree': tree_widget, 'frame': frame_widget}}
+        self.relaciones_hijos = cargar_relaciones_hijos()
+        self.resultado = "cancelar"
+
+        main_frame = ttk.Frame(self, padding=10)
+        main_frame.pack(fill="both", expand=True)
+
+        main_frame.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+
+        # --- CORRECCIÓN DEFINITIVA: Lógica para crear pestañas o un solo Treeview ---
+        if self.es_multi_ambiente:
+            self.notebook = ttk.Notebook(main_frame)
+            self.notebook.grid(row=0, column=0, sticky="nsew")
+            for macro in self.macros_seleccionados:
+                tab_frame = ttk.Frame(self.notebook, padding=5)
+                self.notebook.add(tab_frame, text=macro['nombre'])
+                tree = self._crear_treeview_en(tab_frame, es_pestaña=True)
+                self.tabs_info[macro['nombre']] = {'tree': tree, 'frame': tab_frame}
         else:
-            messagebox.showerror(
-                "Error crítico",
-                f"Ocurrió un error en el proceso de validación:\n\n"
-                f"El argumento 'ambientes_panel' debe tener método 'get_seleccionados' o atributo 'lbamb', "
-                f"pero se recibió: {type(ambientes_panel)} con valor: {ambientes_panel}."
-            )
-            return
+            # Si no es multi-ambiente, crear un solo treeview como antes
+            frame_preview = ttk.LabelFrame(main_frame, text="Vista Previa de Asignación")
+            frame_preview.grid(row=0, column=0, sticky="nsew")
+            self.tree_preview = self._crear_treeview_en(frame_preview, es_pestaña=False)
+        # --- FIN DE LA CORRECCIÓN ---
+        
+        # --- Botones de Acción Final ---
+        self.frame_acciones = ttk.Frame(main_frame, padding=(10, 10, 0, 0))
+        self.frame_acciones.grid(row=1, column=0, sticky="ew", pady=(10, 0))
 
-        if not ambientes:
-            messagebox.showwarning("Ambiente", "Seleccione al menos un ambiente con conexión OK.", parent=parent)
-            logear(parent, "[VALIDACIÓN] Selección de ambientes vacía o inválida.")
-            return
+        # --- CAMBIO: Añadir botones de selección ---
+        self.btn_seleccionar_todos = ttk.Button(self.frame_acciones, text="Seleccionar Todos", command=self.seleccionar_todos, bootstyle="success-outline")
+        self.btn_seleccionar_todos.pack(side="left", padx=(0, 5))
+        self.btn_deseleccionar_todos = ttk.Button(self.frame_acciones, text="Deseleccionar", command=self.deseleccionar_todos, bootstyle="secondary-outline")
+        self.btn_deseleccionar_todos.pack(side="left", padx=(0, 20))
 
-        if not seleccionados_idx:
-            messagebox.showwarning("Validación", "Seleccione al menos un archivo para validar.", parent=parent)
-            logear(parent, "[VALIDACIÓN] Selección de archivos vacía.")
-            return
+        # --- CAMBIO: Añadir botón Regresar y modificar Cancelar ---
+        self.btn_ejecutar = ttk.Button(self.frame_acciones, text="Ejecutar Validación", command=self.iniciar_proceso_validacion)
+        self.btn_ejecutar.pack(side="right")
+        
+        self.btn_cancelar = ttk.Button(self.frame_acciones, text="Cancelar", command=self.resetear_pantalla, bootstyle="warning-outline")
+        self.btn_cancelar.pack(side="right", padx=(0, 10))
 
-        progreso_win = tk.Toplevel(parent)
-        progreso_win.withdraw()  # Oculta la ventana al inicio
-        progreso_win.title("Validando archivos contra Sybase...")
-        progreso_win.resizable(False, False)
-        progreso_win.transient(parent)
-        progreso_win.grab_set()
-        progreso_win.configure(bg="#fffef4")
+        self.btn_regresar = ttk.Button(self.frame_acciones, text="Regresar", command=self.on_close, bootstyle="secondary")
+        self.btn_regresar.pack(side="right", padx=(0, 10))
 
-        tk.Label(
-            progreso_win, 
-            text="Validando archivos contra Sybase...", 
-            font=FUENTE_BOTON, 
-            pady=15, 
-            bg="#fffef4"
-        ).pack()
+        # --- CAMBIO: Añadir barra de progreso ---
+        progress_frame = ttk.Frame(main_frame)
+        progress_frame.grid(row=2, column=0, sticky="ew", pady=(5, 0))
+        progress_frame.columnconfigure(0, weight=1)
 
-        total_tareas = len(seleccionados_idx) * len(ambientes)
-        progress = ttk.Progressbar(
-            progreso_win, 
-            orient="horizontal", 
-            length=350, 
-            mode="determinate", 
-            maximum=max(total_tareas, 1), 
-            style="ProgressYellow.Horizontal.TProgressbar"
-        )
-        progress.pack(pady=(8, 2))
+        self.progress_label = ttk.Label(progress_frame, text="Listo para validar.")
+        self.progress_label.grid(row=0, column=0, sticky="w", padx=10)
 
-        label_porc = tk.Label(
-            progreso_win, 
-            text="0 %", 
-            font=("Segoe UI", 11), 
-            bg="#fffef4", 
-            fg="#efad00"
-        )
-        label_porc.pack()
+        self.progress_bar = ttk.Progressbar(progress_frame, mode='determinate')
+        self.progress_bar.grid(row=1, column=0, sticky="ew", padx=10, pady=(2, 5))
 
-        progreso_win.update_idletasks()
+        self.after(100, self.poblar_vista_previa)
+        # --- FIN DEL CAMBIO ---
+        
+    def _crear_treeview_en(self, parent_frame, es_pestaña):
+        """Función auxiliar para crear y configurar un Treeview."""
+        if not es_pestaña:
+            parent_frame.rowconfigure(0, weight=1)
+            parent_frame.columnconfigure(0, weight=1)
 
-        # CENTRAR la ventana y mostrarla ya completamente formada
-        ancho = progreso_win.winfo_width()
-        alto = progreso_win.winfo_height()
-        pantalla_ancho = progreso_win.winfo_screenwidth()
-        pantalla_alto = progreso_win.winfo_screenheight()
-        x = (pantalla_ancho // 2) - (ancho // 2)
-        y = (pantalla_alto // 2) - (alto // 2)
-        progreso_win.geometry(f"+{x}+{y}")
-        progreso_win.deiconify()
-        progreso_win.lift()
+        cols = ("Sel.", "Archivo", "Ruta", "Fecha Local", "Ambiente Asignado", "Resultado / Fecha DB")
+        tree = ttk.Treeview(parent_frame, columns=cols, show="headings", selectmode="extended")
 
-        logear(parent, f"[VALIDACIÓN] Iniciando validación: Archivos seleccionados={len(seleccionados_idx)}, Ambientes={', '.join(a['nombre'] for a in ambientes)}")
+        for col in cols:
+            tree.heading(col, text=col)
+        
+        tree.column("Sel.", width=40, anchor="c", stretch=False)
+        tree.column("Archivo", width=180, anchor="w")
+        tree.column("Ruta", width=300, anchor="w")
+        tree.column("Fecha Local", width=130, anchor="c")
+        tree.column("Ambiente Asignado", width=150, anchor="w")
+        tree.column("Resultado / Fecha DB", width=300, anchor="w")
 
-        resultados = validar_archivos_multiambiente_feedback(
-            archivos_unicos, seleccionados_idx, ambientes, progress, label_porc, progreso_win, parent
-        )
-        progreso_win.destroy()
-        logear(parent, f"[VALIDACIÓN] Validación finalizada. Total resultados: {len(resultados)}")
-        mostrar_resultado(parent, resultados, archivos_unicos, ambientes_panel)
-    except Exception as e:
-        import traceback
-        messagebox.showerror("Error crítico", f"Ocurrió un error en el proceso de validación:\n{e}", parent=parent)
-        logear(parent, "[VALIDACIÓN] ERROR crítico:\n" + traceback.format_exc())
+        tree.grid(row=0, column=0, sticky="nsew")
 
-def validar_archivos_multiambiente_feedback(archivos_unicos, seleccionados_idx, ambientes, progress, label_porc, progreso_win, parent):
-    from Usuario_administrador.extra_sp_utils import ultra_extraer_sp_bd, limpiar_identificador
-    from Usuario_administrador.handlers.catalogacion import validar_archivo_sp_local_vs_sybase
-    resultados_fila = []
-    contador = 0
-    total_tareas = max(len(seleccionados_idx) * len(ambientes), 1)
-    for idx in seleccionados_idx:
-        arch = archivos_unicos[idx]
-        fecha_local = datetime.datetime.fromtimestamp(arch['fecha_mod'])
-        if arch['tipo'] == 'sp':
-            stored_proc, base_datos = ultra_extraer_sp_bd(arch['path'])
-            if isinstance(stored_proc, str):
-                stored_proc = limpiar_identificador(stored_proc)
-            if isinstance(base_datos, str):
-                base_datos = limpiar_identificador(base_datos)
-        else:
-            stored_proc, base_datos = ("-", "-")
-        for amb in ambientes:
+        v_scroll = ttk.Scrollbar(parent_frame, orient="vertical", command=tree.yview)
+        v_scroll.grid(row=0, column=1, sticky="ns")
+        h_scroll = ttk.Scrollbar(parent_frame, orient="horizontal", command=tree.xview)
+        h_scroll.grid(row=1, column=0, sticky="ew")
+        tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+
+        # Configurar tags de colores
+        tree.tag_configure("advertencia_rojo", background="#ff8a80")
+        tree.tag_configure("advertencia_amarillo", background="#fff3bf")
+        tree.tag_configure("deshabilitado", foreground="#9ca3af")
+        tree.tag_configure("checkbox", foreground="#007bff")
+
+        # Vincular eventos
+        tree.bind("<Button-1>", self.on_tree_click)
+        tree.bind("<<TreeviewSelect>>", self.on_tree_select)
+
+        parent_frame.rowconfigure(0, weight=1)
+        parent_frame.columnconfigure(0, weight=1)
+        
+        return tree
+
+    def on_close(self):
+        self.resultado = "cancelar"
+        self.destroy()
+
+    def _get_active_treeview(self):
+        """Devuelve el Treeview de la pestaña activa o el único Treeview si no hay pestañas."""
+        if not self.winfo_exists():
+            return None
+        if self.es_multi_ambiente:
             try:
-                if arch['tipo'] == 'sp' and stored_proc != "No encontrado" and base_datos != "No encontrado":
-                    fecha_sybase_str, fecha_sybase = validar_archivo_sp_local_vs_sybase(arch, amb, stored_proc, base_datos)
+                if self.notebook and self.notebook.winfo_exists():
+                    active_tab_frame = self.notebook.nametowidget(self.notebook.select())
+                    for info in self.tabs_info.values():
+                        if info['frame'] == active_tab_frame:
+                            return info['tree']
+            except tk.TclError:
+                return None # El widget fue destruido
+        else:
+            return self.tree_preview if hasattr(self, 'tree_preview') else None
+        return None
+
+    def on_tree_click(self, event):
+        """Maneja los clics en el Treeview activo para simular checkboxes."""
+        active_tree = self._get_active_treeview()
+        if not active_tree: return
+
+        region = active_tree.identify_region(event.x, event.y)
+        if region != "cell":
+            return
+
+        column_id = active_tree.identify_column(event.x)
+        # Solo actuar si se hace clic en la primera columna ("Sel.")
+        if column_id == "#1":
+            iid = active_tree.identify_row(event.y)
+            if iid and "deshabilitado" not in active_tree.item(iid, "tags"):
+                # Alternar estado
+                self.checked_states[iid] = not self.checked_states.get(iid, False)
+                
+                # Actualizar visualmente
+                if self.checked_states[iid]:
+                    active_tree.set(iid, "Sel.", "☑") # Solo actualiza el checkbox
                 else:
-                    fecha_sybase_str = "No existe"
-            except Exception as ex:
-                fecha_sybase_str = "Error"
-                logear(parent, f"[VALIDACIÓN][ERROR] {arch['nombre_archivo']} ({amb['nombre']}): {ex}")
-            row = (
-                str(contador+1),
-                amb['nombre'],
-                arch['rel_path'],
-                fecha_local.strftime('%Y-%m-%d %H:%M'),
-                base_datos if base_datos else "-",
-                stored_proc if stored_proc else "-",
-                fecha_sybase_str
-            )
-            resultados_fila.append(row)
-            contador += 1
-            porc = int((contador / total_tareas) * 100)
-            progress['value'] = contador
-            label_porc.config(text=f"{porc} %")
-            progreso_win.update_idletasks()
-    return resultados_fila
+                    active_tree.set(iid, "Sel.", "☐") # Solo actualiza el checkbox
 
-def mostrar_resultado(parent, resultados, archivos_unicos, ambientes_panel):
-    win = Toplevel(parent)
-    win.title("Resultado validación multiambiente")
-    ancho, alto = 1200, 670
-    win.update_idletasks()
-    centrar_ventana(win, ancho, alto, parent=None)
+    def on_tree_select(self, event):
+        """Evita que se seleccionen filas deshabilitadas."""
+        active_tree = self._get_active_treeview()
+        if not active_tree: return
 
-    columns = ("No.", "Ambiente", "Archivo", "F. Local", "BD", "SP", "F. Sybase")
-    ancho_columnas = [45, 130, 360, 120, 100, 190, 200]
-    tree = ttk.Treeview(win, columns=columns, show="headings", height=18, selectmode="extended")
-    for col, ancho_ in zip(columns, ancho_columnas):
-        tree.heading(col, text=col)
-        tree.column(col, width=ancho_, anchor="w")
-    tree.pack(fill="both", expand=True, padx=8, pady=(7, 4), side="top")
-    for n, fila in enumerate(resultados, 1):
-        (no, ambiente, rel_path, fecha_local, base_datos, stored_proc, fecha_sybase_str) = fila
-        tag = ""
-        if fecha_sybase_str == "No existe":
-            tag = "amarillo"
-        elif fecha_sybase_str == "Error":
-            tag = "rosa"
+        selection = active_tree.selection()
+        for iid in selection:
+            # Si un ítem seleccionado está deshabilitado, quitarlo de la selección
+            if "deshabilitado" in active_tree.item(iid, "tags"):
+                active_tree.selection_remove(iid)
+
+
+    def poblar_vista_previa(self):
+        # Limpiar todos los treeviews
+        if self.es_multi_ambiente:
+            for info in self.tabs_info.values():
+                info['tree'].delete(*info['tree'].get_children())
         else:
+            self.tree_preview.delete(*self.tree_preview.get_children())
+
+        self.plan_plano = []
+        self.checked_states = {}
+
+        # --- CAMBIO: Crear una lista plana de tareas (una por cada archivo-ambiente) ---
+        for tarea in self.plan_ejecucion:
+            archivo = tarea['archivo']
+            if not tarea['ambientes']:
+                self.plan_plano.append({'archivo': archivo, 'ambiente': None})
+            else:
+                for ambiente in tarea['ambientes']:
+                    self.plan_plano.append({'archivo': archivo, 'ambiente': ambiente})
+        
+        for i, tarea_plana in enumerate(self.plan_plano):
+            iid = str(i)
+            nombre_archivo = tarea_plana['archivo']['nombre_archivo']
+            ruta_archivo = tarea_plana['archivo']['rel_path']
+            fecha_local_ts = tarea_plana['archivo']['fecha_mod']
+            fecha_local_str = datetime.datetime.fromtimestamp(fecha_local_ts).strftime('%Y-%m-%d %H:%M')
+            nombre_ambiente = tarea_plana['ambiente']['nombre'] if tarea_plana['ambiente'] else "Sin Asignar"
+            
+            values = ("☑", nombre_archivo, ruta_archivo, fecha_local_str, nombre_ambiente, "")
+            
+            target_tree = None
+            if self.es_multi_ambiente:
+                # Determinar a qué pestaña (macro) pertenece esta tarea
+                macro_padre = self._get_macro_for_ambiente(nombre_ambiente)
+                if macro_padre and macro_padre in self.tabs_info:
+                    target_tree = self.tabs_info[macro_padre]['tree']
+            else:
+                target_tree = self.tree_preview
+
+            if target_tree:
+                target_tree.insert("", "end", values=values, iid=iid, tags=("checkbox",))
+                target_tree.selection_add(iid)
+                self.checked_states[iid] = True
+
+    def _get_macro_for_ambiente(self, nombre_ambiente):
+        """Encuentra el macroambiente padre para un ambiente dado."""
+        # Si el ambiente es un macro, es su propio padre
+        if nombre_ambiente in self.relaciones_hijos:
+            return nombre_ambiente
+        # Buscar si es hijo de algún macro
+        for macro, hijos in self.relaciones_hijos.items():
+            if nombre_ambiente in hijos:
+                return macro
+        return None
+
+    def resetear_pantalla(self):
+        """
+        Reinicia la ventana a su estado inicial.
+        """
+        # 1. Limpiar y repoblar la tabla
+        self.poblar_vista_previa()
+
+        # 2. Resetear la barra de progreso y el texto
+        self.progress_label.config(text="Listo para validar.")
+        self.progress_bar['value'] = 0
+
+        # 3. Restaurar el botón de acción principal
+        self.btn_ejecutar.config(text="Ejecutar Validación", command=self.iniciar_proceso_validacion)
+        self.bloquear_controles(False)
+        self.validated_iids.clear()
+
+    def iniciar_proceso_validacion(self):
+        active_tree = self._get_active_treeview()
+        if not active_tree:
+            messagebox.showerror("Error", "No se pudo encontrar la tabla de archivos activa.", parent=self)
+            return
+
+        items_seleccionados = active_tree.selection()
+        if not items_seleccionados:
+            messagebox.showwarning("Sin Selección", "Debe seleccionar al menos un archivo para validar.", parent=self)
+            return
+
+        # --- REQUERIMIENTO: Guardar los IIDs que se van a validar ---
+        self.validated_iids = set(items_seleccionados)
+
+        self.bloquear_controles(True)
+        self.progress_bar['maximum'] = len(items_seleccionados)
+        self.progress_bar['value'] = 0
+
+        tareas_a_validar = []
+        for iid in items_seleccionados:
+            # Limpiar resultados anteriores
+            active_tree.set(iid, "Resultado / Fecha DB", "")
+            tareas_a_validar.append((iid, self.plan_plano[int(iid)]))
+
+        threading.Thread(target=self.worker_validacion, args=(tareas_a_validar,), daemon=True).start()
+
+    def worker_validacion(self, tareas):
+        from Usuario_administrador.handlers.catalogacion import obtener_fecha_desde_sp_help
+        import pyodbc # Para capturar errores de conexión
+
+        for i, (iid, tarea) in enumerate(tareas):
+            archivo = tarea['archivo']
+            ambiente_a_validar = tarea['ambiente'] # --- CAMBIO: Ahora es un solo ambiente por tarea
+            nombre_archivo_completo = archivo['nombre_archivo']
+            fecha_local_ts = archivo['fecha_mod']
+            
+            # --- CAMBIO: Validar si la tarea tiene un ambiente asignado ---
+            if not ambiente_a_validar:
+                self.after(0, self.actualizar_fila, iid, i + 1, "Sin Ambiente")
+                continue
+
+            # --- REQUERIMIENTO 2: Omitir validación para archivos .sql ---
+            if nombre_archivo_completo.lower().endswith('.sql'):
+                self.after(0, self.actualizar_fila, iid, i + 1, "Listo para catalogar")
+                continue
+            # --- FIN REQUERIMIENTO 2 ---
+
+            # --- CORRECCIÓN DEFINITIVA: Lógica de extracción con prioridades ---
+            # Prioridad: 1. .txt override, 2. Encabezado del .sp, 3. Código del .sp, 4. Fallback
+            
+            db_desde_encabezado, sp_desde_encabezado = _extraer_info_desde_encabezado(archivo['path'])
+
+            db_desde_use = _extraer_db_de_sp(archivo['path'])
+            base_datos_a_usar = archivo.get("db_override") or db_desde_encabezado or db_desde_use or ambiente_a_validar.get('base')
+
+            sp_desde_create = _extraer_sp_name_de_sp(archivo['path'])
+            nombre_sp_a_buscar = archivo.get("sp_name_override") or sp_desde_encabezado or sp_desde_create or os.path.splitext(nombre_archivo_completo)[0]
+            
+            # --- FIN DE LA LÓGICA MEJORADA ---
+            
+            self.after(0, self.actualizar_progreso, i, f"Validando '{nombre_sp_a_buscar}' en '{ambiente_a_validar['nombre']}' (DB: {base_datos_a_usar})...")
+
+            # La base de datos se asume que es la configurada en el ambiente
+            
+            # --- REQUERIMIENTO 1: Manejar errores de conexión ---
             try:
-                fecha_local_dt = datetime.datetime.strptime(fecha_local, "%Y-%m-%d %H:%M")
-                fecha_remota = datetime.datetime.strptime(fecha_sybase_str, '%b %d %Y %I:%M%p')
-                if fecha_local_dt < fecha_remota:
-                    tag = "rojo"
-            except Exception:
-                pass
-        item_id = tree.insert("", "end", values=fila, tags=(tag,))
-    tree.tag_configure("rojo", background="#ef4444", foreground="white")
-    tree.tag_configure("amarillo", background="#fdba74", foreground="black")
-    tree.tag_configure("rosa", background="#fca5a5", foreground="white")
+                resultado_final = ""
+                fecha_db_str = obtener_fecha_desde_sp_help(nombre_sp_a_buscar, base_datos_a_usar, ambiente_a_validar)
+                
+                # --- CAMBIO: Comparar fecha local vs. fecha de la BD ---
+                # --- CORRECCIÓN: Ahora fecha_db_str es un objeto datetime o un string de error ---
+                if fecha_db_str not in ["No encontrado en DB", "Error de conexión"]:
+                    try:
+                        # --- CORRECCIÓN: Parsear los posibles formatos de fecha de la BD ---
+                        try:
+                            # Intentar formato de SQL Server: '2024-12-26 21:09:00'
+                            fecha_db_obj = datetime.datetime.strptime(fecha_db_str, '%Y-%m-%d %H:%M:%S')
+                        except ValueError:
+                            # Si falla, intentar formato de Sybase: 'Dec 26 2024  9:09:00:000PM'
+                            fecha_db_obj = datetime.datetime.strptime(fecha_db_str, '%b %d %Y %I:%M:%S:%f%p')
 
-    def copiar_filas(event=None):
-        textos = []
-        for item_id in tree.selection():
-            valores = tree.item(item_id)['values']
-            texto = '\t'.join(str(v) for v in valores)
-            textos.append(texto)
-        if textos:
-            win.clipboard_clear()
-            win.clipboard_append('\n'.join(textos))
-    tree.bind('<Control-c>', copiar_filas)
-    tree.bind('<Control-C>', copiar_filas)
+                        fecha_local_obj = datetime.datetime.fromtimestamp(fecha_local_ts)
+                        
+                        # --- CAMBIO: Lógica de resaltado con nuevas reglas ---
+                        tags_a_aplicar = []
+                        now = datetime.datetime.now()
+                        un_mes_atras = now - datetime.timedelta(days=30)
 
-    def seleccionar_todos():
-        for item_id in tree.get_children():
-            tree.selection_add(item_id)
-    def deseleccionar_todos():
-        tree.selection_remove(tree.selection())
+                        if fecha_local_obj < fecha_db_obj:
+                            resultado_final = f"⚠️ Fecha local menor a fecha BD | {fecha_db_obj.strftime('%Y-%m-%d %H:%M:%S')}"
+                            tags_a_aplicar.append("advertencia_rojo")
+                        elif fecha_db_obj > un_mes_atras:
+                            resultado_final = f"🟡 Reciente (<1 mes) | {fecha_db_obj.strftime('%Y-%m-%d %H:%M:%S')}"
+                            tags_a_aplicar.append("advertencia_amarillo")
+                        else:
+                            resultado_final = fecha_db_obj.strftime('%Y-%m-%d %H:%M:%S')
+                        self.after(0, self.actualizar_tags_fila, iid, tags_a_aplicar)
+                    except (ValueError, TypeError) as e:
+                        resultado_final = f"Error parseo fecha: {e}" # Si falla, mostrar el error
+                else:
+                    resultado_final = fecha_db_str
+                # --- FIN DEL CAMBIO ---
+            except pyodbc.Error:
+                resultado_final = "Error de conexión"
+            # --- FIN REQUERIMIENTO 1 ---
+            self.after(0, self.actualizar_fila, iid, i + 1, resultado_final)
 
-    def mover_fila(tree, direccion):
-        sel = tree.selection()
-        if not sel:
+        self.after(0, self.finalizar_validacion)
+
+    def actualizar_progreso(self, valor, texto):
+        # --- CORRECCIÓN: Verificar si el widget existe antes de actualizar para evitar crash ---
+        if not self.progress_bar.winfo_exists():
             return
-        item = sel[0]
-        items = list(tree.get_children())
-        idx = items.index(item)
-        if direccion == "arriba" and idx > 0:
-            tree.move(item, '', idx - 1)
-            tree.selection_set(item)
-            tree.see(item)
-        elif direccion == "abajo" and idx < len(items) - 1:
-            tree.move(item, '', idx + 1)
-            tree.selection_set(item)
-            tree.see(item)
+        self.progress_bar['value'] = valor
+        self.progress_label.config(text=texto)
 
-    def catalogar_sel_validacion():
-        seleccionados = tree.selection()
-        if not seleccionados:
-            messagebox.showwarning("Catalogación", "Seleccione al menos un registro de esta lista.", parent=win)
+    def actualizar_fila(self, iid, valor_progreso, resultado_texto):
+        """Actualiza una fila en el Treeview correspondiente, sea único o en una pestaña."""
+        if not self.winfo_exists():
             return
-        for item in seleccionados:
-            vals = tree.item(item)['values']
-            ambiente = vals[1]
-            found_ok = False
-            for idx, amb in enumerate(ambientes_panel.ambientes):
-                if amb['nombre'] == ambiente and ambientes_panel.estado_conex_ambs[idx] is True:
-                    found_ok = True
+
+        if self.progress_bar.winfo_exists():
+            self.progress_bar['value'] = valor_progreso
+
+        # Obtener la lista de todos los treeviews existentes
+        treeviews = []
+        if self.es_multi_ambiente:
+            if hasattr(self, 'tabs_info'):
+                treeviews = [info['tree'] for info in self.tabs_info.values()]
+        else:
+            if hasattr(self, 'tree_preview') and self.tree_preview.winfo_exists():
+                treeviews = [self.tree_preview]
+
+        # Buscar el iid en todos los treeviews y actualizar la fila correspondiente
+        for tree in treeviews:
+            try:
+                if tree and tree.winfo_exists() and tree.exists(iid):
+                    tree.set(iid, "Resultado / Fecha DB", resultado_texto)
+                    break # El iid es único, no es necesario seguir buscando
+            except tk.TclError:
+                continue # El widget fue destruido, pasar al siguiente
+
+    def actualizar_tags_fila(self, iid, nuevos_tags):
+        """Añade nuevos tags a una fila sin borrar los existentes."""
+        if not self.winfo_exists():
+            return
+
+        treeviews = []
+        if self.es_multi_ambiente:
+            if hasattr(self, 'tabs_info'):
+                treeviews = [info['tree'] for info in self.tabs_info.values()]
+        else:
+            if hasattr(self, 'tree_preview') and self.tree_preview.winfo_exists():
+                treeviews = [self.tree_preview]
+
+        for tree in treeviews:
+            try:
+                if tree and tree.winfo_exists() and tree.exists(iid):
+                    tags_actuales = list(tree.item(iid, "tags"))
+                    tags_finales = tuple(tags_actuales + nuevos_tags)
+                    tree.item(iid, tags=tags_finales)
                     break
-            if not found_ok:
-                messagebox.showerror(
-                    "Catalogación cancelada",
-                    "Uno o más ambientes de la selección han perdido la conexión OK (verde).\n"
-                    "Por favor, prueba la conexión antes de catalogar.",
-                    parent=win,
-                )
-                return
-        pares_unicos = set()
-        seleccionados_archs = []
-        for item in seleccionados:
-            vals = tree.item(item)['values']
-            ambiente = vals[1]
-            rel_path = vals[2]
-            idx_arch = None
-            for idx, arch in enumerate(archivos_unicos):
-                if arch['rel_path'] == rel_path:
-                    idx_arch = idx
-                    break
-            ambiente_obj = next((a for a in ambientes_panel.ambientes if a['nombre'] == ambiente), None)
-            if idx_arch is not None and ambiente_obj is not None:
-                if (idx_arch, ambiente_obj['nombre']) not in pares_unicos:
-                    pares_unicos.add((idx_arch, ambiente_obj['nombre']))
-                    seleccionados_archs.append((idx_arch, ambiente_obj))
+            except tk.TclError:
+                continue
 
-        respuesta = messagebox.askyesno(
-            "Confirmar catalogación",
-            "¿Está seguro de catalogar los archivos seleccionados en Sybase?",
-            parent=win
-        )
-        if respuesta:
-            progreso_popup = tk.Toplevel(win)
-            progreso_popup.withdraw()
-            progreso_popup.title("Catalogando en Sybase...")
-            progreso_popup.transient(win)
-            progreso_popup.grab_set()
-            lbl = ttk.Label(progreso_popup, text="0 %", font=("Segoe UI", 11), foreground="#efad00")
-            lbl.pack(pady=5, padx=25)
-            barra = ttk.Progressbar(progreso_popup, length=300, mode="determinate")
-            barra.pack(pady=6, padx=25)
+    def finalizar_validacion(self):
+        if not self.winfo_exists():
+            return
 
-            progreso_popup.update_idletasks()
-            # CENTRAR y mostrar ya correctamente formada
-            ancho = progreso_popup.winfo_width()
-            alto = progreso_popup.winfo_height()
-            pantalla_ancho = progreso_popup.winfo_screenwidth()
-            pantalla_alto = progreso_popup.winfo_screenheight()
-            x = (pantalla_ancho // 2) - (ancho // 2)
-            y = (pantalla_alto // 2) - (alto // 2)
-            progreso_popup.geometry(f"+{x}+{y}")
-            progreso_popup.deiconify()
-            progreso_popup.lift()
+        try:
+            self.progress_label.config(text="Validación completada.")
+            self.bloquear_controles(False)
+            self.btn_ejecutar.config(text="Ejecutar Catalogación", command=self.ejecutar_catalogacion)
+        except tk.TclError:
+            return # Widgets destruidos
 
-            resultados = catalogar_archivos_multiambiente(
-                archivos_unicos, seleccionados_archs, barra, lbl, progreso_popup
-            )
-            progreso_popup.destroy()
-            messagebox.showinfo("Catálogo", "Catalogacion finalizada.")
-            logear(win, f"[CATALOGACIÓN] Finalizada para {len(resultados)} archivos (ver detalles en Sybase).")
-            mostrar_resumen_catalogacion(win, resultados, archivos_unicos)
+        # Itera sobre todos los treeviews (en caso de pestañas)
+        if self.es_multi_ambiente:
+            treeviews = [info['tree'] for info in self.tabs_info.values()] if hasattr(self, 'tabs_info') else []
+        else:
+            treeviews = [self.tree_preview] if hasattr(self, 'tree_preview') and self.tree_preview.winfo_exists() else []
 
-    btn_frame = ttk.Frame(win)
-    btn_frame.pack(fill="x", side="bottom", pady=(5, 0), padx=10)
-    btn_frame.focus_set()
-    ttk.Button(btn_frame, text="Seleccionar todos", style="TButton", command=seleccionar_todos).pack(side="left", padx=2)
-    ttk.Button(btn_frame, text="Quitar selección", style="TButton", command=deseleccionar_todos).pack(side="left", padx=2)
-    ttk.Button(btn_frame, text="↑ Subir", style="TButton", command=lambda: mover_fila(tree, "arriba")).pack(side="left", padx=5)
-    ttk.Button(btn_frame, text="↓ Bajar", style="TButton", command=lambda: mover_fila(tree, "abajo")).pack(side="left", padx=5)
-    ttk.Button(btn_frame, text="Catalogar seleccionados", style="TButton", command=catalogar_sel_validacion).pack(side="left", padx=12)
-    ttk.Button(btn_frame, text="Cerrar", style="TButton", command=win.destroy).pack(side="right", padx=7)
+        for tree in treeviews:
+            try:
+                if not tree.winfo_exists(): continue
+                all_iids_in_tree = tree.get_children()
+                for iid in all_iids_in_tree:
+                    if iid not in self.validated_iids:
+                        tree.set(iid, "Sel.", "")
+                        tree.item(iid, tags=("deshabilitado",))
+                        self.checked_states[iid] = False
+                    else:
+                        tree.set(iid, "Sel.", "☑")
+                        tree.selection_remove(iid)
+            except tk.TclError:
+                continue
 
-    win.update_idletasks()
-    centrar_ventana(win, ancho, alto, parent=parent)
+        if self.winfo_exists():
+            messagebox.showinfo("Validación Finalizada", "El proceso de validación ha terminado. Revise los resultados antes de catalogar.", parent=self)
 
-def mostrar_resumen_catalogacion(parent, resultados, archivos_unicos):
-    win = tk.Toplevel(parent)
-    win.title("Resultado Catalogacion Multiambiente")
-    win.geometry("420x210")
-    win.resizable(False, False)
-    win.update_idletasks()
-    ancho = win.winfo_width()
-    alto = win.winfo_height()
-    pantallaw = win.winfo_screenwidth()
-    pantallah = win.winfo_screenheight()
-    x = (pantallaw // 2) - (ancho // 2)
-    y = (pantallah // 2) - (alto // 2)
-    win.geometry(f"+{x}+{y}")
+    def ejecutar_catalogacion(self):
+        # --- CAMBIO: Usar SIEMPRE los checkboxes como fuente de verdad ---
+        items_seleccionados = [iid for iid, checked in self.checked_states.items() if checked]
+        if not items_seleccionados:
+            messagebox.showwarning("Sin Selección", "Debe seleccionar al menos un archivo para catalogar usando los checkboxes.", parent=self)
+            return
 
-    label = tk.Label(win, text="A continuación el resultado de la catalogación:", font=("Segoe UI", 14))
-    label.pack(pady=25)
+        # Filtrar el plan de ejecución para incluir solo los ítems seleccionados
+        # --- REQUERIMIENTO: Usar los checkboxes como fuente de verdad ---
+        iids_a_catalogar = [iid for iid, checked in self.checked_states.items() if checked]
 
-    btn_detalle = tk.Button(
-        win, text="Ver detalle", font=("Segoe UI", 12),
-        command=lambda: [win.destroy(), mostrar_resultado_catalogacion(parent, resultados, archivos_unicos)]
-    )
-    btn_detalle.pack(pady=10)
+        self.plan_ejecucion = [self.plan_plano[int(iid)] for iid in iids_a_catalogar]
+        
+        if self.plan_ejecucion:
+            self.resultado = "ejecutar"
+            self.on_close()
 
-    btn_cerrar = tk.Button(win, text="Cerrar", font=("Segoe UI", 12), command=win.destroy)
-    btn_cerrar.pack(pady=8)
+    def bloquear_controles(self, bloquear):
+        estado = "disabled" if bloquear else "normal"
+        self.btn_ejecutar.config(state=estado)
+        self.btn_seleccionar_todos.config(state=estado)
+        self.btn_deseleccionar_todos.config(state=estado)
+        if bloquear:
+            self.btn_regresar.config(text="Cerrar")
+        else:
+            self.btn_regresar.config(text="Regresar")
 
-    win.transient(parent)
-    win.grab_set()
-    win.focus_set()
-    win.lift()
-    return win
+    def seleccionar_todos(self):
+        active_tree = self._get_active_treeview()
+        if not active_tree: return
+
+        for iid in active_tree.get_children():
+            # --- MEJORA: Solo seleccionar los que no están deshabilitados ---
+            if "deshabilitado" not in active_tree.item(iid, "tags"):
+                active_tree.selection_add(iid)
+                active_tree.set(iid, "Sel.", "☑")
+                self.checked_states[iid] = True
+
+    def deseleccionar_todos(self):
+        active_tree = self._get_active_treeview()
+        if not active_tree: return
+
+        # --- MEJORA: Desmarcar todos los checkboxes y limpiar la selección ---
+        for iid in active_tree.get_children():
+            if "deshabilitado" not in active_tree.item(iid, "tags"):
+                active_tree.set(iid, "Sel.", "☐")
+                self.checked_states[iid] = False
+        # Siempre eliminar la selección visual para que los colores sean visibles
+        active_tree.selection_remove(active_tree.selection())

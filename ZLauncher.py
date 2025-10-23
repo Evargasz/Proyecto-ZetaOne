@@ -41,8 +41,8 @@ class controladorVentanas:
         self.root.resizable(redimensionable, redimensionable)
         
         # Calcular posición para centrar (ajustado para evitar barra de tareas)
-        x = (self.root.winfo_screenwidth() // 2) - (ancho // 2)
-        y = (self.root.winfo_screenheight() // 2) - (alto // 2) - 30
+        x = (self.root.winfo_screenwidth() // 2) - (ancho // 2) # --- CORRECCIÓN: Se elimina el offset vertical ---
+        y = (self.root.winfo_screenheight() // 2) - (alto // 2)
         
         geometria = f"{ancho}x{alto}+{x}+{y}"
         

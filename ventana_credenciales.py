@@ -50,6 +50,9 @@ class credenciales:
         self.entry_usuario = entrada_estandar(self.root)
         self.entry_usuario.place(relx=0.5, y=70, anchor="center", width=200, height=35)
         self.entry_usuario.insert(0, "Usuario")
+        
+        # --- CAMBIO: Posicionar el cursor en el campo de usuario al abrir ---
+        self.entry_usuario.focus_set()
 
         def clear_placeholder_usu(event):
             if self.entry_usuario.get() == "Usuario":
