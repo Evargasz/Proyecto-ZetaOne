@@ -634,7 +634,7 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
             CatalogacionDialog(self.frame, aceptar_callback=aceptar)
 
     #--------------------------panel de ambientes-------------------------------------
-    #--------------------------panel de ambientes-------------------------------------
+    
     class AmbientesPanel:
 
         def __init__(self, parent, logtxt=None):
@@ -748,6 +748,19 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
                 self.checkbuttons[amb['nombre']] = {'var': var, 'widget': chk}
             
             self.actualizar_selecciones_relacionadas()
+
+            # --- CAMBIO: Re-aplicar el bloqueo permanente si está activo ---
+            # Esto asegura que después de probar conexiones, los hijos sigan bloqueados.
+            if self.hijos_bloqueados_permanentemente:
+                ambientes_hijos = set()
+                for hijos in self.ambientes_relacionados.values():
+                    ambientes_hijos.update(hijos)
+
+                for amb_name, chk_info in self.checkbuttons.items():
+                    if amb_name in ambientes_hijos:
+                        chk_info['var'].set(False)
+                        chk_info['widget'].config(state='disabled')
+            # --- FIN DEL CAMBIO ---
 
         def actualizar_selecciones_relacionadas(self):
             # --- CAMBIO: El bloqueo de hijos solo se aplica si el flujo automático está activo ---

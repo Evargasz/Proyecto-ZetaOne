@@ -94,8 +94,6 @@ class ValidacionAutomatizadaDialog(Toplevel):
         self.plan_ejecucion = plan_ejecucion
         self.plan_plano = [] # --- CAMBIO: Lista plana para tareas individuales (archivo, ambiente)
         self.macros_seleccionados = macros_seleccionados or []
-        self.validated_iids = set() # --- REQUERIMIENTO: Almacenar los IIDs de los ítems validados
-        self.checked_states = {} # --- REQUERIMIENTO: Almacenar el estado de los checkboxes
         # --- MEJORA: Estructura para manejar pestañas si hay múltiples macros ---
         self.es_multi_ambiente = len(self.macros_seleccionados) > 1
         self.notebook = None
@@ -113,11 +111,18 @@ class ValidacionAutomatizadaDialog(Toplevel):
         if self.es_multi_ambiente:
             self.notebook = ttk.Notebook(main_frame)
             self.notebook.grid(row=0, column=0, sticky="nsew")
+            # --- CAMBIO: Vincular el evento de cambio de pestaña ---
+            self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+
             for macro in self.macros_seleccionados:
                 tab_frame = ttk.Frame(self.notebook, padding=5)
                 self.notebook.add(tab_frame, text=macro['nombre'])
                 tree = self._crear_treeview_en(tab_frame, es_pestaña=True)
-                self.tabs_info[macro['nombre']] = {'tree': tree, 'frame': tab_frame}
+                # --- CAMBIO: Inicializar el estado para cada pestaña ---
+                self.tabs_info[macro['nombre']] = {
+                    'tree': tree, 'frame': tab_frame,
+                    'is_validated': False, 'validated_iids': set(), 'checked_states': {}
+                }
         else:
             # Si no es multi-ambiente, crear un solo treeview como antes
             frame_preview = ttk.LabelFrame(main_frame, text="Vista Previa de Asignación")
@@ -125,6 +130,12 @@ class ValidacionAutomatizadaDialog(Toplevel):
             self.tree_preview = self._crear_treeview_en(frame_preview, es_pestaña=False)
         # --- FIN DE LA CORRECCIÓN ---
         
+        # --- CAMBIO: Si no es multi-ambiente, también necesita una estructura de estado ---
+        if not self.es_multi_ambiente:
+            self.estado_unico = {
+                'is_validated': False, 'validated_iids': set(), 'checked_states': {}
+            }
+
         # --- Botones de Acción Final ---
         self.frame_acciones = ttk.Frame(main_frame, padding=(10, 10, 0, 0))
         self.frame_acciones.grid(row=1, column=0, sticky="ew", pady=(10, 0))
@@ -203,6 +214,9 @@ class ValidacionAutomatizadaDialog(Toplevel):
 
     def on_close(self):
         self.resultado = "cancelar"
+        # --- CAMBIO: Devolver el foco a la ventana principal antes de cerrar ---
+        if self.master.winfo_exists():
+            self.master.focus_set()
         self.destroy()
 
     def _get_active_treeview(self):
@@ -222,6 +236,25 @@ class ValidacionAutomatizadaDialog(Toplevel):
             return self.tree_preview if hasattr(self, 'tree_preview') else None
         return None
 
+    def _get_active_tab_state(self):
+        """Devuelve el diccionario de estado de la pestaña activa o el estado único."""
+        if not self.winfo_exists():
+            return None
+        if self.es_multi_ambiente:
+            try:
+                if self.notebook and self.notebook.winfo_exists():
+                    active_tab_name = self.notebook.tab(self.notebook.select(), "text")
+                    return self.tabs_info.get(active_tab_name)
+            except tk.TclError:
+                return None
+        else:
+            return self.estado_unico if hasattr(self, 'estado_unico') else None
+        return None
+
+    def _on_tab_changed(self, event):
+        """Actualiza la UI cuando el usuario cambia de pestaña."""
+        self.actualizar_estado_botones()
+
     def on_tree_click(self, event):
         """Maneja los clics en el Treeview activo para simular checkboxes."""
         active_tree = self._get_active_treeview()
@@ -235,12 +268,14 @@ class ValidacionAutomatizadaDialog(Toplevel):
         # Solo actuar si se hace clic en la primera columna ("Sel.")
         if column_id == "#1":
             iid = active_tree.identify_row(event.y)
-            if iid and "deshabilitado" not in active_tree.item(iid, "tags"):
+            active_tab_state = self._get_active_tab_state()
+            if iid and active_tab_state and "deshabilitado" not in active_tree.item(iid, "tags"):
                 # Alternar estado
-                self.checked_states[iid] = not self.checked_states.get(iid, False)
+                checked_states = active_tab_state['checked_states']
+                checked_states[iid] = not checked_states.get(iid, False)
                 
                 # Actualizar visualmente
-                if self.checked_states[iid]:
+                if checked_states[iid]:
                     active_tree.set(iid, "Sel.", "☑") # Solo actualiza el checkbox
                 else:
                     active_tree.set(iid, "Sel.", "☐") # Solo actualiza el checkbox
@@ -262,11 +297,18 @@ class ValidacionAutomatizadaDialog(Toplevel):
         if self.es_multi_ambiente:
             for info in self.tabs_info.values():
                 info['tree'].delete(*info['tree'].get_children())
+                # --- CAMBIO: Resetear el estado de cada pestaña ---
+                info['is_validated'] = False
+                info['validated_iids'] = set()
+                info['checked_states'] = {}
         else:
             self.tree_preview.delete(*self.tree_preview.get_children())
+            # --- CAMBIO: Resetear el estado único ---
+            self.estado_unico['is_validated'] = False
+            self.estado_unico['validated_iids'] = set()
+            self.estado_unico['checked_states'] = {}
 
         self.plan_plano = []
-        self.checked_states = {}
 
         # --- CAMBIO: Crear una lista plana de tareas (una por cada archivo-ambiente) ---
         for tarea in self.plan_ejecucion:
@@ -292,14 +334,16 @@ class ValidacionAutomatizadaDialog(Toplevel):
                 # Determinar a qué pestaña (macro) pertenece esta tarea
                 macro_padre = self._get_macro_for_ambiente(nombre_ambiente)
                 if macro_padre and macro_padre in self.tabs_info:
-                    target_tree = self.tabs_info[macro_padre]['tree']
+                    tab_info = self.tabs_info[macro_padre]
+                    target_tree = tab_info['tree']
+                    tab_info['checked_states'][iid] = True # Marcar como seleccionado por defecto
             else:
                 target_tree = self.tree_preview
+                self.estado_unico['checked_states'][iid] = True
 
             if target_tree:
                 target_tree.insert("", "end", values=values, iid=iid, tags=("checkbox",))
                 target_tree.selection_add(iid)
-                self.checked_states[iid] = True
 
     def _get_macro_for_ambiente(self, nombre_ambiente):
         """Encuentra el macroambiente padre para un ambiente dado."""
@@ -313,20 +357,38 @@ class ValidacionAutomatizadaDialog(Toplevel):
         return None
 
     def resetear_pantalla(self):
-        """
-        Reinicia la ventana a su estado inicial.
-        """
-        # 1. Limpiar y repoblar la tabla
-        self.poblar_vista_previa()
+        """Reinicia la pestaña activa a su estado inicial (pre-validación)."""
+        active_tree = self._get_active_treeview()
+        active_tab_state = self._get_active_tab_state()
 
-        # 2. Resetear la barra de progreso y el texto
+        if not active_tree or not active_tab_state:
+            return
+
+        # 1. Resetear el estado de la pestaña
+        active_tab_state['is_validated'] = False
+        active_tab_state['validated_iids'].clear()
+
+        # 2. Restaurar cada fila en el Treeview de la pestaña activa
+        try:
+            if active_tree.winfo_exists():
+                for iid in active_tree.get_children():
+                    # Restaurar checkbox y estado
+                    active_tree.set(iid, "Sel.", "☑")
+                    active_tab_state['checked_states'][iid] = True
+                    # Limpiar resultado
+                    active_tree.set(iid, "Resultado / Fecha DB", "")
+                    # Quitar todos los tags y dejar solo el de checkbox
+                    active_tree.item(iid, tags=("checkbox",))
+        except tk.TclError:
+            pass # El widget fue destruido
+
+        # 3. Resetear la barra de progreso y el texto
         self.progress_label.config(text="Listo para validar.")
         self.progress_bar['value'] = 0
 
-        # 3. Restaurar el botón de acción principal
-        self.btn_ejecutar.config(text="Ejecutar Validación", command=self.iniciar_proceso_validacion)
+        # 4. Restaurar los botones y estados
+        self.actualizar_estado_botones()
         self.bloquear_controles(False)
-        self.validated_iids.clear()
 
     def iniciar_proceso_validacion(self):
         active_tree = self._get_active_treeview()
@@ -334,13 +396,15 @@ class ValidacionAutomatizadaDialog(Toplevel):
             messagebox.showerror("Error", "No se pudo encontrar la tabla de archivos activa.", parent=self)
             return
 
-        items_seleccionados = active_tree.selection()
+        active_tab_state = self._get_active_tab_state()
+        items_seleccionados = [iid for iid, checked in active_tab_state['checked_states'].items() if checked]
+
         if not items_seleccionados:
             messagebox.showwarning("Sin Selección", "Debe seleccionar al menos un archivo para validar.", parent=self)
             return
 
         # --- REQUERIMIENTO: Guardar los IIDs que se van a validar ---
-        self.validated_iids = set(items_seleccionados)
+        active_tab_state['validated_iids'] = set(items_seleccionados)
 
         self.bloquear_controles(True)
         self.progress_bar['maximum'] = len(items_seleccionados)
@@ -497,47 +561,45 @@ class ValidacionAutomatizadaDialog(Toplevel):
         if not self.winfo_exists():
             return
 
-        try:
-            self.progress_label.config(text="Validación completada.")
-            self.bloquear_controles(False)
-            self.btn_ejecutar.config(text="Ejecutar Catalogación", command=self.ejecutar_catalogacion)
-        except tk.TclError:
-            return # Widgets destruidos
+        active_tab_state = self._get_active_tab_state()
+        if active_tab_state:
+            active_tab_state['is_validated'] = True
+            active_tree = self._get_active_treeview()
 
-        # Itera sobre todos los treeviews (en caso de pestañas)
-        if self.es_multi_ambiente:
-            treeviews = [info['tree'] for info in self.tabs_info.values()] if hasattr(self, 'tabs_info') else []
-        else:
-            treeviews = [self.tree_preview] if hasattr(self, 'tree_preview') and self.tree_preview.winfo_exists() else []
+            if active_tree:
+                try:
+                    if not active_tree.winfo_exists(): return
+                    all_iids_in_tree = active_tree.get_children()
+                    for iid in all_iids_in_tree:
+                        if iid not in active_tab_state['validated_iids']:
+                            active_tree.set(iid, "Sel.", "")
+                            active_tree.item(iid, tags=("deshabilitado",))
+                            active_tab_state['checked_states'][iid] = False
+                        else:
+                            active_tree.set(iid, "Sel.", "☑")
+                            active_tree.selection_remove(iid)
+                except tk.TclError:
+                    pass
 
-        for tree in treeviews:
-            try:
-                if not tree.winfo_exists(): continue
-                all_iids_in_tree = tree.get_children()
-                for iid in all_iids_in_tree:
-                    if iid not in self.validated_iids:
-                        tree.set(iid, "Sel.", "")
-                        tree.item(iid, tags=("deshabilitado",))
-                        self.checked_states[iid] = False
-                    else:
-                        tree.set(iid, "Sel.", "☑")
-                        tree.selection_remove(iid)
-            except tk.TclError:
-                continue
+        self.actualizar_estado_botones()
+        self.bloquear_controles(False)
 
         if self.winfo_exists():
             messagebox.showinfo("Validación Finalizada", "El proceso de validación ha terminado. Revise los resultados antes de catalogar.", parent=self)
 
     def ejecutar_catalogacion(self):
-        # --- CAMBIO: Usar SIEMPRE los checkboxes como fuente de verdad ---
-        items_seleccionados = [iid for iid, checked in self.checked_states.items() if checked]
+        active_tab_state = self._get_active_tab_state()
+        if not active_tab_state:
+            return
+
+        items_seleccionados = [iid for iid, checked in active_tab_state['checked_states'].items() if checked]
         if not items_seleccionados:
             messagebox.showwarning("Sin Selección", "Debe seleccionar al menos un archivo para catalogar usando los checkboxes.", parent=self)
             return
 
         # Filtrar el plan de ejecución para incluir solo los ítems seleccionados
         # --- REQUERIMIENTO: Usar los checkboxes como fuente de verdad ---
-        iids_a_catalogar = [iid for iid, checked in self.checked_states.items() if checked]
+        iids_a_catalogar = [iid for iid, checked in active_tab_state['checked_states'].items() if checked]
 
         self.plan_ejecucion = [self.plan_plano[int(iid)] for iid in iids_a_catalogar]
         
@@ -555,25 +617,44 @@ class ValidacionAutomatizadaDialog(Toplevel):
         else:
             self.btn_regresar.config(text="Regresar")
 
+    def actualizar_estado_botones(self):
+        """Actualiza el botón principal según el estado de la pestaña activa."""
+        if not self.winfo_exists():
+            return
+
+        active_tab_state = self._get_active_tab_state()
+        if not active_tab_state:
+            return
+
+        try:
+            if active_tab_state['is_validated']:
+                self.btn_ejecutar.config(text="Ejecutar Catalogación", command=self.ejecutar_catalogacion)
+            else:
+                self.btn_ejecutar.config(text="Ejecutar Validación", command=self.iniciar_proceso_validacion)
+        except tk.TclError:
+            pass # El widget fue destruido
+
     def seleccionar_todos(self):
         active_tree = self._get_active_treeview()
-        if not active_tree: return
+        active_tab_state = self._get_active_tab_state()
+        if not active_tree or not active_tab_state: return
 
         for iid in active_tree.get_children():
             # --- MEJORA: Solo seleccionar los que no están deshabilitados ---
             if "deshabilitado" not in active_tree.item(iid, "tags"):
                 active_tree.selection_add(iid)
                 active_tree.set(iid, "Sel.", "☑")
-                self.checked_states[iid] = True
+                active_tab_state['checked_states'][iid] = True
 
     def deseleccionar_todos(self):
         active_tree = self._get_active_treeview()
-        if not active_tree: return
+        active_tab_state = self._get_active_tab_state()
+        if not active_tree or not active_tab_state: return
 
         # --- MEJORA: Desmarcar todos los checkboxes y limpiar la selección ---
         for iid in active_tree.get_children():
             if "deshabilitado" not in active_tree.item(iid, "tags"):
                 active_tree.set(iid, "Sel.", "☐")
-                self.checked_states[iid] = False
+                active_tab_state['checked_states'][iid] = False
         # Siempre eliminar la selección visual para que los colores sean visibles
         active_tree.selection_remove(active_tree.selection())
