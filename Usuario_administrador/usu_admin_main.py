@@ -4,10 +4,12 @@ from tkinter import filedialog, scrolledtext, messagebox, simpledialog
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 import os
-import datetime
+import datetime # <-- CORRECCIÓN: Se añade import faltante
+import traceback
 import json
 import threading # <-- SOLUCIÓN: Se añade el import que faltaba
 import re
+import getpass # <-- CAMBIO: Importar para obtener el usuario del PC
 
 # --- Import clave para que las rutas funcionen en el .exe ---
 from util_rutas import recurso_path
@@ -18,6 +20,7 @@ from .util_repetidos import quitar_repetidos
 
 #Importacion de estilos
 from .handlers.catalogacion import catalogar_plan_ejecucion, mostrar_resultado_catalogacion
+from .catalogacion_dialog import CatalogacionDialog
 from .widgets.tooltip import ToolTip
 
 from .validacion_dialog import ValidacionAutomatizadaDialog
@@ -41,6 +44,9 @@ class usuAdminMain:
             self.root.title("Homologador Sybase SD - Multiambiente Validación/Catalogación")
             # La geometría y el estado resizable ahora son manejados por ZLauncher.py.
             # Esto evita conflictos y centraliza el control de la ventana principal.
+
+            # --- REQUERIMIENTO: Establecer un tamaño mínimo para la ventana ---
+            self.root.minsize(1400, 600)
 
             # --- CORRECCIÓN: Carga de ícono de ventana de forma segura ---
             try:
@@ -144,7 +150,8 @@ class usuAdminMain:
             )
             self.tree.heading("Nombre", text="Nombre")
             self.tree.column("Nombre", width=200, anchor="w")
-            self.tree.heading("Ruta", text="Ruta SD")
+            # --- CAMBIO: Unificar el nombre de la columna para que coincida con la ventana de validación ---
+            self.tree.heading("Ruta", text="Ruta")
             self.tree.column("Ruta", width=500, anchor="w")
             self.tree.heading("Fecha Modif.", text="Fecha Modificación")
             self.tree.column("Fecha Modif.", width=170, anchor="center")
@@ -492,12 +499,14 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
 
         def validar_seleccionados(self):
             # Ahora esta función es el punto de entrada para el procesamiento final
+            print(">>> [main] 1. validar_seleccionados() INICIADO")
             
             # 1. Obtener macroambientes seleccionados
             ambientes_seleccionados_idx = self.ambientes_panel.get_seleccionados()
             if not ambientes_seleccionados_idx:
                 messagebox.showwarning("Sin Ambientes", "Debe seleccionar al menos un macroambiente para continuar.", parent=self.frame)
                 return
+            print(">>> [main] 2. Obtenidos ambientes seleccionados.")
             macros_seleccionados = [self.ambientes_panel.ambientes[i] for i in ambientes_seleccionados_idx]
 
             # 2. Obtener archivos seleccionados
@@ -507,33 +516,54 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
             if not items_seleccionados_en_orden:
                 messagebox.showwarning("Sin Archivos", "Debe seleccionar al menos un archivo de la lista para continuar.", parent=self.frame)
                 return
+            print(">>> [main] 3. Obtenidos archivos seleccionados.")
             archivos_seleccionados = [self.archivos_unicos[int(iid)] for iid in items_seleccionados_en_orden]
 
             # 3. Construir el plan de ejecución con la lógica inteligente
+            print(">>> [main] 4. Construyendo plan de ejecución...")
             plan_ejecucion = self.construir_plan_ejecucion(archivos_seleccionados, macros_seleccionados)
+            print(">>> [main] 5. Plan construido. Abriendo diálogo de validación...")
 
             # 4. Mostrar diálogo de confirmación y ejecutar si se acepta
-            dialogo = ValidacionAutomatizadaDialog(self.frame, plan_ejecucion, macros_seleccionados)
-            self.frame.wait_window(dialogo) # Espera a que el diálogo se cierre
+            # --- REQUERIMIENTO: Reabrir la ventana de validación después de catalogar ---
+            # Guardamos el plan y los macros para poder reutilizarlos en el callback.
+            self.plan_para_reabrir = plan_ejecucion
+            self.macros_para_reabrir = macros_seleccionados
+
+            # Llamamos a la función que abre el diálogo por primera vez.
+            self._abrir_dialogo_validacion()
+
+        def _abrir_dialogo_validacion(self):
+            """Abre el diálogo de validación y espera su resultado."""
+            dialogo = ValidacionAutomatizadaDialog(self.frame, self.plan_para_reabrir, self.macros_para_reabrir)
+            self.frame.wait_window(dialogo)
+            print(f">>> [main] 6. Diálogo de validación cerrado. Resultado: '{dialogo.resultado}'")
 
             if dialogo.resultado == "ejecutar":
                 self.logear_panel("Confirmación de catalogación aceptada. Iniciando proceso...")
+                print(">>> [main] 7. El usuario confirmó la catalogación. Pidiendo descripción...")
                 
-                # --- CAMBIO: Iniciar el proceso de catalogación real ---
                 descripcion = simpledialog.askstring(
                     "Descripción de Cambios", 
                     "Ingrese una breve descripción para este lote de catalogación:",
                     parent=self.frame
                 )
-                if descripcion is None: # Si el usuario presiona cancelar
-                    self.logear_panel("Catalogación cancelada por el usuario.")
+                if descripcion is None: # Si el usuario presiona cancelar en la descripción
+                    self.logear_panel("Catalogación cancelada. Reabriendo diálogo de validación...")
+                    print(">>> [main] 8. Catalogación cancelada. Reabriendo validación...")
+                    self.app_root.after(100, self._abrir_dialogo_validacion) # Reabre el diálogo
                     return
 
                 final_plan = dialogo.plan_ejecucion
+                print(">>> [main] 9. Lanzando hilo de catalogación (_worker_catalogacion)...")
+                # El worker ahora llamará a _on_catalogacion_finalizada cuando termine.
                 threading.Thread(target=self._worker_catalogacion, args=(final_plan, descripcion), daemon=True).start()
-                # --- FIN DEL CAMBIO ---
-            else:
-                self.logear_panel("Proceso cancelado por el usuario desde el diálogo de confirmación.")
+
+            elif dialogo.resultado == "finalizar":
+                self.logear_panel("Proceso de validación/catalogación finalizado por el usuario.")
+            else: # "cancelar"
+                self.logear_panel("Proceso cancelado. Reabriendo diálogo de validación...")
+                self.app_root.after(100, self._abrir_dialogo_validacion) # Reabre el diálogo
 
         def construir_plan_ejecucion(self, archivos, macros_seleccionados):
             """
@@ -617,15 +647,79 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
             """
             (Worker Thread) Ejecuta el plan de catalogación y muestra los resultados.
             """
-            # Bloquear UI
-            self.app_root.after(0, self.btn_validar_auto.config, {"state": "disabled"})
+            print(">>> [worker] 10. Hilo _worker_catalogacion INICIADO.")
+            # --- SOLUCIÓN: Crear una función de log segura para hilos ---
+            # Esta función asegura que cualquier actualización del log se ejecute en el hilo principal de Tkinter.
+            def log_thread_safe(msg):
+                if self.app_root and self.app_root.winfo_exists():
+                    # self.logear_panel se ejecutará en el hilo principal, evitando el crash.
+                    self.app_root.after(0, self.logear_panel, msg)
+            # --- FIN DE LA SOLUCIÓN ---
             
-            resultados = catalogar_plan_ejecucion(plan, descripcion, log_func=self.logear_panel)
-            
-            # Desbloquear UI y mostrar resultados
-            self.app_root.after(0, self.btn_validar_auto.config, {"state": "normal"})
-            self.app_root.after(0, mostrar_resultado_catalogacion, self.frame, resultados)
+            try: # <--- ADDED TRY BLOCK
+                # Bloquear UI
+                self.app_root.after(0, self.btn_validar_auto.config, {"state": "disabled"})
+                
+                # --- CORRECCIÓN: Pasar la función de log segura en lugar de la directa ---
+                print(">>> [worker] 11. Llamando a catalogar_plan_ejecucion...")
+                resultados = catalogar_plan_ejecucion(plan, descripcion, log_func=log_thread_safe)
+                
+                # --- REQUERIMIENTO: Guardar el resultado en un archivo de texto ---
+                # --- CAMBIO: Pasar el nombre de usuario logueado ---
+                self._guardar_resultado_catalogacion_en_archivo(resultados, descripcion, self.controlador.usuario_logueado, log_thread_safe)
+                
+                print(">>> [worker] 12. catalogar_plan_ejecucion finalizado. Mostrando resultados...")
+                # Desbloquear UI y mostrar resultados
+                # --- CAMBIO: Llamar al callback en el hilo principal cuando todo termine ---
+                self.app_root.after(0, self._on_catalogacion_finalizada, resultados)
 
+
+            except Exception as e: # <--- ADDED EXCEPT BLOCK
+                print(f">>> [worker] ERROR CRÍTICO: {e}\n{traceback.format_exc()}")
+                error_msg = f"ERROR CRÍTICO EN HILO DE CATALOGACIÓN: {str(e)}\n{traceback.format_exc()}"
+                log_thread_safe(error_msg)
+                self.app_root.after(0, lambda: messagebox.showerror("Error Crítico", "La catalogación falló inesperadamente. Revise el log de operaciones.", parent=self.frame))
+                self.app_root.after(0, self.btn_validar_auto.config, {"state": "normal"}) # Asegurarse de que el botón se re-habilite
+        
+        def _on_catalogacion_finalizada(self, resultados):
+            """Callback que se ejecuta en el hilo principal después de la catalogación."""
+            self.btn_validar_auto.config(state="normal")
+            mostrar_resultado_catalogacion(self.frame, resultados)
+            # Después de que el usuario cierre la ventana de resultados, se reabre la de validación.
+            print(">>> [main] 13. El ciclo de catalogación ha terminado. Reabriendo validación...")
+            self._abrir_dialogo_validacion()
+
+
+        def _guardar_resultado_catalogacion_en_archivo(self, resultados, descripcion, usuario_app, log_func):
+            """
+            (Worker Thread) Guarda el resumen de la catalogación en un archivo de texto.
+            """
+            try:
+                carpeta_catalogaciones = r"C:\ZetaOne\Catalogaciones"
+                os.makedirs(carpeta_catalogaciones, exist_ok=True)
+                
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                nombre_archivo = f"resultado_catalogacion_{timestamp}.txt"
+                ruta_archivo = os.path.join(carpeta_catalogaciones, nombre_archivo)
+                
+                with open(ruta_archivo, 'w', encoding='utf-8') as f:
+                    f.write(f"--- Resultado de Catalogación ---\n")
+                    f.write(f"Fecha: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                    f.write(f"Usuario PC: {getpass.getuser()}\n")
+                    f.write(f"Catalogador: {usuario_app or 'No definido'}\n")
+                    # --- CAMBIO: Se elimina la línea "Ruta SD" del encabezado, ya que ahora está en la tabla de detalle ---
+                    f.write(f"Descripción del Lote: {descripcion}\n")
+                    f.write("-" * 40 + "\n\n")
+                    
+                    f.write(f"{'ESTADO':<10} | {'AMBIENTE':<15} | {'RUTA RELATIVA':<40} | {'DETALLE'}\n")
+                    f.write(f"{'-'*10} | {'-'*15} | {'-'*40} | {'-'*50}\n")
+
+                    for res in resultados:
+                        f.write(f"{res['estado']:<10} | {res['ambiente']:<15} | {res.get('ruta', 'N/A'):<40} | {res['detalle']}\n")
+                
+                log_func(f"Resultado de la catalogación guardado en: {ruta_archivo}")
+            except Exception as e:
+                log_func(f"ERROR: No se pudo guardar el archivo de resultado de catalogación: {e}")
 
         def lanzar_catalogacion(self):
             def aceptar(nombre, descripcion):
@@ -679,9 +773,29 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
             )
             self.btn_testamb.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12), padx=(5, 5))
 
+            # --- REQUERIMIENTO: Añadir Scrollbar al panel de ambientes ---
+            # 1. Crear un frame contenedor para el canvas y el scrollbar
+            canvas_container = tb.Frame(self.frame)
+            canvas_container.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(0, 8))
+            canvas_container.rowconfigure(0, weight=1)
+            canvas_container.columnconfigure(0, weight=1)
+
+            # 2. Crear el Canvas y el Scrollbar
+            canvas = tb.Canvas(canvas_container, highlightthickness=0)
+            scrollbar = tb.Scrollbar(canvas_container, orient="vertical", command=canvas.yview, bootstyle="info-round")
+            canvas.configure(yscrollcommand=scrollbar.set)
+
+            canvas.grid(row=0, column=0, sticky="nsew")
+            scrollbar.grid(row=0, column=1, sticky="ns")
+
+            # 3. El check_frame ahora va DENTRO del canvas
             self.ambientes_vars = []
-            self.check_frame = tb.Frame(self.frame)
-            self.check_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(0, 8), padx=(0, 0))
+            self.check_frame = tb.Frame(canvas)
+            canvas.create_window((0, 0), window=self.check_frame, anchor="nw")
+
+            self.check_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+            # --- FIN DEL REQUERIMIENTO ---
+
             self.refresh_amb_list()
 
             self.frame.rowconfigure(1, weight=1)

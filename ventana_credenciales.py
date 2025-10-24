@@ -111,6 +111,8 @@ class credenciales:
             return
         
         if self.validar_usuario(usuario, contraseña):
+            # --- CAMBIO: Guardar el usuario logueado en el controlador ---
+            self.controlador.usuario_logueado = usuario
             self.controlador.mostrar_admin()
             
         else: 

@@ -7,10 +7,10 @@ import re
 import json
 from util_rutas import recurso_path
 from util_ventanas import centrar_ventana
-from Usuario_administrador.handlers.ambientes import cargar_relaciones_hijos
-# --- CORRECCIÓN: La importación de estilos no era necesaria aquí.
-# Se elimina para evitar posibles errores si el archivo 'styles.py' no existe en esa ubicación.
+from Usuario_administrador.handlers.ambientes import cargar_relaciones_hijos # Correcto
 
+# --- SUGERENCIA: Mover estas funciones a un módulo de utilidades de parsing o a `handlers/catalogacion.py`
+# para evitar duplicación de código, ya que `catalogacion.py` también las necesita.
 def _extraer_info_desde_encabezado(ruta_archivo):
     """
     Lee un archivo .sp y extrae el nombre de la base de datos y del SP
@@ -80,6 +80,7 @@ def _extraer_sp_name_de_sp(ruta_archivo):
 
 class ValidacionAutomatizadaDialog(Toplevel):
     def __init__(self, parent, plan_ejecucion, macros_seleccionados=None):
+        print(">>> [dialog] A. __init__() INICIADO.")
         super().__init__(parent)
         self.title("Confirmar Plan de Ejecución")
         # --- CAMBIO: Ampliar ventana, centrar y permitir maximizar ---
@@ -176,17 +177,19 @@ class ValidacionAutomatizadaDialog(Toplevel):
             parent_frame.rowconfigure(0, weight=1)
             parent_frame.columnconfigure(0, weight=1)
 
-        cols = ("Sel.", "Archivo", "Ruta", "Fecha Local", "Ambiente Asignado", "Resultado / Fecha DB")
+        # --- CAMBIO: Añadir columna "Base de Datos" ---
+        cols = ("Sel.", "Archivo", "Ruta", "Fecha Local", "Ambiente Asignado", "Base de Datos", "Resultado / Fecha DB")
         tree = ttk.Treeview(parent_frame, columns=cols, show="headings", selectmode="extended")
 
         for col in cols:
             tree.heading(col, text=col)
         
         tree.column("Sel.", width=40, anchor="c", stretch=False)
-        tree.column("Archivo", width=180, anchor="w")
-        tree.column("Ruta", width=300, anchor="w")
+        tree.column("Archivo", width=160, anchor="w")
+        tree.column("Ruta", width=250, anchor="w")
         tree.column("Fecha Local", width=130, anchor="c")
-        tree.column("Ambiente Asignado", width=150, anchor="w")
+        tree.column("Ambiente Asignado", width=130, anchor="w")
+        tree.column("Base de Datos", width=120, anchor="w")
         tree.column("Resultado / Fecha DB", width=300, anchor="w")
 
         tree.grid(row=0, column=0, sticky="nsew")
@@ -213,7 +216,7 @@ class ValidacionAutomatizadaDialog(Toplevel):
         return tree
 
     def on_close(self):
-        self.resultado = "cancelar"
+        self.resultado = "finalizar"
         # --- CAMBIO: Devolver el foco a la ventana principal antes de cerrar ---
         if self.master.winfo_exists():
             self.master.focus_set()
@@ -293,6 +296,7 @@ class ValidacionAutomatizadaDialog(Toplevel):
 
 
     def poblar_vista_previa(self):
+        print(">>> [dialog] B. poblar_vista_previa() INICIADO.")
         # Limpiar todos los treeviews
         if self.es_multi_ambiente:
             for info in self.tabs_info.values():
@@ -326,9 +330,18 @@ class ValidacionAutomatizadaDialog(Toplevel):
             fecha_local_ts = tarea_plana['archivo']['fecha_mod']
             fecha_local_str = datetime.datetime.fromtimestamp(fecha_local_ts).strftime('%Y-%m-%d %H:%M')
             nombre_ambiente = tarea_plana['ambiente']['nombre'] if tarea_plana['ambiente'] else "Sin Asignar"
-            
-            values = ("☑", nombre_archivo, ruta_archivo, fecha_local_str, nombre_ambiente, "")
-            
+
+            # --- CAMBIO: Determinar la base de datos a mostrar en la nueva columna ---
+            archivo_obj = tarea_plana['archivo']
+            ambiente_obj = tarea_plana['ambiente']
+            db_desde_encabezado, _ = _extraer_info_desde_encabezado(archivo_obj['path'])
+            db_desde_use = _extraer_db_de_sp(archivo_obj['path'])
+            # La lógica de prioridad es la misma que en la validación
+            base_datos_a_mostrar = archivo_obj.get("db_override") or db_desde_encabezado or db_desde_use or (ambiente_obj.get('base') if ambiente_obj else "N/A")
+
+            # Añadir la base de datos a los valores de la fila
+            values = ("☑", nombre_archivo, ruta_archivo, fecha_local_str, nombre_ambiente, base_datos_a_mostrar, "")
+
             target_tree = None
             if self.es_multi_ambiente:
                 # Determinar a qué pestaña (macro) pertenece esta tarea
@@ -391,6 +404,7 @@ class ValidacionAutomatizadaDialog(Toplevel):
         self.bloquear_controles(False)
 
     def iniciar_proceso_validacion(self):
+        print(">>> [dialog] C. iniciar_proceso_validacion() INICIADO.")
         active_tree = self._get_active_treeview()
         if not active_tree:
             messagebox.showerror("Error", "No se pudo encontrar la tabla de archivos activa.", parent=self)
@@ -416,12 +430,14 @@ class ValidacionAutomatizadaDialog(Toplevel):
             active_tree.set(iid, "Resultado / Fecha DB", "")
             tareas_a_validar.append((iid, self.plan_plano[int(iid)]))
 
+        print(f">>> [dialog] D. Lanzando hilo worker_validacion para {len(tareas_a_validar)} tareas...")
         threading.Thread(target=self.worker_validacion, args=(tareas_a_validar,), daemon=True).start()
 
     def worker_validacion(self, tareas):
         from Usuario_administrador.handlers.catalogacion import obtener_fecha_desde_sp_help
         import pyodbc # Para capturar errores de conexión
 
+        print(">>> [dialog-worker] E. Hilo worker_validacion INICIADO.")
         for i, (iid, tarea) in enumerate(tareas):
             archivo = tarea['archivo']
             ambiente_a_validar = tarea['ambiente'] # --- CAMBIO: Ahora es un solo ambiente por tarea
@@ -430,11 +446,13 @@ class ValidacionAutomatizadaDialog(Toplevel):
             
             # --- CAMBIO: Validar si la tarea tiene un ambiente asignado ---
             if not ambiente_a_validar:
+                print(f">>> [dialog-worker] Tarea {i+1}/{len(tareas)} OMITIDA (sin ambiente).")
                 self.after(0, self.actualizar_fila, iid, i + 1, "Sin Ambiente")
                 continue
 
             # --- REQUERIMIENTO 2: Omitir validación para archivos .sql ---
             if nombre_archivo_completo.lower().endswith('.sql'):
+                print(f">>> [dialog-worker] Tarea {i+1}/{len(tareas)} es .sql, marcada como 'Lista'.")
                 self.after(0, self.actualizar_fila, iid, i + 1, "Listo para catalogar")
                 continue
             # --- FIN REQUERIMIENTO 2 ---
@@ -452,6 +470,7 @@ class ValidacionAutomatizadaDialog(Toplevel):
             
             # --- FIN DE LA LÓGICA MEJORADA ---
             
+            print(f">>> [dialog-worker] Tarea {i+1}/{len(tareas)}: Validando '{nombre_sp_a_buscar}' en '{ambiente_a_validar['nombre']}'...")
             self.after(0, self.actualizar_progreso, i, f"Validando '{nombre_sp_a_buscar}' en '{ambiente_a_validar['nombre']}' (DB: {base_datos_a_usar})...")
 
             # La base de datos se asume que es la configurada en el ambiente
@@ -465,12 +484,12 @@ class ValidacionAutomatizadaDialog(Toplevel):
                 # --- CORRECCIÓN: Ahora fecha_db_str es un objeto datetime o un string de error ---
                 if fecha_db_str not in ["No encontrado en DB", "Error de conexión"]:
                     try:
-                        # --- CORRECCIÓN: Parsear los posibles formatos de fecha de la BD ---
+                        # --- CORRECCIÓN: Reintroducir el parseo para ambos formatos de fecha ---
                         try:
                             # Intentar formato de SQL Server: '2024-12-26 21:09:00'
                             fecha_db_obj = datetime.datetime.strptime(fecha_db_str, '%Y-%m-%d %H:%M:%S')
                         except ValueError:
-                            # Si falla, intentar formato de Sybase: 'Dec 26 2024  9:09:00:000PM'
+                            # Si falla, intentar formato de Sybase (estilo 109): 'Dec 26 2024  9:09:00:000PM'
                             fecha_db_obj = datetime.datetime.strptime(fecha_db_str, '%b %d %Y %I:%M:%S:%f%p')
 
                         fecha_local_obj = datetime.datetime.fromtimestamp(fecha_local_ts)
@@ -499,6 +518,7 @@ class ValidacionAutomatizadaDialog(Toplevel):
             # --- FIN REQUERIMIENTO 1 ---
             self.after(0, self.actualizar_fila, iid, i + 1, resultado_final)
 
+        print(">>> [dialog-worker] F. Hilo worker_validacion FINALIZADO.")
         self.after(0, self.finalizar_validacion)
 
     def actualizar_progreso(self, valor, texto):
@@ -588,24 +608,28 @@ class ValidacionAutomatizadaDialog(Toplevel):
             messagebox.showinfo("Validación Finalizada", "El proceso de validación ha terminado. Revise los resultados antes de catalogar.", parent=self)
 
     def ejecutar_catalogacion(self):
+        print(">>> [dialog] G. ejecutar_catalogacion() INICIADO.")
         active_tab_state = self._get_active_tab_state()
         if not active_tab_state:
             return
 
-        items_seleccionados = [iid for iid, checked in active_tab_state['checked_states'].items() if checked]
+        validated_iids = active_tab_state.get('validated_iids', set())
+        items_seleccionados = [iid for iid, checked in active_tab_state['checked_states'].items() if checked and iid in validated_iids]
         if not items_seleccionados:
             messagebox.showwarning("Sin Selección", "Debe seleccionar al menos un archivo para catalogar usando los checkboxes.", parent=self)
             return
 
-        # Filtrar el plan de ejecución para incluir solo los ítems seleccionados
-        # --- REQUERIMIENTO: Usar los checkboxes como fuente de verdad ---
-        iids_a_catalogar = [iid for iid, checked in active_tab_state['checked_states'].items() if checked]
-
-        self.plan_ejecucion = [self.plan_plano[int(iid)] for iid in iids_a_catalogar]
+       # Construir el plan final solo con los ítems seleccionados
+        self.plan_ejecucion = [self.plan_plano[int(iid)] for iid in items_seleccionados]
         
         if self.plan_ejecucion:
             self.resultado = "ejecutar"
-            self.on_close()
+            print(f">>> [dialog] H. Plan final construido con {len(self.plan_ejecucion)} tareas.")
+            print(">>> [dialog] I. Cerrando diálogo para devolver control a la ventana principal...")
+            # --- CORRECCIÓN: Llamar a destroy() directamente para evitar que on_close() sobrescriba el resultado. ---
+            # on_close() está diseñado para cancelaciones, por eso siempre pone el resultado en "cancelar".
+            # Al llamar a destroy(), cerramos la ventana manteniendo el resultado "ejecutar".
+            self.destroy()
 
     def bloquear_controles(self, bloquear):
         estado = "disabled" if bloquear else "normal"

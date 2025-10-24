@@ -16,6 +16,7 @@ class controladorVentanas:
         self.root = root
         self.style = Style(theme="litera")
         configurar_estilos(self.style)
+        self.usuario_logueado = None # --- CAMBIO: Añadir variable para el usuario ---
         self.mostrar_pantalla_inicio()        
 
     def limpiar_root(self):

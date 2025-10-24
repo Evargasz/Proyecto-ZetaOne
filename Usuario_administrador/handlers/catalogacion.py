@@ -5,10 +5,10 @@ import re
 import traceback
 import os
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk
 
-# --- CAMBIO: Mover funciones de extracción aquí para que catalogación las use ---
-from ..validacion_dialog import _extraer_info_desde_encabezado, _extraer_db_de_sp, _extraer_sp_name_de_sp
+# --- CAMBIO: Mover funciones de extracción aquí para centralizar la lógica ---
+from ..validacion_dialog import _extraer_info_desde_encabezado, _extraer_db_de_sp, _extraer_sp_name_de_sp # Se mantiene por ahora para compatibilidad
 
 # --- CAMBIO: Importar para la ventana de resultados ---
 from util_ventanas import centrar_ventana
@@ -37,12 +37,11 @@ def validar_archivo_sp_local_vs_sybase(arch, ambiente, stored_proc, base_datos):
         return ("Error", None)
 
 def obtener_fecha_desde_sp_help(stored_proc, base_datos, ambiente):
-    # --- CORRECCIÓN: Construir la cadena de conexión con la base de datos correcta desde el inicio ---
-    # Esto es más robusto que conectar a una BD por defecto y luego usar "USE".
-    # Se asegura de que la sesión ODBC tenga el contexto correcto desde el principio.
+    """
+    Obtiene la fecha de creación de un SP consultando directamente sysobjects.
+    Es más robusto y rápido que usar sp_help.
+    """
     db_para_conectar = base_datos or ambiente.get('base')
-
-    # --- CORRECCIÓN: Añadir llaves al nombre del driver para compatibilidad ---
     driver_name = ambiente.get('driver', '')
 
     if "SQL Server" in driver_name:
@@ -63,64 +62,77 @@ def obtener_fecha_desde_sp_help(stored_proc, base_datos, ambiente):
             f"Pwd={ambiente['clave']};"
         )
     try:
-        # --- CAMBIO: Añadir log detallado de la conexión y los parámetros de búsqueda ---
         conn_str_log = re.sub(r'Pwd=.*?;', 'Pwd=********;', conn_str)
-        # --- CORRECCIÓN: Log más claro y específico ---
-        log_msg = f"[VALIDACIÓN] Buscando SP: '{stored_proc}' en BD: '{db_para_conectar}' (Ambiente: {ambiente['nombre']})"
+        log_msg = (
+            f"[VALIDACIÓN] Buscando SP: '{stored_proc}' en BD: '{db_para_conectar}' "
+            f"(Ambiente: {ambiente['nombre']}) usando sysobjects."
+        )
         logging.info(log_msg)
-        # --- FIN DEL CAMBIO ---
 
         with pyodbc.connect(conn_str, timeout=5, autocommit=True) as conn:
             cursor = conn.cursor()
 
-            # --- SOLUCIÓN EXPERTA: Consultar sysobjects y convertir la fecha a texto en la BD ---
-            # Esto evita errores de interpretación de fecha del driver ODBC y es más robusto que sp_help.
+            # --- MEJORA: Consultar sysobjects y convertir la fecha a un formato estándar en la BD ---
+            # Esto evita errores de parseo de fecha en Python y es más eficiente.
             if "SQL Server" in driver_name:
-                # Para SQL Server, FORMAT es la mejor opción.
+                # SQL Server: FORMAT es ideal para obtener 'YYYY-MM-DD HH:MI:SS'
                 sql = "SELECT FORMAT(crdate, 'yyyy-MM-dd HH:mm:ss') FROM sysobjects WHERE name = ? AND type = 'P'"
             else: # Asume Sybase
-                # Para Sybase, CONVERT con estilo 109 es el más compatible y seguro.
+                # --- CORRECCIÓN: Usar estilo 109 para máxima compatibilidad con Sybase ---
+                # El estilo 120 no es soportado por todas las versiones. El 109 es más seguro.
                 sql = "SELECT CONVERT(varchar(30), crdate, 109) FROM sysobjects WHERE name = ? AND type = 'P'"
 
             cursor.execute(sql, stored_proc)
             row = cursor.fetchone()
             
             if row and row[0]:
-                # La fecha ya viene como una cadena de texto, lista para ser procesada en Python.
+                # La fecha ya viene como una cadena de texto estándar, lista para ser procesada.
                 return row[0]
             else:
                 return "No encontrado en DB"
 
     except Exception as e:
         logging.error(f"Error en obtener_fecha_desde_sp_help: {e}")
-        # --- CORRECCIÓN: Manejar el error "Object does not exist" explícitamente y relanzar otros ---
-        # Si el error es que el objeto no existe, lo tratamos como un resultado válido de la validación.
-        # Para otros errores (conexión, etc.), se relanza la excepción.
         error_str = str(e).lower()
-        if 'object does not exist' in error_str or 'is invalid for this operation' in error_str:
+        if 'object does not exist' in error_str or 'does not exist' in error_str:
             return "No encontrado en DB"
-        raise e
+        # Para otros errores (conexión, permisos, etc.), devolvemos un mensaje claro.
+        return "Error de conexión"
 
 def catalogar_plan_ejecucion(plan, descripcion, log_func):
     """
     Ejecuta el plan de catalogación, procesando cada tarea (archivo-ambiente).
     """
     resultados = []
-    total_tareas = len(plan)
+    
+    # --- CORRECCIÓN: Aplanar el plan de ejecución antes de procesarlo ---
+    # El plan puede venir en formato anidado o plano. Esta lógica lo normaliza a un formato plano.
+    plan_plano = []
+    for item in plan:
+        if 'ambientes' in item: # Formato anidado: {"archivo": ..., "ambientes": [...]}
+            for amb in item['ambientes']:
+                plan_plano.append({'archivo': item['archivo'], 'ambiente': amb})
+        elif 'ambiente' in item: # Formato ya plano: {"archivo": ..., "ambiente": ...}
+            plan_plano.append(item)
+
+    total_tareas = len(plan_plano)
+    print(f">>> [handler] A. catalogar_plan_ejecucion INICIADO con {total_tareas} tareas.")
     log_func(f"Iniciando catalogación de {total_tareas} tareas. Descripción: '{descripcion}'")
 
-    for i, tarea in enumerate(plan):
+    for i, tarea in enumerate(plan_plano):
         archivo = tarea['archivo']
         ambiente = tarea['ambiente']
         
-        log_func(f"({i+1}/{total_tareas}) Catalogando '{archivo['nombre_archivo']}' en '{ambiente['nombre']}'...")
+        log_func(f"({i+1}/{total_tareas}) Catalogando '{archivo['nombre_archivo']}' en '{ambiente['nombre']}'...") # log_func se pasa aquí
+        print(f">>> [handler] B. Procesando tarea {i+1}/{total_tareas}: '{archivo['nombre_archivo']}' en '{ambiente['nombre']}'")
         
-        ok, msg = _catalogar_una_tarea(archivo, ambiente)
+        # --- CORRECCIÓN: Pasar log_func como argumento a la función hija ---
+        ok, msg = _catalogar_una_tarea(archivo, ambiente, log_func)
         
         resultado = {
             "ambiente": ambiente['nombre'],
             "archivo": archivo['nombre_archivo'],
-            "ruta": archivo['rel_path'],
+            "ruta": archivo.get('rel_path', 'N/A'),
             "fecha_ejecucion": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             "estado": "ÉXITO" if ok else "FALLO",
             "detalle": msg
@@ -128,14 +140,17 @@ def catalogar_plan_ejecucion(plan, descripcion, log_func):
         resultados.append(resultado)
         log_func(f"  -> Resultado: {resultado['estado']} - {resultado['detalle']}")
 
+    print(">>> [handler] C. catalogar_plan_ejecucion FINALIZADO.")
     log_func("Proceso de catalogación finalizado.")
     return resultados
 
-def _catalogar_una_tarea(archivo, ambiente):
+def _catalogar_una_tarea(archivo, ambiente, log_func):
     """
     Lógica para catalogar un único archivo en un único ambiente.
+    --- CORRECCIÓN: Se añade log_func a la firma de la función ---
     """
     nombre_archivo = archivo['nombre_archivo']
+    print(f">>> [handler-task] D. _catalogar_una_tarea INICIADO para '{nombre_archivo}'.")
     
     # 1. Determinar la base de datos y el nombre del SP/SQL
     db_desde_encabezado, sp_desde_encabezado = _extraer_info_desde_encabezado(archivo['path'])
@@ -145,6 +160,7 @@ def _catalogar_una_tarea(archivo, ambiente):
     sp_desde_create = _extraer_sp_name_de_sp(archivo['path'])
     nombre_sp_a_usar = archivo.get("sp_name_override") or sp_desde_encabezado or sp_desde_create or os.path.splitext(nombre_archivo)[0]
 
+    print(f">>> [handler-task] E. Parámetros: DB='{base_datos_a_usar}', SP/SQL='{nombre_sp_a_usar}'.")
     # 2. Construir cadena de conexión
     driver_name = ambiente.get('driver', '')
     if "SQL Server" in driver_name:
@@ -154,31 +170,76 @@ def _catalogar_una_tarea(archivo, ambiente):
 
     # 3. Ejecutar la catalogación
     try:
-        with pyodbc.connect(conn_str, timeout=15, autocommit=True) as conn:
+        print(f">>> [handler-task] F. Intentando conectar a la BD...")
+        # --- CORRECCIÓN CRÍTICA: Usar autocommit=False y commit() explícito ---
+        # Esto da control total sobre la transacción y es más robusto que confiar en autocommit=True,
+        # que puede tener comportamientos inconsistentes entre drivers.
+        with pyodbc.connect(conn_str, timeout=15, autocommit=False) as conn:
+            # Log connection details (sensitive info masked)
+            log_func(f"DEBUG: Conexión establecida para catalogación: {re.sub(r'Pwd=.*?;', 'Pwd=********;', conn_str)}")
+            log_func(f"DEBUG: Intentando catalogar archivo: {nombre_archivo} (SP/SQL: {nombre_sp_a_usar}, DB: {base_datos_a_usar})")
+            
             cursor = conn.cursor()
             
-            # Si es un archivo .sp, usamos sp_procxmode
+            # --- CORRECCIÓN: Para archivos .sp, ejecutar su contenido para actualizar crdate ---
+            # Si el objetivo es que la fecha de creación/modificación (crdate) se actualice,
+            # es necesario ejecutar el contenido del archivo .sp (que contiene CREATE/ALTER PROCEDURE).
+            # sp_procxmode es una operación administrativa que no afecta la crdate.
             if nombre_archivo.lower().endswith('.sp'):
-                sql_exec = f"sp_procxmode '{nombre_sp_a_usar}', 'anymode'"
-                cursor.execute(sql_exec)
-                return (True, f"Ejecutado: {sql_exec}")
+                with open(archivo['path'], 'r', encoding='utf-8', errors='ignore') as f:
+                    sp_code = f.read()
+                
+                # Asegurar el contexto de la base de datos para el script SP
+                sp_code_con_contexto = f"USE {base_datos_a_usar}\nGO\n{sp_code}"
+                
+                print(f">>> [handler-task] G. Leyendo script SP: {archivo['path']}")
+                log_func(f"DEBUG: Leyendo y preparando SP para DB '{base_datos_a_usar}'")
+                
+                # Separar por 'go' para ejecutar en lotes
+                batches = re.split(r'^\s*go\s*$', sp_code_con_contexto, flags=re.IGNORECASE | re.MULTILINE)
+                for i, batch in enumerate(batches):
+                    if batch.strip():
+                        print(f">>> [handler-task] H. Ejecutando batch {i+1}/{len(batches)} (SP)...")
+                        log_func(f"DEBUG: Ejecutando batch {i+1}/{len(batches)} para {nombre_archivo}:\n{batch.strip()[:200]}...")
+                        cursor.execute(batch)
+                conn.commit() # Confirmar la transacción para el despliegue del SP
+                return (True, f"Stored Procedure '{nombre_sp_a_usar}' desplegado ({len(batches)} lotes)")
             
             # Si es un archivo .sql, ejecutamos su contenido
             elif nombre_archivo.lower().endswith('.sql'):
                 with open(archivo['path'], 'r', encoding='utf-8', errors='ignore') as f:
                     sql_code = f.read()
                 
+                # --- CORRECCIÓN CRÍTICA: Asegurar el contexto de la base de datos para scripts SQL ---
+                # Se antepone 'USE [database]' al script para garantizar que se ejecute en la BD correcta.
+                # Esto es vital si el script no incluye su propio comando USE.
+                sql_code_con_contexto = f"USE {base_datos_a_usar}\nGO\n{sql_code}"
+                
+                print(f">>> [handler-task] G. Leyendo script SQL: {archivo['path']}")
+                log_func(f"DEBUG: Leyendo y preparando script SQL para DB '{base_datos_a_usar}'")
+                
                 # Separar por 'go' para ejecutar en lotes
-                batches = re.split(r'^\s*go\s*$', sql_code, flags=re.IGNORECASE | re.MULTILINE)
+                batches = re.split(r'^\s*go\s*$', sql_code_con_contexto, flags=re.IGNORECASE | re.MULTILINE)
                 for i, batch in enumerate(batches):
                     if batch.strip():
+                        # La primera ejecución será el "USE [database]"
+                        print(f">>> [handler-task] H. Ejecutando batch {i+1}/{len(batches)}...")
+                        log_func(f"DEBUG: Ejecutando batch {i+1}/{len(batches)} para {nombre_archivo}:\n{batch.strip()[:200]}...") # Log first 200 chars
                         cursor.execute(batch)
+                
+                conn.commit() # Confirmar la transacción para el archivo SQL
                 return (True, f"Script SQL ejecutado ({len(batches)} lotes)")
             
             else:
+                log_func(f"ADVERTENCIA: Tipo de archivo no soportado para catalogación: {nombre_archivo}")
                 return (False, "Tipo de archivo no soportado para catalogación")
 
     except Exception as e:
+        # No es necesario un conn.rollback() aquí porque el 'with' se encarga de cerrar
+        # la conexión sin hacer commit si ocurre una excepción.
+        print(f">>> [handler-task] I. ERROR en _catalogar_una_tarea: {e}\n{traceback.format_exc()}")
+        error_detail = f"Error durante la catalogación de '{nombre_archivo}' en '{ambiente['nombre']}': {str(e)}"
+        log_func(f"ERROR: {error_detail}\n{traceback.format_exc()}") # Log full traceback to the UI log
         return (False, f"Error: {str(e)}")
 
 def mostrar_resultado_catalogacion(parent, resultados):
@@ -186,6 +247,10 @@ def mostrar_resultado_catalogacion(parent, resultados):
     win.title("Resultado Catalogación Multiambiente")
     win.geometry("1100x600")
     centrar_ventana(win)
+    # --- CAMBIO: Hacer la ventana modal para que bloquee hasta que se cierre ---
+    win.transient(parent)
+    win.grab_set()
+    # --- FIN DEL CAMBIO ---
 
     columns = ("Ambiente", "Archivo", "Ruta", "Fecha", "Estado", "Detalle")
     ancho_columnas = [120, 200, 250, 140, 80, 250]
@@ -219,3 +284,6 @@ def mostrar_resultado_catalogacion(parent, resultados):
     btn_frame.pack(fill="x", side="bottom", pady=(1, 7), padx=16)
     ttk.Button(btn_frame, text="Cerrar", command=win.destroy, bootstyle="secondary").pack(side="right", padx=6)
     # TODO: Añadir funcionalidad de exportar a CSV si se requiere.
+
+    # --- CAMBIO: Esperar a que la ventana de resultados se cierre ---
+    parent.wait_window(win)
