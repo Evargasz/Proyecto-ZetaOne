@@ -1,0 +1,60 @@
+[17;1H[K[18;1H[K[19;1H[K[20;1H[KValidando procesos en paralelo no permitidos...
+[2025/09/18 12:07:02] Procesando fecha <>, producto <6>
+Fecha inicial: Aug 15 2025 12:00AM
+Fecha  final:   Aug 15 2025 12:00AM
+[2025/09/18 12:07:02] Cargando tabla temporal de asientos agrupados
+Cero registros pendientes para procesar
+[2025/09/18 12:07:02] Cargando tabla #_tmp
+[2025/09/18 12:07:02] 0 registros cargados en tabla #_tmp
+[2025/09/18 12:07:02] Deja en estado B los que no se procesaron y estan en estado E
+[2025/09/18 12:07:02] Procesando fecha <>, producto <6>
+Fecha inicial: Aug 15 2025 12:00AM
+Fecha  final:   Aug 16 2025 12:00AM
+[2025/09/18 12:07:02] Cargando tabla temporal de asientos agrupados
+Cero registros pendientes para procesar
+[2025/09/18 12:07:02] Cargando tabla #_tmp
+[2025/09/18 12:07:02] 0 registros cargados en tabla #_tmp
+[2025/09/18 12:07:02] Deja en estado B los que no se procesaron y estan en estado E
+[2025/09/18 12:07:02] Procesando fecha <>, producto <6>
+Fecha inicial: Aug 15 2025 12:00AM
+Fecha  final:   Aug 17 2025 12:00AM
+[2025/09/18 12:07:02] Cargando tabla temporal de asientos agrupados
+Cero registros pendientes para procesar
+[2025/09/18 12:07:02] Cargando tabla #_tmp
+[2025/09/18 12:07:02] 0 registros cargados en tabla #_tmp
+[2025/09/18 12:07:02] Deja en estado B los que no se procesaron y estan en estado E
+[2025/09/18 12:07:02] Procesando fecha <>, producto <6>
+Fecha inicial: Aug 15 2025 12:00AM
+Fecha  final:   Aug 18 2025 12:00AM
+[2025/09/18 12:07:02] Cargando tabla temporal de asientos agrupados
+Cero registros pendientes para procesar
+[2025/09/18 12:07:02] Cargando tabla #_tmp
+[2025/09/18 12:07:02] 0 registros cargados en tabla #_tmp
+[2025/09/18 12:07:02] Deja en estado B los que no se procesaron y estan en estado E
+[2025/09/18 12:07:02] Procesando fecha <>, producto <6>
+Fecha inicial: Aug 15 2025 12:00AM
+Fecha  final:   Aug 19 2025 12:00AM
+[2025/09/18 12:07:02] Cargando tabla temporal de asientos agrupados
+Cero registros pendientes para procesar
+[2025/09/18 12:07:02] Cargando tabla #_tmp
+[2025/09/18 12:07:02] 0 registros cargados en tabla #_tmp
+[2025/09/18 12:07:02] Deja en estado B los que no se procesaron y estan en estado E
+[2025/09/18 12:07:02] Procesando fecha <08/20/2025>, producto <6>
+Fecha inicial: Aug 15 2025 12:00AM
+Fecha  final:   Aug 20 2025 12:00AM
+[2025/09/18 12:07:02] Cargando tabla temporal de asientos agrupados
+[2025/09/18 12:07:02] Contando asientos originales 1
+[2025/09/18 12:07:02] Cuenta asientos de SyS 1
+[2025/09/18 12:07:02] Calculando asientos totales
+[2025/09/18 12:07:02] Perfiles criticos 0
+[2025/09/18 12:07:02] No hay registros para loteo
+[2025/09/18 12:07:02] Cargando tabla #_tmp
+[2025/09/18 12:07:02] 2 registros cargados en tabla #_tmp
+[2025/09/18 12:07:02] Procesando lote 1. Llamado al sp consu
+[2025/09/18 12:07:03] Marca con error los que quedaron pendientes
+[2025/09/18 12:07:03] Cargando tabla temporal de asientos agrupados
+Cero registros pendientes para procesar
+[2025/09/18 12:07:03] Cargando tabla #_tmp
+[2025/09/18 12:07:03] 0 registros cargados en tabla #_tmp
+[2025/09/18 12:07:03] Deja en estado B los que no se procesaron y estan en estado E
+[19;1H                     (No se genero niguna pagina)[20;28H[19;1H                     (No se genero niguna pagina)[20;28Hnormal termination, exit status = 0
