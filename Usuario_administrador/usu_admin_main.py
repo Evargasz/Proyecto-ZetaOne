@@ -22,6 +22,7 @@ from .util_repetidos import quitar_repetidos
 from .handlers.catalogacion import catalogar_plan_ejecucion, mostrar_resultado_catalogacion
 from .catalogacion_dialog import CatalogacionDialog
 from .widgets.tooltip import ToolTip
+from util_ventanas import ProgressWindow # <-- AÑADIDO: Importar la nueva ventana de progreso
 
 from .validacion_dialog import ValidacionAutomatizadaDialog
 try:
@@ -531,6 +532,7 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
             self.macros_para_reabrir = macros_seleccionados
 
             # Llamamos a la función que abre el diálogo por primera vez.
+            print(">>> [main] 5.1. Abriendo diálogo de validación por primera vez...")
             self._abrir_dialogo_validacion()
 
         def _abrir_dialogo_validacion(self):
@@ -554,10 +556,20 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
                     self.app_root.after(100, self._abrir_dialogo_validacion) # Reabre el diálogo
                     return
 
+                # --- INICIO: LÓGICA DE LA BARRA DE PROGRESO ---
+                # 1. Crear y mostrar la ventana de progreso
+                progress_dialog = ProgressWindow(self.frame, "Catalogando Archivos")
+
+                # 2. Crear una función de callback para actualizar el progreso
+                def update_progress_callback(current, total, filename):
+                    progress_dialog.update_progress((current / total) * 100, f"({current}/{total}) Catalogando: {filename}...")
+                # --- FIN: LÓGICA DE LA BARRA DE PROGRESO ---
+
                 final_plan = dialogo.plan_ejecucion
                 print(">>> [main] 9. Lanzando hilo de catalogación (_worker_catalogacion)...")
                 # El worker ahora llamará a _on_catalogacion_finalizada cuando termine.
-                threading.Thread(target=self._worker_catalogacion, args=(final_plan, descripcion), daemon=True).start()
+                # --- CAMBIO: Pasar la función de progreso y la ventana al worker ---
+                threading.Thread(target=self._worker_catalogacion, args=(final_plan, descripcion, update_progress_callback, progress_dialog), daemon=True).start()
 
             elif dialogo.resultado == "finalizar":
                 self.logear_panel("Proceso de validación/catalogación finalizado por el usuario.")
@@ -643,7 +655,7 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
             
             return plan
         
-        def _worker_catalogacion(self, plan, descripcion):
+        def _worker_catalogacion(self, plan, descripcion, progress_callback, progress_dialog):
             """
             (Worker Thread) Ejecuta el plan de catalogación y muestra los resultados.
             """
@@ -662,27 +674,34 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
                 
                 # --- CORRECCIÓN: Pasar la función de log segura en lugar de la directa ---
                 print(">>> [worker] 11. Llamando a catalogar_plan_ejecucion...")
-                resultados = catalogar_plan_ejecucion(plan, descripcion, log_func=log_thread_safe)
+                # --- CAMBIO: Pasar la función de progreso a la lógica de catalogación ---
+                resultados = catalogar_plan_ejecucion(plan, descripcion, log_func=log_thread_safe, progress_func=progress_callback)
                 
                 # --- REQUERIMIENTO: Guardar el resultado en un archivo de texto ---
                 # --- CAMBIO: Pasar el nombre de usuario logueado ---
                 self._guardar_resultado_catalogacion_en_archivo(resultados, descripcion, self.controlador.usuario_logueado, log_thread_safe)
                 
                 print(">>> [worker] 12. catalogar_plan_ejecucion finalizado. Mostrando resultados...")
-                # Desbloquear UI y mostrar resultados
-                # --- CAMBIO: Llamar al callback en el hilo principal cuando todo termine ---
-                self.app_root.after(0, self._on_catalogacion_finalizada, resultados)
+                # --- CAMBIO: Llamar al callback en el hilo principal, pasando la ventana de progreso para cerrarla ---
+                self.app_root.after(0, self._on_catalogacion_finalizada, resultados, progress_dialog)
 
 
             except Exception as e: # <--- ADDED EXCEPT BLOCK
                 print(f">>> [worker] ERROR CRÍTICO: {e}\n{traceback.format_exc()}")
                 error_msg = f"ERROR CRÍTICO EN HILO DE CATALOGACIÓN: {str(e)}\n{traceback.format_exc()}"
                 log_thread_safe(error_msg)
+                # --- CAMBIO: Asegurarse de cerrar la ventana de progreso si hay un error ---
+                if progress_dialog:
+                    self.app_root.after(0, progress_dialog.destroy)
                 self.app_root.after(0, lambda: messagebox.showerror("Error Crítico", "La catalogación falló inesperadamente. Revise el log de operaciones.", parent=self.frame))
                 self.app_root.after(0, self.btn_validar_auto.config, {"state": "normal"}) # Asegurarse de que el botón se re-habilite
         
-        def _on_catalogacion_finalizada(self, resultados):
+        def _on_catalogacion_finalizada(self, resultados, progress_dialog):
             """Callback que se ejecuta en el hilo principal después de la catalogación."""
+            # --- CAMBIO: Cerrar la ventana de progreso antes de mostrar los resultados ---
+            if progress_dialog:
+                progress_dialog.destroy()
+
             self.btn_validar_auto.config(state="normal")
             mostrar_resultado_catalogacion(self.frame, resultados)
             # Después de que el usuario cierre la ventana de resultados, se reabre la de validación.

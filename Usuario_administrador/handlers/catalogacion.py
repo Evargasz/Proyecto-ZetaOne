@@ -99,7 +99,7 @@ def obtener_fecha_desde_sp_help(stored_proc, base_datos, ambiente):
         # Para otros errores (conexión, permisos, etc.), devolvemos un mensaje claro.
         return "Error de conexión"
 
-def catalogar_plan_ejecucion(plan, descripcion, log_func):
+def catalogar_plan_ejecucion(plan, descripcion, log_func, progress_func=None):
     """
     Ejecuta el plan de catalogación, procesando cada tarea (archivo-ambiente).
     """
@@ -123,6 +123,11 @@ def catalogar_plan_ejecucion(plan, descripcion, log_func):
         archivo = tarea['archivo']
         ambiente = tarea['ambiente']
         
+        # --- INICIO: LÓGICA DE LA BARRA DE PROGRESO ---
+        if progress_func:
+            progress_func(i + 1, total_tareas, archivo['nombre_archivo'])
+        # --- FIN: LÓGICA DE LA BARRA DE PROGRESO ---
+
         log_func(f"({i+1}/{total_tareas}) Catalogando '{archivo['nombre_archivo']}' en '{ambiente['nombre']}'...") # log_func se pasa aquí
         print(f">>> [handler] B. Procesando tarea {i+1}/{total_tareas}: '{archivo['nombre_archivo']}' en '{ambiente['nombre']}'")
         

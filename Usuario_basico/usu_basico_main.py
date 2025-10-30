@@ -17,6 +17,7 @@ from Usuario_basico.Migracion import MigracionVentana
 from Usuario_basico.Modificaciones_varias import ModificacionesVariasVentana
 from Usuario_basico.Actualizafechaconta import ActualizaFechaContabilidadVentana
 from util_rutas import recurso_path
+from Usuario_basico.Comparador_archivos import ModernFileComparator # Se importa la clase del comparador
 
 #estilos (styles.py está en la raíz)
 from styles import etiqueta_titulo, entrada_estandar, boton_rojo, img_boton, boton_comun, boton_accion
@@ -109,6 +110,12 @@ class usuBasicoMain(tb.Frame):
                 "desc": "Captura pantallas subrayadas y graba\nvideos de aplicaciones",
                 "Favoritos": False,
                 "accion": self.usar_asistente_captura
+            },
+            {
+                "titulo": "Comparador de archivos",
+                "desc": "Compara archivos y guarda el resultado\nen la carpeta de ZetaOne",
+                "Favoritos": False,
+                "accion": self.abrir_comparador_archivos
             }
         ]
 
@@ -519,6 +526,18 @@ class usuBasicoMain(tb.Frame):
                 "Error", 
                 f"Error inesperado al abrir el asistente.\n\nDetalle: {e}"
             )
+
+    def abrir_comparador_archivos(self):
+        """Abre la ventana modal del comparador de archivos."""
+        self.habilitar_sidebar(False)
+        # Crear una nueva ventana Toplevel para el comparador
+        ventana_modal = tk.Toplevel(self.root)
+        # Instanciar el comparador dentro de la nueva ventana
+        ModernFileComparator(ventana_modal)
+        # Hacer la ventana modal y esperar a que se cierre
+        ventana_modal.grab_set()
+        self.root.wait_window(ventana_modal)
+        self.habilitar_sidebar(True)
 
     def instalar_dependencias_captura(self):
         """Instala las dependencias necesarias para el asistente de captura"""
