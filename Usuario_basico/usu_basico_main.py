@@ -11,13 +11,13 @@ import json
 
 #ventanas modales (importes absolutos de Usuario_basico)
 from Usuario_basico.Autorizar_tabla import AutorizarTablaVentana
+from Usuario_basico.file_comparator import ModernFileComparator
 from Usuario_basico.usuario_no_vigente import UsuarioNoVigenteVentana
 from Usuario_basico.Desbloquear_usuario import desbloquearUsuVentana
 from Usuario_basico.Migracion import MigracionVentana
 from Usuario_basico.Modificaciones_varias import ModificacionesVariasVentana
 from Usuario_basico.Actualizafechaconta import ActualizaFechaContabilidadVentana
 from util_rutas import recurso_path
-from Usuario_basico.Comparador_archivos import ModernFileComparator # Se importa la clase del comparador
 
 #estilos (styles.py está en la raíz)
 from styles import etiqueta_titulo, entrada_estandar, boton_rojo, img_boton, boton_comun, boton_accion
@@ -113,7 +113,7 @@ class usuBasicoMain(tb.Frame):
             },
             {
                 "titulo": "Comparador de archivos",
-                "desc": "Compara archivos y guarda el resultado\nen la carpeta de ZetaOne",
+                "desc": "Compara dos archivos y muestra sus diferencias.",
                 "Favoritos": False,
                 "accion": self.abrir_comparador_archivos
             }
@@ -527,18 +527,6 @@ class usuBasicoMain(tb.Frame):
                 f"Error inesperado al abrir el asistente.\n\nDetalle: {e}"
             )
 
-    def abrir_comparador_archivos(self):
-        """Abre la ventana modal del comparador de archivos."""
-        self.habilitar_sidebar(False)
-        # Crear una nueva ventana Toplevel para el comparador
-        ventana_modal = tk.Toplevel(self.root)
-        # Instanciar el comparador dentro de la nueva ventana
-        ModernFileComparator(ventana_modal)
-        # Hacer la ventana modal y esperar a que se cierre
-        ventana_modal.grab_set()
-        self.root.wait_window(ventana_modal)
-        self.habilitar_sidebar(True)
-
     def instalar_dependencias_captura(self):
         """Instala las dependencias necesarias para el asistente de captura"""
         try:
@@ -593,7 +581,19 @@ class usuBasicoMain(tb.Frame):
 
     def habilitar_sidebar(self, habilitar=True):
         estado = "normal" if habilitar else "disabled"
-        self.btn_volver.config(state=estado)
-        self.btn_salir.config(state=estado)
+        # --- CORRECCIÓN: Verificar que los widgets existen antes de configurarlos ---
+        # Esto evita el error TclError si la ventana principal fue destruida.
+        if hasattr(self, 'btn_volver') and self.btn_volver.winfo_exists():
+            self.btn_volver.config(state=estado)
+        if hasattr(self, 'btn_salir') and self.btn_salir.winfo_exists():
+            self.btn_salir.config(state=estado)
+
+    def abrir_comparador_archivos(self):
+        """Abre la ventana del comparador de archivos."""
+        # --- CORRECCIÓN: Abrir como una ventana Toplevel y esperar a que se cierre ---
+        self.habilitar_sidebar(False)
+        ventana_comparador = ModernFileComparator(self.root)
+        self.root.wait_window(ventana_comparador)
+        self.habilitar_sidebar(True)
 
     #cuando la migracion este activa, los botones de la pagina principal deben bloquearse para evitar errores

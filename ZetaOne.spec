@@ -1,17 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+# --- CORRECCIÓN: Definir la variable block_cipher ---
 block_cipher = None
 
 a = Analysis(
-    ['ZLauncher.py'],
+    ['Zlauncher.py'],
     pathex=[],
     binaries=[],
     datas=[
         ('imagenes_iconos', 'imagenes_iconos'),
-        ('json', 'json'),
-        ('ODBC', 'ODBC')
+        ('json', 'json')
     ],
-    hiddenimports=[],
+    # --- CORRECCIÓN: Limpiar la línea de hiddenimports ---
+    hiddenimports=['ttkbootstrap'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -21,34 +22,32 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
     [],
     exclude_binaries=True,
-    name='ZetaOne_v1.4.0',
+    name='ZetaOne',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False, # Importante para que no aparezca la consola
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='imagenes_iconos\\Zeta99.ico', # Añade el ícono a tu ejecutable
-    version='version_info.txt'
+    icon='imagenes_iconos\\Zeta99.ico',
 )
 coll = COLLECT(
     exe,
     a.binaries,
-    a.zipfiles,
     a.datas,
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='ZetaOne_v1.4.0'
+    name='ZetaOne',
 )

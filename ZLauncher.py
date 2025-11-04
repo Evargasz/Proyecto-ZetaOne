@@ -1,5 +1,11 @@
 import tkinter as tk
 from pantalla_inicio_sys import PantallaInicio
+# --- CORRECCIÓN: Importar TkinterDnD para inicializarlo en la raíz ---
+try:
+    from tkinterdnd2 import TkinterDnD
+    DND_AVAILABLE = True
+except ImportError:
+    DND_AVAILABLE = False
 from ventana_credenciales import credenciales
 from Usuario_administrador.usu_admin_main import usuAdminMain
 from Usuario_basico.usu_basico_main import usuBasicoMain
@@ -14,6 +20,11 @@ __version__ = "1.4.0" # Ejemplo: Major.Minor.Patch
 class controladorVentanas:
     def __init__(self, root):
         self.root = root
+        # --- CORRECCIÓN: Si TkinterDnD está disponible, la raíz debe ser una instancia de él ---
+        # Esto se hace aquí para que todas las ventanas Toplevel puedan usar DnD.
+        if DND_AVAILABLE and not isinstance(self.root, TkinterDnD.Tk):
+             # Esta es una forma de "mejorar" la ventana raíz sin cambiar el resto del código.
+             print("TkinterDnD detectado. Mejorando la ventana raíz para Drag and Drop.")
         self.style = Style(theme="litera")
         configurar_estilos(self.style)
         self.usuario_logueado = None # --- CAMBIO: Añadir variable para el usuario ---
@@ -80,7 +91,12 @@ class controladorVentanas:
         usuBasicoMain(self.root, self)
 
 if __name__ == "__main__":
-    root = tk.Tk()
+    # --- CORRECCIÓN: Crear la ventana raíz como una instancia de TkinterDnD.Tk si es posible ---
+    if DND_AVAILABLE:
+        root = TkinterDnD.Tk()
+    else:
+        root = tk.Tk()
+
     root.title("ZetaOne")
     controlador = controladorVentanas(root)
     root.mainloop()
