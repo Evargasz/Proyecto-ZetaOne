@@ -26,8 +26,8 @@ class ModernFileComparator(tk.Toplevel):
         self.resizable(True, True)
         self.configure(bg='#f0f0f0')
 
-        # --- CORRECCIÓN: Hacer la ventana modal y esperar a que se cierre ---
-        self.grab_set()
+        # --- CORRECCIÓN: Se elimina grab_set() para permitir la minimización ---
+        # La ventana principal ya espera con wait_window() desde usu_basico_main.py
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         
         # Variables
@@ -36,6 +36,7 @@ class ModernFileComparator(tk.Toplevel):
         self.original_file_contents = {}
         self.comparison_results = []
         self._is_syncing_cursor = False # Flag para evitar recursión en la sincronización
+        self.summary_window_instance = None # Para rastrear la ventana de resumen
         
         # Crear interfaz
         self.create_interface()
@@ -50,8 +51,7 @@ class ModernFileComparator(tk.Toplevel):
         if parent and parent.winfo_exists():
             parent.deiconify()
             parent.lift()
-            parent.focus_force()
-        self.grab_release()
+            parent.focus_force() # Mantenemos el foco en la ventana principal
         self.destroy()
     
     def create_interface(self):
@@ -253,19 +253,33 @@ class ModernFileComparator(tk.Toplevel):
         text_frame = ttk.Frame(container_frame, relief=tk.GROOVE, borderwidth=1)
         text_frame.grid(row=0, column=0, sticky="nsew") # Colocar text_frame en la primera columna
         text = tk.Text(text_frame, wrap=tk.NONE, font=('Consolas', 10), 
-                       bg='#f8f9fa', borderwidth=0, highlightthickness=0)
+                       bg='#fdfdfd', borderwidth=0, highlightthickness=0)
         
         # Asignar el comando de scroll correcto para la sincronización
         # La sincronización se maneja a través de los comandos de las scrollbars
         # --- CORRECCIÓN: Asignar comandos de scroll para ambos ejes ---
         scroll_command_y = self._on_scroll_a_y if is_left_panel else self._on_scroll_b_y
         scroll_command_x = self._on_scroll_a_x if is_left_panel else self._on_scroll_b_x
+        
+        # --- NUEVO: Añadir contador de líneas al panel izquierdo ---
+        if is_left_panel:
+            self.line_numbers = tk.Canvas(text_frame, width=40, bg='#f0f0f0', highlightthickness=0)
+            self.line_numbers.pack(side=tk.LEFT, fill=tk.Y)
+            # Crear un nuevo comando de scroll que actualice los números de línea
+            original_yscroll_set = ttk.Scrollbar(text_frame, orient=tk.VERTICAL).set
+            def yscroll_with_linenumbers(*args):
+                scroll_command_y(*args)
+                self._update_line_numbers()
+            v_scroll = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=yscroll_with_linenumbers)
+            text.config(yscrollcommand=v_scroll.set)
+        else:
+            v_scroll = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=scroll_command_y)
+            text.config(yscrollcommand=v_scroll.set)
 
-        v_scroll = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=scroll_command_y)
         h_scroll = ttk.Scrollbar(text_frame, orient=tk.HORIZONTAL, command=scroll_command_x)
-        text.config(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+        text.config(xscrollcommand=h_scroll.set)
 
-        v_scroll.pack(side=tk.RIGHT, fill=tk.Y) 
+        v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         h_scroll.pack(side=tk.BOTTOM, fill=tk.X) 
         text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True) 
 
@@ -273,8 +287,8 @@ class ModernFileComparator(tk.Toplevel):
         # --- CORRECCIÓN: Separar la actualización de la UI de la sincronización ---
         text.bind("<KeyRelease>", lambda event, t=text, l=cursor_pos_label: self._on_ui_change(event, t, l), add='+')
         text.bind("<Button-1>", lambda event, t=text, l=cursor_pos_label: self._on_ui_change(event, t, l), add='+')
-        # --- CORRECCIÓN: Bloquear la edición manual en los paneles de resultados ---
-        text.bind("<KeyPress>", lambda e: "break")
+        # --- CORRECCIÓN: Permitir teclas de navegación pero bloquear edición ---
+        text.bind("<KeyPress>", self._on_key_press)
 
         text.bind("<MouseWheel>", self._on_mouse_wheel) # Para Windows y macOS
         text.bind("<Button-4>", self._on_mouse_wheel)   # Para Linux (scroll up)
@@ -295,6 +309,44 @@ class ModernFileComparator(tk.Toplevel):
         
         return text
 
+    def _on_key_press(self, event):
+        """
+        Manejador de pulsación de teclas.
+        Permite el paso de teclas de navegación, la acción de copiar (Ctrl+C),
+        y bloquea las de edición.
+        """
+        # Lista de teclas de navegación permitidas
+        allowed_keys = ['Up', 'Down', 'Left', 'Right', 'Prior', 'Next', 'Home', 'End']
+
+        # Permitir Ctrl+C (o Command+C en macOS) para copiar.
+        # El bit 4 en event.state corresponde a la tecla Control.
+        if (event.state & 4) and event.keysym.lower() == 'c':
+            return # Permitir que el evento de copia continúe
+
+        if event.keysym in allowed_keys:
+            return  # No hacer nada, permitir que el evento continúe
+        return "break"  # Bloquear cualquier otra tecla
+
+    def _update_line_numbers(self, *args):
+        """Actualiza el canvas del contador de líneas."""
+        if not hasattr(self, 'line_numbers'):
+            return
+
+        self.line_numbers.delete("all")
+        
+        # Obtener la primera línea visible en el widget de texto
+        first_visible_line_index = self.text_a.index("@0,0")
+        
+        # Iterar sobre las líneas visibles y dibujar los números
+        i = self.text_a.index(f"{first_visible_line_index} linestart")
+        while True:
+            dline = self.text_a.dlineinfo(i)
+            if dline is None: break
+            y = dline[1]
+            linenum = str(i).split('.')[0]
+            self.line_numbers.create_text(20, y, anchor="n", text=linenum, font=('Consolas', 10), fill='#666')
+            i = self.text_a.index(f"{i}+1line")
+
     def _on_ui_change(self, event, source_widget, status_label):
         """Manejador para eventos de UI que actualiza la etiqueta y sincroniza el cursor."""
         # --- SOLUCIÓN DEFINITIVA: Dar foco y separar la lógica de sincronización ---
@@ -307,6 +359,9 @@ class ModernFileComparator(tk.Toplevel):
             # Si está desactivada, solo actualizar la etiqueta del panel actual.
             # Usamos after_idle para asegurar que leemos la posición del cursor después del clic.
             self.after_idle(lambda: self._update_cursor_position_display(source_widget, status_label))
+        
+        # Actualizar siempre los números de línea después de un cambio
+        self.after_idle(self._update_line_numbers)
 
     def _sincronizar_cursor(self, source_widget):
         """Sincroniza la posición del cursor del widget de origen al de destino."""
@@ -373,6 +428,7 @@ class ModernFileComparator(tk.Toplevel):
             # Solo mover el panel A
             self.text_a.yview(*args)
 
+        self.after_idle(self._update_line_numbers)
     def _on_scroll_b_y(self, *args):
         """Maneja el scroll vertical del panel B y sincroniza con A."""
         # --- CORRECCIÓN: Implementar la sincronización para el panel B ---
@@ -382,6 +438,7 @@ class ModernFileComparator(tk.Toplevel):
             self.text_a.yview(*args)
         else:
             self.text_b.yview(*args)
+        self.after_idle(self._update_line_numbers)
 
     def _on_scroll_a_x(self, *args):
         """Maneja el scroll horizontal del panel A y sincroniza con B."""
@@ -414,6 +471,9 @@ class ModernFileComparator(tk.Toplevel):
             self.text_a.yview_scroll(scroll_units, "units")
             self.text_b.yview_scroll(scroll_units, "units")
             
+            # Actualizar números de línea
+            self.after_idle(self._update_line_numbers)
+
             # Devolver "break" para evitar que el evento se propague y cause un doble scroll
             return "break"
 
@@ -679,6 +739,9 @@ class ModernFileComparator(tk.Toplevel):
             self.text_b.yview_moveto(0.0)
             self.text_a.xview_moveto(0.0)
             self.text_b.xview_moveto(0.0)
+            
+            # --- NUEVO: Actualizar los números de línea después de cargar el contenido ---
+            self.after_idle(self._update_line_numbers)
 
     def _highlight_char_diffs(self, line1_to_show, processed_line1, line2_to_show, processed_line2):
         """
@@ -956,6 +1019,14 @@ class ModernFileComparator(tk.Toplevel):
             messagebox.showinfo("Resumen", "No hay diferencias para mostrar en el resumen.", parent=self)
             return
 
+        # --- CORRECCIÓN: Evitar abrir múltiples ventanas de resumen ---
+        if self.summary_window_instance and self.summary_window_instance.winfo_exists():
+            self.summary_window_instance.deiconify() # Restaurar si está minimizada
+            self.summary_window_instance.lift()
+            self.summary_window_instance.focus_force()
+            return
+        # -------------------------------------------------------------
+
         # --- CORRECCIÓN: La ventana de resumen debe ser hija de la ventana del comparador (self) ---
         # --- OPTIMIZACIÓN: Asignar nombres al matcher aquí, una sola vez ---
         first_comparison = self.comparison_results[0]
@@ -965,10 +1036,11 @@ class ModernFileComparator(tk.Toplevel):
         self.all_detailed_diffs = self._generate_detailed_diff_entries(matcher, self.original_file_contents[matcher.a_name], self.original_file_contents[matcher.b_name])
 
         summary_window = tk.Toplevel(self)
+        self.summary_window_instance = summary_window # Guardar la instancia
         summary_window.title("Resumen de Diferencias Detallado")
         summary_window.configure(bg='#f0f0f0')
         summary_window.resizable(True, True)
-        summary_window.grab_set() # Hacer la ventana modal
+        # summary_window.grab_set() # Se elimina para permitir la minimización
 
         # Centrar la ventana de resumen y darle un tamaño proporcional
         summary_window.update_idletasks()
@@ -1053,7 +1125,8 @@ class ModernFileComparator(tk.Toplevel):
 
     def _on_summary_close(self, summary_window):
         """Libera el grab y destruye la ventana de resumen."""
-        summary_window.grab_release()
+        # summary_window.grab_release() # Ya no es necesario
+        self.summary_window_instance = None # Limpiar la referencia
         summary_window.destroy()
         # --- CORRECCIÓN: Traer la ventana del comparador al frente ---
         self.deiconify()
