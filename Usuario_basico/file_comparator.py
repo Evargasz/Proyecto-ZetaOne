@@ -261,27 +261,35 @@ class ModernFileComparator(tk.Toplevel):
         scroll_command_y = self._on_scroll_a_y if is_left_panel else self._on_scroll_b_y
         scroll_command_x = self._on_scroll_a_x if is_left_panel else self._on_scroll_b_x
         
-        # --- NUEVO: Añadir contador de líneas al panel izquierdo ---
-        if is_left_panel:
-            self.line_numbers = tk.Canvas(text_frame, width=40, bg='#f0f0f0', highlightthickness=0)
-            self.line_numbers.pack(side=tk.LEFT, fill=tk.Y)
-            # Crear un nuevo comando de scroll que actualice los números de línea
-            original_yscroll_set = ttk.Scrollbar(text_frame, orient=tk.VERTICAL).set
-            def yscroll_with_linenumbers(*args):
-                scroll_command_y(*args)
-                self._update_line_numbers()
-            v_scroll = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=yscroll_with_linenumbers)
-            text.config(yscrollcommand=v_scroll.set)
-        else:
-            v_scroll = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=scroll_command_y)
-            text.config(yscrollcommand=v_scroll.set)
+        # --- MEJORA: Añadir contador de líneas a AMBOS paneles ---
+        line_numbers_canvas = tk.Canvas(text_frame, width=40, bg='#f0f0f0', highlightthickness=0)
+        
+        # Crear un nuevo comando de scroll que actualice los números de línea
+        def yscroll_with_linenumbers(*args):
+            scroll_command_y(*args)
+            self._update_line_numbers()
+        
+        v_scroll = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=yscroll_with_linenumbers)
+        text.config(yscrollcommand=v_scroll.set)
 
+        if is_left_panel:
+            self.line_numbers_a = line_numbers_canvas
+        else:
+            self.line_numbers_b = line_numbers_canvas
+        
         h_scroll = ttk.Scrollbar(text_frame, orient=tk.HORIZONTAL, command=scroll_command_x)
         text.config(xscrollcommand=h_scroll.set)
 
         v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         h_scroll.pack(side=tk.BOTTOM, fill=tk.X) 
         text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True) 
+
+        # Empaquetar el contador de líneas al principio (izquierda)
+        line_numbers_canvas.pack(side=tk.LEFT, fill=tk.Y, before=text)
+        
+        # Ocultar el contador derecho por defecto
+        if not is_left_panel:
+            line_numbers_canvas.pack_forget()
 
         # Bind events to update cursor position display
         # --- CORRECCIÓN: Separar la actualización de la UI de la sincronización ---
@@ -329,28 +337,44 @@ class ModernFileComparator(tk.Toplevel):
 
     def _update_line_numbers(self, *args):
         """Actualiza el canvas del contador de líneas."""
-        if not hasattr(self, 'line_numbers'):
+        # --- MEJORA: Actualizar ambos contadores de línea ---
+        if not hasattr(self, 'line_numbers_a') or not hasattr(self, 'line_numbers_b'):
             return
 
-        self.line_numbers.delete("all")
+        # Limpiar ambos canvas
+        self.line_numbers_a.delete("all")
+        self.line_numbers_b.delete("all")
         
-        # Obtener la primera línea visible en el widget de texto
-        first_visible_line_index = self.text_a.index("@0,0")
-        
-        # Iterar sobre las líneas visibles y dibujar los números
-        i = self.text_a.index(f"{first_visible_line_index} linestart")
-        while True:
-            dline = self.text_a.dlineinfo(i)
-            if dline is None: break
-            y = dline[1]
-            linenum = str(i).split('.')[0]
-            self.line_numbers.create_text(20, y, anchor="n", text=linenum, font=('Consolas', 10), fill='#666')
-            i = self.text_a.index(f"{i}+1line")
+        # Usar text_a como referencia, ya que están sincronizados
+        try:
+            first_visible_line_index = self.text_a.index("@0,0")
+            
+            # Iterar sobre las líneas visibles y dibujar los números en ambos canvas
+            i = self.text_a.index(f"{first_visible_line_index} linestart")
+            while True:
+                dline = self.text_a.dlineinfo(i)
+                if dline is None: break
+                y = dline[1]
+                linenum = str(i).split('.')[0]
+                
+                # Dibujar en ambos
+                self.line_numbers_a.create_text(20, y, anchor="n", text=linenum, font=('Consolas', 10), fill='#666')
+                self.line_numbers_b.create_text(20, y, anchor="n", text=linenum, font=('Consolas', 10), fill='#666')
+                
+                i = self.text_a.index(f"{i}+1line")
+        except tk.TclError:
+            # Puede ocurrir si el widget se destruye mientras se actualiza
+            pass
 
     def _on_ui_change(self, event, source_widget, status_label):
         """Manejador para eventos de UI que actualiza la etiqueta y sincroniza el cursor."""
         # --- SOLUCIÓN DEFINITIVA: Dar foco y separar la lógica de sincronización ---
         source_widget.focus_set()
+
+        # --- MEJORA: Mostrar el contador de líneas del panel activo ---
+        is_left = source_widget == self.text_a
+        self.line_numbers_a.pack(side=tk.LEFT, fill=tk.Y, before=self.text_a) if is_left else self.line_numbers_a.pack_forget()
+        self.line_numbers_b.pack(side=tk.LEFT, fill=tk.Y, before=self.text_b) if not is_left else self.line_numbers_b.pack_forget()
 
         if self.sync_scroll.get():
             # Si la sincronización está activa, programar la sincronización completa.
@@ -755,21 +779,27 @@ class ModernFileComparator(tk.Toplevel):
         line_num_a = self.text_a.index('end-2l').split('.')[0]
         line_num_b = self.text_b.index('end-2l').split('.')[0]
 
-        # 3. Usar SequenceMatcher a nivel de carácter con las líneas procesadas
-        matcher = difflib.SequenceMatcher(None, processed_line1, processed_line2)
+        # --- MEJORA: Lógica de comparación posicional carácter por carácter ---
+        # En lugar de usar difflib, se compara cada carácter en la misma posición.
+        len1 = len(processed_line1)
+        len2 = len(processed_line2)
+        max_len = max(len1, len2)
 
-        # 4. Aplicar el resaltado intenso a las secciones diferentes en las líneas originales mostradas
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            if tag != 'equal':
-                # Resaltar en el panel A (línea 1)
-                # La lógica de offset es compleja. Una aproximación más simple es resaltar
-                # los segmentos correspondientes en la línea original.
-                # Esto puede no ser perfecto si el pre-procesamiento es muy agresivo,
-                # pero para 'strip()' y 'lower()' funciona bien.
-                self.text_a.tag_add("diff_word", f"{line_num_a}.{i1}", f"{line_num_a}.{i2}")
-                
-                # Resaltar en el panel B (línea 2)
-                self.text_b.tag_add("diff_word", f"{line_num_b}.{j1}", f"{line_num_b}.{j2}")
+        for i in range(max_len):
+            char1 = processed_line1[i] if i < len1 else None
+            char2 = processed_line2[i] if i < len2 else None
+
+            # Si los caracteres son diferentes o uno no existe (líneas de diferente longitud),
+            # se resalta el carácter en esa posición en ambos paneles.
+            if char1 != char2:
+                if i < len1:
+                    start = f"{line_num_a}.{i}"
+                    end = f"{line_num_a}.{i+1}"
+                    self.text_a.tag_add("diff_word", start, end)
+                if i < len2:
+                    start = f"{line_num_b}.{i}"
+                    end = f"{line_num_b}.{i+1}"
+                    self.text_b.tag_add("diff_word", start, end)
 
     def _finalize_comparison(self):
         """Mostrar resumen final y generar reporte."""
