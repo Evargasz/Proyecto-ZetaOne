@@ -5,6 +5,7 @@ import os
 import pyodbc
 import re
 from collections import defaultdict
+import threading
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -297,6 +298,14 @@ def migrar_tabla_del_grupo(
         log, progress,
         cancelar_func=None,
         contadores=None):
+
+    def _sanitizar_valor(valor, tipo_columna):
+        """Limpia un valor para que sea compatible con el tipo de columna de destino."""
+        if isinstance(valor, str):
+            # Para tipos monetarios, eliminar '$' y ','
+            if tipo_columna in (pyodbc.SQL_DECIMAL, pyodbc.SQL_NUMERIC, pyodbc.SQL_REAL, pyodbc.SQL_FLOAT, pyodbc.SQL_DOUBLE):
+                return valor.replace('$', '').replace(',', '').strip()
+        return valor
     
     tabla = tabla_conf.get('tabla') or tabla_conf.get('tabla llave')
     if not es_nombre_tabla_valido(tabla):
@@ -319,6 +328,8 @@ def migrar_tabla_del_grupo(
             if var_name in variables:
                 # Reemplazar la variable por '?' y añadir el valor a la lista de parámetros
                 where = where.replace(var_match.group(0), '?', 1)
+                # --- SOLUCIÓN DEFINITIVA: Enviar siempre como string ---
+                # Se deja que el driver ODBC maneje la conversión al tipo de dato correcto de la columna.
                 params.append(variables[var_name])
 
     # 2. Si no se usaron parámetros, intentar corregir literales de string sin comillas
@@ -385,6 +396,9 @@ def migrar_tabla_del_grupo(
     # 3. Desactiva índices secundarios (en destino) antes de insertar
     desactivar_indices_secundarios(conn_str_dest, tabla, log)
 
+    tipos_col_dest = _get_column_types(conn_str_dest, tabla)
+
+
     # 4. Armar SQL extracción
     sql = ""
     if llave and join:
@@ -444,30 +458,55 @@ def migrar_tabla_del_grupo(
                 
                 total_filas += len(filas)
                 lote_num += 1
-                # PK indispensables
+                
+                # --- LÓGICA DE VERIFICACIÓN DE DUPLICADOS REFACTORIZADA ---
                 if pk_cols:
-                    # Preparar los PKs de este batch para verificar duplicados en destino
-                    pk_vals_a_insertar = set(tuple(getattr(row, col) for col in pk_cols) for row in filas)
-                    if pk_vals_a_insertar:
-                        # Para evitar queries megagrandes, buscamos solo los PKs de este batch
-                        filtros = []
-                        params_insert = []
-                        for pk in pk_vals_a_insertar:
-                            filtro = " AND ".join([f"{col} = ?" for col in pk_cols])
-                            filtros.append(f"({filtro})")
-                            params_insert.extend(pk)
-                        filtros_sql = " OR ".join(filtros)
-                        query = f"SELECT {','.join(pk_cols)} FROM {tabla} WHERE {filtros_sql}" if filtros_sql else f"SELECT {','.join(pk_cols)} FROM {tabla} WHERE 1=0"
-                        cur_dest.execute(query, params_insert)
-                        pks_dest = set(tuple(row) for row in cur_dest.fetchall())
-                    else:
-                        pks_dest = set()
+                    pks_dest = set()
+                    pk_types = {col: tipos_col_dest.get(col.lower()) for col in pk_cols}
+                    
+                    # Usar tabla temporal para una verificación de duplicados más robusta
+                    temp_table_name = f"##pks_check_{os.getpid()}_{threading.get_ident()}"
+                    try:
+                        # 1. Crear tabla temporal
+                        col_defs = []
+                        for col in pk_cols:
+                            # Mapeo simple de tipos de Python a SQL
+                            sql_type = "VARCHAR(255)" # Default
+                            py_type = pk_types.get(col)
+                            if py_type in (pyodbc.SQL_INTEGER, pyodbc.SQL_BIGINT): sql_type = "INT"
+                            elif py_type in (pyodbc.SQL_DECIMAL, pyodbc.SQL_NUMERIC): sql_type = "DECIMAL(18,2)"
+                            elif py_type == pyodbc.SQL_CHAR: sql_type = "CHAR(10)"
+                            col_defs.append(f"{col} {sql_type}")
+                        
+                        cur_dest.execute(f"CREATE TABLE {temp_table_name} ({', '.join(col_defs)})")
+
+                        # 2. Insertar PKs del lote en la tabla temporal
+                        pks_del_lote = [tuple(getattr(row, col) for col in pk_cols) for row in filas]
+                        if pks_del_lote:
+                            cur_dest.executemany(f"INSERT INTO {temp_table_name} VALUES ({','.join(['?']*len(pk_cols))})", pks_del_lote)
+
+                            # 3. Hacer JOIN para encontrar duplicados
+                            join_cond = " AND ".join([f"t1.{col} = t2.{col}" for col in pk_cols])
+                            select_dups_sql = f"SELECT t1.* FROM {temp_table_name} t1 JOIN {tabla} t2 ON {join_cond}"
+                            pks_dest = set(tuple(row) for row in cur_dest.execute(select_dups_sql).fetchall())
+                    finally:
+                        # 4. Asegurarse de eliminar la tabla temporal
+                        cur_dest.execute(f"DROP TABLE {temp_table_name}")
+
                     # Prepara los insertables filtrando por PK (evitando duplicados)
                     insertables = []
                     for row in filas:
+                        # --- MEJORA: Verificar cancelación en cada registro para una respuesta más rápida ---
+                        if cancelar_func and cancelar_func():
+                            break # Salir del bucle de filas
+
                         key = tuple(getattr(row, col) for col in pk_cols)
                         if key not in pks_dest:
-                            insertables.append([getattr(row, col) for col in colnames])
+                            # --- MEJORA: Sanitizar cada valor antes de añadirlo a la lista de inserción ---
+                            fila_sanitizada = []
+                            for col in colnames:
+                                fila_sanitizada.append(_sanitizar_valor(getattr(row, col), tipos_col_dest.get(col.lower())))
+                            insertables.append(fila_sanitizada)
                         else:
                             omitidos += 1
                 else:
@@ -615,6 +654,8 @@ def migrar_grupo(
     log(f"ℹ️  Nota: Los errores de optimización de índices son normales en Sybase")
     log("="*60)
 
+    return {'insertados': total_global, 'omitidos': 0, 'errores': contadores['estructura_diferente']}
+
 #################################################################
 # -------- CLASES DE LA ADMINISTRACION VISUAL DE GRUPOS ------- #
 #################################################################
@@ -751,12 +792,13 @@ class MigracionGruposGUI(tk.Toplevel):
         dlg.transient(self)
         dlg.grab_set()
         
-        # --- CORRECCIÓN 1: Reducir el tamaño de la ventana de edición ---
-        dlg.geometry("450x160")
-        x = self.winfo_rootx() + (self.winfo_width() // 2) - 225
-        y = self.winfo_rooty() + (self.winfo_height() // 2) - 80
-        dlg.geometry(f"{x}+{y}")
-
+        # --- CORRECCIÓN: Combinar tamaño y posición en una sola llamada a geometry() ---
+        ancho_dlg = 450
+        alto_dlg = 160
+        x = self.winfo_rootx() + (self.winfo_width() // 2) - (ancho_dlg // 2)
+        y = self.winfo_rooty() + (self.winfo_height() // 2) - (alto_dlg // 2)
+        dlg.geometry(f"{ancho_dlg}x{alto_dlg}+{x}+{y}")
+        
         etiqueta_titulo(dlg, texto=f"Nuevo valor para '{self.tree['columns'][col_idx]}':").pack(pady=5)
         
         # Usar un Text widget para contenido largo

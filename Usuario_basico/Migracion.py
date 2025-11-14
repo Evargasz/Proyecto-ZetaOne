@@ -278,20 +278,37 @@ class MigracionVentana(tk.Toplevel):
             format='%(asctime)s %(levelname)s %(message)s'
         )
 
+    def _log_thread_safe(self, mensaje, color):
+        """Función interna para actualizar el log_box de forma segura desde cualquier hilo."""
+        # --- MEJORA: Comprobar si el widget todavía existe antes de actualizar ---
+        # Esto previene errores si la ventana se cierra mientras el hilo aún corre.
+        if not self.log_box.winfo_exists():
+            return
+        self.log_box.config(state="normal")
+        # Usamos el color directamente en lugar del nivel para simplificar
+        self.log_box.insert(tk.END, mensaje + "\n", color)
+        self.log_box.tag_config(color, foreground=color)
+        self.log_box.see(tk.END)
+        self.log_box.config(state="disabled")
+
     def log(self, msg, nivel="info"):
+        """
+        Añade un mensaje al log de la UI y al archivo de log.
+        Es seguro llamarlo desde cualquier hilo.
+        """
         from datetime import datetime
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         mensaje = f"[{now}] {msg}"
         color = {"info": "black", "error": "red", "warning": "darkorange", "success": "green"}.get(nivel, "black")
-        if hasattr(self, "log_box"):
-            self.log_box.config(state="normal")
-            self.log_box.insert(tk.END, mensaje + "\n", nivel)
-            self.log_box.tag_config(nivel, foreground=color)
-            self.log_box.see(tk.END)
-            self.log_box.config(state="disabled")
+        self.after(0, self._log_thread_safe, mensaje, color)
         getattr(logging, nivel if nivel in ["info", "error", "warning"] else "info")(msg)
 
     def _armar_interfaz(self):
+        # --- CORRECCIÓN: El frame principal debe ser 'self', no 'tk.Frame(self)' ---
+        # Esto asegura que los widgets se empaqueten directamente en la ventana Toplevel.
+        # main_panel = tk.Frame(self) 
+        # main_panel.pack(fill='x', padx=35, pady=(2, 0))
+
         panel_superior = tk.Frame(self)
         panel_superior.pack(fill='x', padx=18, pady=8)
 
@@ -307,8 +324,11 @@ class MigracionVentana(tk.Toplevel):
         self.combo_amb_origen.grid(row=1, column=1, pady=8, sticky="w")
         self.combo_amb_origen.set("Selecciona un ambiente")
 
+        # --- MEJORA: Excluir SYBREPOR de la lista de ambientes de destino ---
+        nombres_ambientes_destino = [amb for amb in self.nombres_ambientes if amb.upper() != "SYBREPOR"]
+
         etiqueta_titulo(panel_superior, texto="Ambiente destino:").grid(row=2, column=0, sticky="e")
-        self.combo_amb_destino = ttk.Combobox(panel_superior, values=self.nombres_ambientes, state="readonly", width=28)
+        self.combo_amb_destino = ttk.Combobox(panel_superior, values=nombres_ambientes_destino, state="readonly", width=28)
         self.combo_amb_destino.grid(row=2, column=1, pady=2, sticky="w")
         self.combo_amb_destino.set("Selecciona un ambiente")
 
@@ -474,26 +494,32 @@ class MigracionVentana(tk.Toplevel):
         self.progress_lbl.pack()
         log_label = etiqueta_titulo(self, texto="Log de migración:", anchor='w')
         log_label.pack(fill='x', padx=38, pady=(14, 0))
-        self.log_box = scrolledtext.ScrolledText(self, width=95, height=7, state="disabled")
+        self.log_box = scrolledtext.ScrolledText(self, width=95, height=7, state="disabled", font=("Consolas", 9))
         self.log_box.pack(padx=30, pady=(4, 0), fill='x', expand=False)
         self.lbl_registros = etiqueta_titulo(self, texto="")
         self.lbl_registros.pack(pady=(2, 8))
         self.toggle_tipo()
 
     def actualizar_combos_ambientes(self, changed_combo):
+        """
+        Actualiza los combobox de origen y destino para evitar que sean iguales.
+        Cuando se selecciona un ambiente, se elimina de la lista del otro y se reinicia su selección.
+        """
         origen_sel = self.combo_amb_origen.get()
         destino_sel = self.combo_amb_destino.get()
-        if changed_combo == "origen":
-            values_dest = [amb for amb in self.nombres_ambientes if amb != origen_sel] 
-            if destino_sel == origen_sel:
-                self.combo_amb_destino.set(values_dest[0] if values_dest else '')
-            self.combo_amb_destino["values"] = values_dest
 
-        elif changed_combo == "destino":
-            values_ori = [amb for amb in self.nombres_ambientes if amb != destino_sel]
+        # Actualizar lista de destino
+        if origen_sel and "Selecciona" not in origen_sel:
+            # --- MEJORA: Excluir SYBREPOR de la lista de ambientes de destino ---
+            self.combo_amb_destino["values"] = [amb for amb in self.nombres_ambientes if amb != origen_sel and amb.upper() != "SYBREPOR"]
+            if destino_sel == origen_sel:
+                self.combo_amb_destino.set("Selecciona un ambiente")
+
+        # Actualizar lista de origen
+        if destino_sel and "Selecciona" not in destino_sel:
+            self.combo_amb_origen["values"] = [amb for amb in self.nombres_ambientes if amb != destino_sel]
             if origen_sel == destino_sel:
-                self.combo_amb_origen.set(values_ori[0] if values_ori else '')
-            self.combo_amb_origen["values"] = values_ori
+                self.combo_amb_origen.set("Selecciona un ambiente")
 
     def limpiar_tabla(self):
         self.entry_tabla_origen.delete(0, tk.END)
@@ -504,15 +530,25 @@ class MigracionVentana(tk.Toplevel):
         self.combo_amb_origen["state"] = "readonly"
         self.combo_amb_destino["state"] = "readonly"
         self.btn_cancelar["state"] = "disabled"
+        # --- MEJORA: Reiniciar la barra de progreso ---
+        self.progress['value'] = 0
+        # --- MEJORA: Reiniciar color de la barra de progreso ---
+        self.progress.config(bootstyle="success")
+        self.progress_lbl['text'] = ""
         self.limpiar_consola()
 
     def limpiar_grupo(self):
         self.combo_grupo.set('')
         for entry in self.variables_inputs.values():
             entry.delete(0, tk.END)
-        self.limpiar_consola()
         self.btn_migrar.config(state="normal")
         self.btn_cancelar.config(state="normal")
+        # --- MEJORA: Reiniciar la barra de progreso ---
+        self.progress['value'] = 0
+        # --- MEJORA: Reiniciar color de la barra de progreso ---
+        self.progress.config(bootstyle="success")
+        self.progress_lbl['text'] = ""
+        self.limpiar_consola()
 
     def limpiar_consola(self):
         self.log_box.config(state='normal')
@@ -536,6 +572,11 @@ class MigracionVentana(tk.Toplevel):
         self.on_grupo_change(None)
 
     def update_progress(self, percent):
+        # --- MEJORA: Comprobar si los widgets existen antes de actualizar ---
+        # Previene errores si la ventana se cierra durante la migración.
+        if not self.progress.winfo_exists() or not self.progress_lbl.winfo_exists():
+            return
+
         last = self.progress["value"]
         if percent > last or percent == 0 or percent == 100:
             self.progress["value"] = percent
@@ -545,6 +586,8 @@ class MigracionVentana(tk.Toplevel):
     def error_migracion(self, msg):
         self.log(msg, nivel="error")
         messagebox.showerror("Error en migración", msg)
+        # --- MEJORA: Cambiar color de la barra a rojo en caso de error ---
+        self.progress.config(bootstyle="danger")
         self.progress["value"] = 0
         self.progress_lbl["text"] = ""
         self.habilitar_botones(True)
@@ -572,19 +615,43 @@ class MigracionVentana(tk.Toplevel):
         self.info_tabla_origen = None
 
     def on_salir(self):
-    # Si hay migración activa, pide confirmación
-        if getattr(self, "migrando", False):   # El flag que implementaste antes
+        """Maneja el cierre de la ventana, asegurando que los hilos terminen."""
+        if self.migrando:
             resp = messagebox.askyesno(
                 "Confirmar cierre",
-                "Actualmente hay una migración en curso.\n¿Estás seguro que deseas cerrar la ventana?\nSi cierras, la migración podría quedar incompleta."
+                "Hay una migración en curso. ¿Deseas cancelarla y salir?",
+                parent=self
             )
             if not resp:
-                return  # NO cierra la ventana, el usuario canceló
-
-            # Si confirma, cancela la migración (activa el flag y loguea)
+                return
+            
+            # Iniciar cierre seguro en un hilo para no bloquear la UI
+            self.log("Cierre solicitado. Cancelando migración en curso...", "warning")
             self.cancelar_migracion = True
-            self.log("El usuario solicitó cerrar la ventana durante una migración. Cancelando migración... Espera un momento.", nivel="warning")
+            self.btn_cancelar.config(state="disabled")
+            self.btn_migrar.config(state="disabled")
+            self.btn_salir.config(state="disabled", text="Saliendo...")
+            
+            # Hilo que espera a que la migración termine
+            threading.Thread(target=self._esperar_y_cerrar, daemon=True).start()
+        else:
+            self.destroy()
 
+    def _esperar_y_cerrar(self):
+        """
+        (Worker Thread) Espera a que el flag 'migrando' sea False y luego cierra la ventana.
+        """
+        while self.migrando:
+            # Pequeña pausa para no consumir CPU innecesariamente
+            import time
+            time.sleep(0.2)
+        
+        # Una vez que el hilo de migración ha terminado, cierra la ventana desde el hilo principal
+        self.after(0, self.destroy)
+        
+    def mostrar_ven_historial(self):
+        def rellenar_campos(base, tabla, where):
+            self.entry_db_origen.delete(0, tk.END)
         self.destroy()
 
     def mostrar_ven_historial(self):
@@ -879,6 +946,18 @@ class MigracionVentana(tk.Toplevel):
             if errores:
                 self.error_migracion("Debe completar los siguientes campos: " + ", ".join(errores))
                 return
+
+            # --- INICIO DE LA MEJORA: Añadir diálogo de confirmación ---
+            confirmacion = messagebox.askyesno(
+                "Confirmar Migración de Grupo",
+                f"¿Estás seguro que quieres migrar desde '{amb_origen_nombre}' hacia '{amb_destino_nombre}'?",
+                parent=self
+            )
+            if not confirmacion:
+                self.log("Migración de grupo cancelada por el usuario.", "warning")
+                return # Detiene la ejecución si el usuario presiona "No"
+            # --- FIN DE LA MEJORA ---
+
             self.migrando = True
             self.habilitar_botones(False)
             self.habilitar_botones(False, afectar_migrar=True)
@@ -923,23 +1002,39 @@ class MigracionVentana(tk.Toplevel):
             abort_func=self.error_migracion,
             columnas=self.info_tabla_origen['columnas'],
             clave_primaria=self.info_tabla_origen['clave_primaria'],
-            base_usuario=base,
-            cancelar_func=self.is_cancelled
+            base_usuario=base, # type: ignore
+            cancelar_func=self.is_cancelled,
+            total_registros=self.info_tabla_origen['nregs']
         )
         try:
             # --- CORRECCIÓN: Se pasa la nueva consulta y el historial por separado a la función centralizada ---
             historial = cargar_historial()
-            nuevo = {"base": base, "tabla": tabla_origen, "condicion (where)": where}
+            nuevo = {"base": base, "tabla": tabla_origen, "condicion (where)": where} # type: ignore
             guardar_historial(historial, nueva_consulta=nuevo) # guardar_historial ahora hace todo el trabajo
         except Exception as e:
             self.log(f"No se pudo guardar en el historial: {e}", nivel="warning")
         self.update_progress(100)
-        if resultado_migracion and resultado_migracion.get("insertados", 0) == 0:
-            messagebox.showinfo("Sin migración", "No existen datos para migrar (todos duplicados o sin registros).", parent=self)
-            self.log("No existen datos para migrar (todo estaba duplicado o tabla vacía).", nivel="warning")
+        
+        # --- INICIO DE LA MEJORA: Feedback inteligente basado en el resultado ---
+        if self.is_cancelled():
+            # --- MEJORA: Cambiar a rojo en caso de cancelación ---
+            self.progress.config(bootstyle="danger")
+            self.log("La migración fue cancelada por el usuario.", "warning")
+            messagebox.showwarning("Cancelado", "La migración fue cancelada por el usuario.", parent=self)
+        elif resultado_migracion and resultado_migracion.get("insertados", 0) > 0:
+            self.progress.config(bootstyle="success")
+            insertados = resultado_migracion.get("insertados", 0)
+            omitidos = resultado_migracion.get("omitidos", 0)
+            self.log(f"Migración tabla a tabla finalizada. Insertados: {insertados}, Omitidos: {omitidos}", "success")
+            messagebox.showinfo("Migración Finalizada", f"¡Migración finalizada con éxito!\n\nRegistros Insertados: {insertados:,}\nRegistros Omitidos: {omitidos:,}", parent=self)
         else:
-            self.log("Migración tabla a tabla finalizada.", nivel="success")
-            messagebox.showinfo("Migración finalizada", "¡Migración finalizada con éxito!", parent=self)
+            # --- MEJORA: Cambiar a rojo si no hubo inserciones ---
+            self.progress.config(bootstyle="danger")
+            omitidos = resultado_migracion.get("omitidos", 0) if resultado_migracion else 0
+            self.log(f"Migración completada sin inserciones. Omitidos: {omitidos}", "warning")
+            messagebox.showinfo("Sin Datos Migrados", f"No se insertaron nuevos registros.\n\nPosibles causas:\n- Todos los registros ya existían en el destino (Omitidos: {omitidos:,})\n- La tabla de origen estaba vacía o no cumplía la condición WHERE.", parent=self)
+        # --- FIN DE LA MEJORA ---
+
         # Habilita los controles para una nueva consulta, pero mantiene deshabilitados Migrar y Cancelar.
         self.habilitar_controles_tabla(afectar_migrar_cancelar=False)
         self.btn_migrar.config(state="disabled")
@@ -970,21 +1065,40 @@ class MigracionVentana(tk.Toplevel):
         if not amb_origen:
             self.error_migracion("Debes seleccionar un ambiente de origen válido.")
             return
-        amb_destino = next(a for a in self.ambientes if a["nombre"] == nombre_destino)
+        amb_destino = next((a for a in self.ambientes if a["nombre"] == nombre_destino), None)
+        if not amb_destino:
+            self.error_migracion("Debes seleccionar un ambiente de destino válido.")
+            return
+
         self.log(f"Iniciando migración de grupo '{grupo_nombre}' de {nombre_origen} a {nombre_destino}...", nivel="info")
-        migrar_grupo(
+        resultado_migracion = migrar_grupo(
             grupo_conf,
             variables,
             amb_origen,
             amb_destino,
             log_func=self.log,
             progress_func=self.update_progress,
-            abort_func=self.error_migracion,
+            abort_func=self.error_migracion, # type: ignore
             cancelar_func=self.is_cancelled
         )
         self.update_progress(100)
-        self.log("Migración de grupo finalizada.", nivel="success")
-        messagebox.showinfo("Migración finalizada", "¡Migración de grupo finalizada con éxito!", parent=self)
+
+        # Feedback basado en el resultado
+        if self.is_cancelled():
+            # --- MEJORA: Cambiar a rojo en caso de cancelación ---
+            self.progress.config(bootstyle="danger")
+            self.log("La migración de grupo fue cancelada por el usuario.", "warning")
+            messagebox.showwarning("Cancelado", "La migración de grupo fue cancelada por el usuario.", parent=self)
+        elif resultado_migracion and resultado_migracion.get('insertados', 0) > 0:
+            self.log(f"Migración de grupo finalizada. Total insertados: {resultado_migracion['insertados']}", "success")
+            messagebox.showinfo("Migración Finalizada", f"¡Migración de grupo finalizada con éxito!\n\nTotal de registros insertados: {resultado_migracion['insertados']:,}", parent=self)
+        else:
+            # --- MEJORA: Cambiar a rojo si no hubo inserciones ---
+            self.progress.config(bootstyle="danger")
+            self.log("Migración de grupo completada sin inserciones.", "warning")
+            messagebox.showinfo("Sin Datos Migrados", "NO se insertaron nuevos registros durante la migración del grupo. Revisa el log para más detalles.", parent=self)
+        
+
         self.habilitar_botones(True) # Habilitar todos los botones
         self.habilitar_botones(True, afectar_migrar=False) # Habilita controles, pero no el botón de migrar
         self.btn_migrar.config(state="disabled") # Deshabilita explícitamente el botón de migrar

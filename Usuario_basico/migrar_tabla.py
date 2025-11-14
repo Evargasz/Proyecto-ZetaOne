@@ -1,5 +1,6 @@
 import pyodbc
 import traceback
+import re
 import tkinter as tk
 from tkinter import messagebox
 import threading
@@ -48,15 +49,27 @@ def _build_conn_str(amb):
     else:  # Sybase
         return f"DRIVER={{{driver}}};SERVER={server};PORT={port};DATABASE={database};UID={uid};PWD={pwd};"
 
+def _es_nombre_tabla_valido(nombre):
+    """
+    Valida que un nombre de tabla sea seguro para usar en una consulta SQL.
+    Permite solo letras, números, guiones bajos y puntos.
+    Previene la inyección de SQL al no permitir espacios, comillas, etc.
+    """
+    return bool(re.match(r'^[a-zA-Z0-9_.]+$', nombre or ''))
 
 def columnas_tabla(conn_str, tabla):
+    if not _es_nombre_tabla_valido(tabla):
+        raise ValueError(f"Nombre de tabla no válido o inseguro: '{tabla}'")
+
     with pyodbc.connect(conn_str, timeout=30) as conn:
         with conn.cursor() as cur:
             cur.execute(f"SELECT * FROM {tabla} WHERE 1=0")
             return [desc[0] for desc in cur.description]
 
 def pk_tabla(conn_str, tabla, is_sybase):
-    import re
+    if not _es_nombre_tabla_valido(tabla):
+        raise ValueError(f"Nombre de tabla no válido o inseguro: '{tabla}'")
+
     with pyodbc.connect(conn_str, timeout=30, autocommit=True) as conn:
         with conn.cursor() as cur:
             pk_cols = []
@@ -256,6 +269,9 @@ def consumidor_de_pks_optimizado(
     try:
         while not cancelar_event.is_set():
             try:
+                # --- MEJORA: Verificar cancelación antes de esperar en la cola ---
+                if cancelar_event.is_set(): break
+
                 lote_pks_grande = pks_queue.get(timeout=5)
                 if lote_pks_grande is None:
                     pks_queue.put(None)
@@ -625,6 +641,10 @@ def migrar_tabla_secuencial(tabla, where, amb_origen, amb_destino, log, progress
                 if pk_indices:
                     # Verificar cada registro si ya existe
                     for registro in registros_originales:
+                        # --- MEJORA: Verificar cancelación en cada registro para una respuesta más rápida ---
+                        if cancelar_func and cancelar_func():
+                            break # Salir del bucle de registros
+
                         pk_values = [registro[i] for i in pk_indices]
                         
                         # Construir consulta de verificación
