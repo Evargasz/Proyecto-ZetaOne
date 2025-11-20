@@ -320,17 +320,49 @@ def migrar_tabla_del_grupo(
     params = []
     where = condicion
 
+    # --- MEJORA: Obtener tipos de columna de origen para aplicar RTRIM condicionalmente ---
+    col_types_ori = _get_column_types(conn_str_ori, tabla)
+    string_types_for_trim = (
+        pyodbc.SQL_CHAR, pyodbc.SQL_VARCHAR, pyodbc.SQL_LONGVARCHAR,
+        pyodbc.SQL_WCHAR, pyodbc.SQL_WVARCHAR, pyodbc.SQL_WLONGVARCHAR
+    )
+
     # 1. Sustituir variables por '?' para parametrización
     if variables:
         # Usar regex para encontrar todas las variables como $var$
-        for var_match in re.finditer(r'\$(\w+)\$', where):
+        # Regex para encontrar: (columna) (operador) ($variable$)
+        pattern_var = re.compile(r"(\b\w+\b)\s*(=|!=|<>|LIKE)\s*(\$\w+\$)", re.IGNORECASE)
+
+        def rtrim_replacer(match):
+            columna, operador, variable_placeholder = match.groups()
+            var_name = variable_placeholder.strip('$')
+            valor_variable = variables.get(var_name)
+            params.append(valor_variable) # Siempre añadimos el valor original como string
+
+            # Construcción del SQL
+            # --- LÓGICA MEJORADA: Decidir la conversión basada en el *valor* de la variable ---
+            if valor_variable and valor_variable.isdigit():
+                # Si el valor es puramente numérico, asumimos que la columna es INT.
+                # Esto cubre los JOINs donde no conocemos el tipo de la columna.
+                return f"{columna} {operador} CONVERT(INT, ?)"
+            elif valor_variable and valor_variable.isalpha():
+                # Si el valor es puramente texto, usamos RTRIM para los CHAR.
+                return f"RTRIM({columna}) {operador} ?"
+            else:
+                # Caso por defecto (ej. alfanumérico) o si el valor está vacío.
+                # Usamos RTRIM como la opción más segura para compatibilidad con CHAR.
+                return f"RTRIM({columna}) {operador} ?"
+
+        where = pattern_var.sub(rtrim_replacer, where)
+        
+        # Fallback para variables que no sigan el patrón col = $var$
+        for var_match in re.finditer(r'\$\w+\$', where):
             var_name = var_match.group(1)
             if var_name in variables:
-                # Reemplazar la variable por '?' y añadir el valor a la lista de parámetros
                 where = where.replace(var_match.group(0), '?', 1)
-                # --- SOLUCIÓN DEFINITIVA: Enviar siempre como string ---
-                # Se deja que el driver ODBC maneje la conversión al tipo de dato correcto de la columna.
-                params.append(variables[var_name])
+                # Aquí no tenemos contexto del tipo de columna, así que pasamos como string
+                # Esta ruta de código es menos común.
+                params.append(variables.get(var_name))
 
     # 2. Si no se usaron parámetros, intentar corregir literales de string sin comillas
     if not params and where:
@@ -464,34 +496,41 @@ def migrar_tabla_del_grupo(
                     pks_dest = set()
                     pk_types = {col: tipos_col_dest.get(col.lower()) for col in pk_cols}
                     
-                    # Usar tabla temporal para una verificación de duplicados más robusta
-                    temp_table_name = f"##pks_check_{os.getpid()}_{threading.get_ident()}"
+                    # --- SOLUCIÓN DEFINITIVA PARA SYBASE: Usar tabla permanente en lugar de temporal ---
+                    # Se usa una tabla permanente porque las tablas temporales (##) no son visibles entre diferentes conexiones en Sybase.
+                    check_table_name = f"ZETA_CHECK_{os.getpid()}_{threading.get_ident()}"
+                    
                     try:
-                        # 1. Crear tabla temporal
-                        col_defs = []
-                        for col in pk_cols:
-                            # Mapeo simple de tipos de Python a SQL
-                            sql_type = "VARCHAR(255)" # Default
-                            py_type = pk_types.get(col)
-                            if py_type in (pyodbc.SQL_INTEGER, pyodbc.SQL_BIGINT): sql_type = "INT"
-                            elif py_type in (pyodbc.SQL_DECIMAL, pyodbc.SQL_NUMERIC): sql_type = "DECIMAL(18,2)"
-                            elif py_type == pyodbc.SQL_CHAR: sql_type = "CHAR(10)"
-                            col_defs.append(f"{col} {sql_type}")
-                        
-                        cur_dest.execute(f"CREATE TABLE {temp_table_name} ({', '.join(col_defs)})")
+                        # Usar una conexión con autocommit para crear/borrar la tabla y evitar problemas de transacción.
+                        with pyodbc.connect(conn_str_dest, timeout=10, autocommit=True) as conn_check:
+                            cur_check = conn_check.cursor()
+                            
+                            # 1. Crear tabla permanente de chequeo
+                            col_defs = []
+                            for col in pk_cols:
+                                sql_type = "VARCHAR(255)" # Default
+                                py_type = pk_types.get(col)
+                                if py_type in (pyodbc.SQL_INTEGER, pyodbc.SQL_BIGINT): sql_type = "INT"
+                                elif py_type in (pyodbc.SQL_DECIMAL, pyodbc.SQL_NUMERIC): sql_type = "DECIMAL(18,2)"
+                                elif py_type == pyodbc.SQL_CHAR: sql_type = "CHAR(10)" # Ajustar longitud si es necesario
+                                col_defs.append(f"{col} {sql_type}")
+                            
+                            cur_check.execute(f"CREATE TABLE {check_table_name} ({', '.join(col_defs)})")
 
-                        # 2. Insertar PKs del lote en la tabla temporal
-                        pks_del_lote = [tuple(getattr(row, col) for col in pk_cols) for row in filas]
-                        if pks_del_lote:
-                            cur_dest.executemany(f"INSERT INTO {temp_table_name} VALUES ({','.join(['?']*len(pk_cols))})", pks_del_lote)
+                            # 2. Insertar PKs del lote en la tabla de chequeo
+                            pks_del_lote = [tuple(getattr(row, col) for col in pk_cols) for row in filas]
+                            if pks_del_lote:
+                                cur_check.executemany(f"INSERT INTO {check_table_name} VALUES ({','.join(['?']*len(pk_cols))})", pks_del_lote)
 
-                            # 3. Hacer JOIN para encontrar duplicados
-                            join_cond = " AND ".join([f"t1.{col} = t2.{col}" for col in pk_cols])
-                            select_dups_sql = f"SELECT t1.* FROM {temp_table_name} t1 JOIN {tabla} t2 ON {join_cond}"
-                            pks_dest = set(tuple(row) for row in cur_dest.execute(select_dups_sql).fetchall())
+                        # 3. Hacer JOIN para encontrar duplicados (usando el cursor de la transacción principal)
+                        # Ahora la tabla es visible para esta conexión.
+                        join_cond = " AND ".join([f"t1.{col} = t2.{col}" for col in pk_cols])
+                        select_dups_sql = f"SELECT t1.* FROM {check_table_name} t1 JOIN {tabla} t2 ON {join_cond}"
+                        pks_dest = set(tuple(row) for row in cur_dest.execute(select_dups_sql).fetchall())
                     finally:
-                        # 4. Asegurarse de eliminar la tabla temporal
-                        cur_dest.execute(f"DROP TABLE {temp_table_name}")
+                        # 4. Asegurarse de eliminar la tabla permanente, pase lo que pase.
+                        with pyodbc.connect(conn_str_dest, timeout=10, autocommit=True) as conn_cleanup:
+                            conn_cleanup.execute(f"IF OBJECT_ID('{check_table_name}') IS NOT NULL DROP TABLE {check_table_name}")
 
                     # Prepara los insertables filtrando por PK (evitando duplicados)
                     insertables = []
