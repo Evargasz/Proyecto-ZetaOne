@@ -1,0 +1,34 @@
+#include "winver.h"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,1 // Versión del archivo: Mayor, Menor, Parche, Build
+ PRODUCTVERSION 1,0,0,0 // Versión del producto: Mayor, Menor, Parche, Build
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS VOS__WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0" // U.S. English (0409) / Unicode (04b0)
+        BEGIN
+            VALUE "CompanyName", "BAC" // Nombre de tu compañía
+            VALUE "FileDescription", "Aplicación de Migración de Grupos ZetaOne" // Descripción del archivo
+            VALUE "FileVersion", "1.0.0.1" // Debe coincidir con FILEVERSION
+            VALUE "InternalName", "ZetaOne.exe"
+            VALUE "LegalCopyright", "Copyright © 2025 BAC" // Tu copyright
+            VALUE "OriginalFilename", "ZetaOne.exe"
+            VALUE "ProductName", "ZetaOne Migrador" // Nombre del producto
+            VALUE "ProductVersion", "1.0.0.0" // Debe coincidir con PRODUCTVERSION
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200 // U.S. English, Unicode
+    END
+END
