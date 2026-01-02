@@ -324,8 +324,15 @@ def migrar_tabla(
 
     # Preparar información de tabla
     info = None
+    # Solo ejecutar la verificación ligera si el llamador no proveyó la información necesaria
     try:
-        info = consultar_tabla_e_indice(tabla, amb_origen, amb_destino, log, abort, where=where, base_usuario=base_usuario)
+        # Si el llamador ya pasó las columnas y el total de registros, no es necesario
+        # volver a ejecutar la verificación completa (evita mensajes duplicados en UI).
+        need_info = (not columnas) or (total_registros is None)
+        if need_info:
+            info = consultar_tabla_e_indice(tabla, amb_origen, amb_destino, log, abort, where=where, base_usuario=base_usuario)
+        else:
+            info = {}
     except Exception as e:
         log(f"⚠️ No se pudo obtener info de tabla: {e}", "warning")
 
@@ -355,6 +362,8 @@ def migrar_tabla(
     # Ejemplos por llave (hasta N) para mostrar en el resumen
     duplicate_examples = defaultdict(list)
     MAX_DUPLICATE_EXAMPLES = 10
+    # Evitar escribir auditoría duplicada: almacenar hashes de filas ya auditadas
+    audited_rows_hashes = set()
     def _make_key_repr(v):
         try:
             if v is None:
@@ -454,7 +463,7 @@ def migrar_tabla(
                         except Exception:
                             pass
 
-            # Informar al usuario por cada fila marcada como duplicada (valor usado para validación)
+                # Informar al usuario por cada fila marcada como duplicada (valor usado para validación)
             try:
                 for i, flag in enumerate(to_insert_flags):
                     if not flag:
@@ -471,6 +480,8 @@ def migrar_tabla(
                                 # almacenar la representación breve (ya es una cadena JSON-like)
                                 duplicate_examples[preview].append(preview)
                         except Exception:
+                            pass
+                            # No escribir auditoría aquí: solo contaremos ocurrencias y ejemplos.
                             pass
             except Exception:
                 pass
@@ -545,13 +556,10 @@ def migrar_tabla(
                                 # No mostrar mensaje UI aquí (se notifican en la verificación previa por registro).
                                 # Registrar detalle técnico para debugging y crear auditoría.
                                 logging.getLogger(__name__).debug(f"DB duplicate error (batch): {err_msg} | ejemplo_valor_pk: {sample_pk}")
-                                # Generar sugerencia de UPDATE para auditoría
-                                try:
-                                    suggested_sql, suggested_params = _format_update_sql(tabla, cols, pk, first)
-                                    row_map = {c: first[i] if i < len(first) else None for i, c in enumerate(cols)}
-                                    _write_audit_record(tabla, pk_names, sample_pk, row_map, err_msg, suggested_sql, suggested_params)
-                                except Exception:
-                                    logging.getLogger(__name__).exception('Error creando registro de auditoría para duplicado en lote')
+                                # Batch duplicate detected: no escribir auditoría aquí. Se intentará
+                                # insertar fila-a-fila a continuación y la auditoría se generará
+                                # únicamente para aquellas filas que realmente fallen por duplicado.
+                                logging.getLogger(__name__).debug('Batch duplicate detected; delegando auditoría a inserción por fila')
                             except Exception:
                                 pk_names = list(pk) if pk else []
                                 key_repr = _make_key_repr(None)
@@ -560,13 +568,7 @@ def migrar_tabla(
                                 except Exception:
                                     preview_val = '<sin_valor>'
                                 logging.getLogger(__name__).debug(f"DB duplicate error (batch, no sample pk): {err_msg}")
-                                try:
-                                    # Sin sample, aún escribir auditoría básica
-                                    suggested_sql, suggested_params = _format_update_sql(tabla, cols, pk, first)
-                                    row_map = {c: first[i] if i < len(first) else None for i, c in enumerate(cols)}
-                                    _write_audit_record(tabla, pk_names, None, row_map, err_msg, suggested_sql, suggested_params)
-                                except Exception:
-                                    logging.getLogger(__name__).exception('Error escribiendo auditoría duplicado sin sample')
+                                logging.getLogger(__name__).debug('Batch duplicate detected (no sample pk); delegando auditoría a inserción por fila')
                         else:
                             log(f"❌ Error insertando lote: {err_msg[:300]}", "error")
                         try:
@@ -617,7 +619,14 @@ def migrar_tabla(
                                         # Construir row_map para auditoría
                                         row_map = {c: row_err[i] if i < len(row_err) else None for i, c in enumerate(cols)}
                                         suggested_sql, suggested_params = _format_update_sql(tabla, cols, pk, row_err)
-                                        _write_audit_record(tabla, pk_names, pk_vals, row_map, emsg, suggested_sql, suggested_params)
+                                        try:
+                                            row_hash = json.dumps([row_map.get(c) for c in cols], ensure_ascii=False, default=str)
+                                        except Exception:
+                                            row_hash = None
+                                        if not row_hash or row_hash not in audited_rows_hashes:
+                                            if row_hash:
+                                                audited_rows_hashes.add(row_hash)
+                                            _write_audit_record(tabla, pk_names, pk_vals, row_map, emsg, suggested_sql, suggested_params)
                                     except Exception:
                                         logging.getLogger(__name__).exception('Error escribiendo auditoría por registro duplicado')
                                 else:
