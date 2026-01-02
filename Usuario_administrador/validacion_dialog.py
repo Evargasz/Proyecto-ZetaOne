@@ -79,22 +79,33 @@ def _extraer_sp_name_de_sp(ruta_archivo):
 
 
 class ValidacionAutomatizadaDialog(Toplevel):
-    def __init__(self, parent, plan_ejecucion, macros_seleccionados=None):
+    def __init__(self, parent, plan_ejecucion, macros_seleccionados=None, on_ejecutar_callback=None):
         print(">>> [dialog] A. __init__() INICIADO.")
         super().__init__(parent)
         self.title("Confirmar Plan de Ejecución")
         # --- CAMBIO: Ampliar ventana, centrar y permitir maximizar ---
-        self.geometry("1100x700")
+        self.geometry("1100x650")
         self.resizable(True, True)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.transient(parent)  # Vincular a la ventana padre para mantener jerarquía
         self.grab_set()
 
-        centrar_ventana(self)
+        centrar_ventana(self, offset_y=-60)
         # --- FIN DEL CAMBIO ---
 
+        self.on_ejecutar_callback = on_ejecutar_callback
         self.plan_ejecucion = plan_ejecucion
         self.plan_plano = [] # --- CAMBIO: Lista plana para tareas individuales (archivo, ambiente)
         self.macros_seleccionados = macros_seleccionados or []
+        
+        # --- NUEVO: Variables para animación del botón validar ---
+        self.animacion_validar_activa = False
+        self.animacion_validar_estado = 0  # 0 o 1 para alternar colores
+        self.animacion_validar_id = None  # ID del after() para poder cancelarlo
+        
+        # --- NUEVO: Flag para cancelar validación en curso ---
+        self.validacion_cancelada = False
+        
         # --- MEJORA: Estructura para manejar pestañas si hay múltiples macros ---
         self.es_multi_ambiente = len(self.macros_seleccionados) > 1
         self.notebook = None
@@ -148,7 +159,9 @@ class ValidacionAutomatizadaDialog(Toplevel):
         self.btn_deseleccionar_todos.pack(side="left", padx=(0, 20))
 
         # --- CAMBIO: Añadir botón Regresar y modificar Cancelar ---
-        self.btn_ejecutar = ttk.Button(self.frame_acciones, text="Ejecutar Validación", command=self.iniciar_proceso_validacion)
+        self.btn_ejecutar = ttk.Button(self.frame_acciones, text="Ejecutar Validación", 
+                                       command=self.iniciar_proceso_validacion, 
+                                       bootstyle="secondary-outline")
         self.btn_ejecutar.pack(side="right")
         
         self.btn_cancelar = ttk.Button(self.frame_acciones, text="Cancelar", command=self.resetear_pantalla, bootstyle="warning-outline")
@@ -209,6 +222,8 @@ class ValidacionAutomatizadaDialog(Toplevel):
         # Vincular eventos
         tree.bind("<Button-1>", self.on_tree_click)
         tree.bind("<<TreeviewSelect>>", self.on_tree_select)
+        # Detectar cambios de selección para animar botón validar
+        tree.bind("<<TreeviewSelect>>", lambda e: self._verificar_seleccion_para_animacion(), add="+")
 
         parent_frame.rowconfigure(0, weight=1)
         parent_frame.columnconfigure(0, weight=1)
@@ -217,10 +232,80 @@ class ValidacionAutomatizadaDialog(Toplevel):
 
     def on_close(self):
         self.resultado = "finalizar"
+        # Detener animación antes de cerrar
+        self._detener_animacion_validar()
         # --- CAMBIO: Devolver el foco a la ventana principal antes de cerrar ---
         if self.master.winfo_exists():
             self.master.focus_set()
         self.destroy()
+    
+    def _verificar_seleccion_para_animacion(self):
+        """Verifica si hay archivos seleccionados y activa/desactiva la animación del botón."""
+        active_tab_state = self._get_active_tab_state()
+        if not active_tab_state:
+            return
+        
+        # Contar cuántos archivos están seleccionados (checked)
+        items_seleccionados = sum(1 for checked in active_tab_state.get('checked_states', {}).values() if checked)
+        
+        if items_seleccionados > 0:
+            # Hay archivos seleccionados - activar animación
+            if not self.animacion_validar_activa:
+                self._iniciar_animacion_validar()
+        else:
+            # No hay archivos seleccionados - detener animación
+            if self.animacion_validar_activa:
+                self._detener_animacion_validar()
+    
+    def _iniciar_animacion_validar(self):
+        """Inicia la animación de parpadeo del botón Ejecutar Validación."""
+        if self.animacion_validar_activa:
+            return  # Ya está activa
+        
+        self.animacion_validar_activa = True
+        self._animar_boton_validar()
+    
+    def _detener_animacion_validar(self):
+        """Detiene la animación del botón y lo restaura a su estado normal."""
+        self.animacion_validar_activa = False
+        
+        # Cancelar el after() pendiente si existe
+        if self.animacion_validar_id is not None:
+            try:
+                self.after_cancel(self.animacion_validar_id)
+            except:
+                pass
+            self.animacion_validar_id = None
+        
+        # Restaurar el botón a su estilo normal
+        try:
+            if hasattr(self, 'btn_ejecutar') and self.btn_ejecutar.winfo_exists():
+                self.btn_ejecutar.configure(bootstyle="secondary-outline")
+        except:
+            pass
+    
+    def _animar_boton_validar(self):
+        """Alterna el color del botón para crear efecto de parpadeo."""
+        if not self.animacion_validar_activa:
+            return
+        
+        try:
+            if not hasattr(self, 'btn_ejecutar') or not self.btn_ejecutar.winfo_exists():
+                self.animacion_validar_activa = False
+                return
+            
+            # Alternar entre dos estilos llamativos
+            if self.animacion_validar_estado == 0:
+                self.btn_ejecutar.configure(bootstyle="success")  # Verde brillante
+                self.animacion_validar_estado = 1
+            else:
+                self.btn_ejecutar.configure(bootstyle="success-outline")  # Verde outline
+                self.animacion_validar_estado = 0
+            
+            # Programar siguiente cambio (500ms para parpadeo visible pero no molesto)
+            self.animacion_validar_id = self.after(500, self._animar_boton_validar)
+        except:
+            self.animacion_validar_activa = False
 
     def _get_active_treeview(self):
         """Devuelve el Treeview de la pestaña activa o el único Treeview si no hay pestañas."""
@@ -282,6 +367,9 @@ class ValidacionAutomatizadaDialog(Toplevel):
                     active_tree.set(iid, "Sel.", "☑") # Solo actualiza el checkbox
                 else:
                     active_tree.set(iid, "Sel.", "☐") # Solo actualiza el checkbox
+                
+                # Verificar si debe activarse/desactivarse la animación del botón
+                self._verificar_seleccion_para_animacion()
 
     def on_tree_select(self, event):
         """Evita que se seleccionen filas deshabilitadas."""
@@ -357,6 +445,9 @@ class ValidacionAutomatizadaDialog(Toplevel):
             if target_tree:
                 target_tree.insert("", "end", values=values, iid=iid, tags=("checkbox",))
                 target_tree.selection_add(iid)
+        
+        # Verificar si hay archivos seleccionados para activar la animación del botón
+        self.after(100, self._verificar_seleccion_para_animacion)
 
     def _get_macro_for_ambiente(self, nombre_ambiente):
         """Encuentra el macroambiente padre para un ambiente dado."""
@@ -371,6 +462,11 @@ class ValidacionAutomatizadaDialog(Toplevel):
 
     def resetear_pantalla(self):
         """Reinicia la pestaña activa a su estado inicial (pre-validación)."""
+        # --- NUEVO: Cancelar validación en curso ---
+        if hasattr(self, 'validacion_cancelada'):
+            self.validacion_cancelada = True
+            print(">>> [dialog] CANCELACIÓN SOLICITADA - Deteniendo worker...")
+        
         active_tree = self._get_active_treeview()
         active_tab_state = self._get_active_tab_state()
 
@@ -405,6 +501,13 @@ class ValidacionAutomatizadaDialog(Toplevel):
 
     def iniciar_proceso_validacion(self):
         print(">>> [dialog] C. iniciar_proceso_validacion() INICIADO.")
+        
+        # Resetear flag de cancelación
+        self.validacion_cancelada = False
+        
+        # Detener la animación del botón al iniciar la validación
+        self._detener_animacion_validar()
+        
         active_tree = self._get_active_treeview()
         if not active_tree:
             messagebox.showerror("Error", "No se pudo encontrar la tabla de archivos activa.", parent=self)
@@ -434,92 +537,165 @@ class ValidacionAutomatizadaDialog(Toplevel):
         threading.Thread(target=self.worker_validacion, args=(tareas_a_validar,), daemon=True).start()
 
     def worker_validacion(self, tareas):
-        from Usuario_administrador.handlers.catalogacion import obtener_fecha_desde_sp_help
+        from Usuario_administrador.handlers.catalogacion import obtener_fecha_desde_sp_help, _validar_y_corregir_base_datos
         import pyodbc # Para capturar errores de conexión
 
         print(">>> [dialog-worker] E. Hilo worker_validacion INICIADO.")
+        print(f">>> [FASE 1] Verificando BDs de {len(tareas)} archivos...")
+        
+        # ============================================================================
+        # FASE 1: VERIFICAR TODAS LAS BDs PRIMERO
+        # ============================================================================
+        tareas_con_bd_valida = []
+        tareas_sin_bd_valida = []
+        
         for i, (iid, tarea) in enumerate(tareas):
-            archivo = tarea['archivo']
-            ambiente_a_validar = tarea['ambiente'] # --- CAMBIO: Ahora es un solo ambiente por tarea
-            nombre_archivo_completo = archivo['nombre_archivo']
-            fecha_local_ts = archivo['fecha_mod']
+            # Verificar si se solicitó cancelación
+            if self.validacion_cancelada:
+                print(f">>> [FASE 1] CANCELADA por usuario en iteración {i+1}/{len(tareas)}")
+                self.after(0, self.progress_label.config, {'text': 'Validación cancelada por usuario'})
+                return
             
-            # --- CAMBIO: Validar si la tarea tiene un ambiente asignado ---
+            archivo = tarea['archivo']
+            ambiente_a_validar = tarea['ambiente']
+            nombre_archivo_completo = archivo['nombre_archivo']
+            
+            # Omitir si no hay ambiente
             if not ambiente_a_validar:
-                print(f">>> [dialog-worker] Tarea {i+1}/{len(tareas)} OMITIDA (sin ambiente).")
                 self.after(0, self.actualizar_fila, iid, i + 1, "Sin Ambiente")
                 continue
 
-            # --- REQUERIMIENTO 2: Omitir validación para archivos .sql ---
+            # Omitir archivos .sql
             if nombre_archivo_completo.lower().endswith('.sql'):
-                print(f">>> [dialog-worker] Tarea {i+1}/{len(tareas)} es .sql, marcada como 'Lista'.")
                 self.after(0, self.actualizar_fila, iid, i + 1, "Listo para catalogar")
                 continue
-            # --- FIN REQUERIMIENTO 2 ---
 
-            # --- CORRECCIÓN DEFINITIVA: Lógica de extracción con prioridades ---
-            # Prioridad: 1. .txt override, 2. Encabezado del .sp, 3. Código del .sp, 4. Fallback
-            
+            # Extraer información del archivo
             db_desde_encabezado, sp_desde_encabezado = _extraer_info_desde_encabezado(archivo['path'])
-
             db_desde_use = _extraer_db_de_sp(archivo['path'])
-            base_datos_a_usar = archivo.get("db_override") or db_desde_encabezado or db_desde_use or ambiente_a_validar.get('base')
-
+            base_datos_inicial = archivo.get("db_override") or db_desde_encabezado or db_desde_use or ambiente_a_validar.get('base')
+            
             sp_desde_create = _extraer_sp_name_de_sp(archivo['path'])
             nombre_sp_a_buscar = archivo.get("sp_name_override") or sp_desde_encabezado or sp_desde_create or os.path.splitext(nombre_archivo_completo)[0]
             
-            # --- FIN DE LA LÓGICA MEJORADA ---
+            # Actualizar progreso
+            self.after(0, self.actualizar_progreso, i, f"[Fase 1/3] Preparando: {base_datos_inicial}...")
             
-            print(f">>> [dialog-worker] Tarea {i+1}/{len(tareas)}: Validando '{nombre_sp_a_buscar}' en '{ambiente_a_validar['nombre']}'...")
-            self.after(0, self.actualizar_progreso, i, f"Validando '{nombre_sp_a_buscar}' en '{ambiente_a_validar['nombre']}' (DB: {base_datos_a_usar})...")
-
-            # La base de datos se asume que es la configurada en el ambiente
+            # NO verificar conexión aquí - causaba errores HY000 con Sybase
+            # La verificación real se hace en Fase 2 al buscar el SP
             
-            # --- REQUERIMIENTO 1: Manejar errores de conexión ---
+            # Todas las tareas van a validación normal (Fase 2)
+            tareas_con_bd_valida.append({
+                'iid': iid,
+                'archivo': archivo,
+                'ambiente': ambiente_a_validar,
+                'bd': base_datos_inicial,  # Usar BD inicial directamente
+                'sp': nombre_sp_a_buscar,
+                'fecha_local': archivo['fecha_mod']
+            })
+        
+        print(f">>> [FASE 1] Completada: {len(tareas_con_bd_valida)} archivos preparados para validación")
+        # Nota: tareas_sin_bd_valida estará vacía porque ya no clasificamos en Fase 1
+        
+        # ============================================================================
+        # FASE 2: VALIDACIÓN NORMAL
+        # ============================================================================
+        print(f">>> [FASE 2] Validación de {len(tareas_con_bd_valida)} archivos...")
+        
+        for idx, tarea_info in enumerate(tareas_con_bd_valida):
+            # Verificar si se solicitó cancelación
+            if self.validacion_cancelada:
+                print(f">>> [FASE 2] CANCELADA por usuario en iteración {idx+1}/{len(tareas_con_bd_valida)}")
+                self.after(0, self.progress_label.config, {'text': 'Validación cancelada por usuario'})
+                return
+            
+            iid = tarea_info['iid']
+            # Actualizar barra de progreso (idx va de 0 a len-1, entonces idx+1 para mostrar de 1 a len)
+            progreso_actual = idx + 1
+            bd_inicial = tarea_info['bd']
+            
+            # Validar y corregir la BD antes de buscar
+            from Usuario_administrador.handlers.catalogacion import _validar_y_corregir_base_datos
+            bd_corregida = _validar_y_corregir_base_datos(bd_inicial, tarea_info['archivo']['path'], tarea_info['ambiente'])
+            
+            self.after(0, self.actualizar_progreso, progreso_actual, 
+                      f"[Fase 2/2] Validando '{tarea_info['sp']}' ({progreso_actual}/{len(tareas_con_bd_valida)}) → Buscando en: {bd_corregida}")
+            
+            # Ya no hay flag 'error_conexion' porque no hay verificación previa
+            
             try:
-                resultado_final = ""
-                fecha_db_str = obtener_fecha_desde_sp_help(nombre_sp_a_buscar, base_datos_a_usar, ambiente_a_validar)
+                # Definir callback para actualizar progreso con cada BD que se busca
+                def callback_bd_actual(bd_nombre):
+                    self.after(0, self.actualizar_progreso, progreso_actual, 
+                              f"[Fase 2/2] '{tarea_info['sp']}' ({progreso_actual}/{len(tareas_con_bd_valida)}) → Buscando en: {bd_nombre}")
                 
-                # --- CAMBIO: Comparar fecha local vs. fecha de la BD ---
-                # --- CORRECCIÓN: Ahora fecha_db_str es un objeto datetime o un string de error ---
-                if fecha_db_str not in ["No encontrado en DB", "Error de conexión"]:
-                    try:
-                        # --- CORRECCIÓN: Reintroducir el parseo para ambos formatos de fecha ---
-                        try:
-                            # Intentar formato de SQL Server: '2024-12-26 21:09:00'
-                            fecha_db_obj = datetime.datetime.strptime(fecha_db_str, '%Y-%m-%d %H:%M:%S')
-                        except ValueError:
-                            # Si falla, intentar formato de Sybase (estilo 109): 'Dec 26 2024  9:09:00:000PM'
-                            fecha_db_obj = datetime.datetime.strptime(fecha_db_str, '%b %d %Y %I:%M:%S:%f%p')
-
-                        fecha_local_obj = datetime.datetime.fromtimestamp(fecha_local_ts)
-                        
-                        # --- CAMBIO: Lógica de resaltado con nuevas reglas ---
-                        tags_a_aplicar = []
-                        now = datetime.datetime.now()
-                        un_mes_atras = now - datetime.timedelta(days=30)
-
-                        if fecha_local_obj < fecha_db_obj:
-                            resultado_final = f"⚠️ Fecha local menor a fecha BD | {fecha_db_obj.strftime('%Y-%m-%d %H:%M:%S')}"
-                            tags_a_aplicar.append("advertencia_rojo")
-                        elif fecha_db_obj > un_mes_atras:
-                            resultado_final = f"🟡 Reciente (<1 mes) | {fecha_db_obj.strftime('%Y-%m-%d %H:%M:%S')}"
-                            tags_a_aplicar.append("advertencia_amarillo")
-                        else:
-                            resultado_final = fecha_db_obj.strftime('%Y-%m-%d %H:%M:%S')
-                        self.after(0, self.actualizar_tags_fila, iid, tags_a_aplicar)
-                    except (ValueError, TypeError) as e:
-                        resultado_final = f"Error parseo fecha: {e}" # Si falla, mostrar el error
+                # Búsqueda normal - obtener_fecha_desde_sp_help manejará BD incorrectas
+                resultado_busqueda = obtener_fecha_desde_sp_help(tarea_info['sp'], bd_corregida, tarea_info['ambiente'], callback_bd_actual)
+                
+                if isinstance(resultado_busqueda, tuple) and len(resultado_busqueda) == 2:
+                    fecha_db_str, bd_real = resultado_busqueda
                 else:
-                    resultado_final = fecha_db_str
-                # --- FIN DEL CAMBIO ---
-            except pyodbc.Error:
-                resultado_final = "Error de conexión"
-            # --- FIN REQUERIMIENTO 1 ---
-            self.after(0, self.actualizar_fila, iid, i + 1, resultado_final)
-
+                    fecha_db_str = str(resultado_busqueda)
+                    bd_real = None
+                
+                # Actualizar mensaje de progreso con la BD donde se encontró realmente
+                if bd_real:
+                    self.after(0, self.actualizar_progreso, progreso_actual, 
+                              f"[Fase 2/2] '{tarea_info['sp']}' ({progreso_actual}/{len(tareas_con_bd_valida)}) → Encontrado en: {bd_real}")
+                else:
+                    self.after(0, self.actualizar_progreso, progreso_actual, 
+                              f"[Fase 2/2] '{tarea_info['sp']}' ({progreso_actual}/{len(tareas_con_bd_valida)}) → BD: {bd_corregida}")
+                
+                resultado_final = self._procesar_resultado_fecha(fecha_db_str, tarea_info['fecha_local'], iid)
+                
+                # Si se encontró en BD diferente, actualizar la columna BD y agregar nota
+                if bd_real:
+                    resultado_final = f"{resultado_final} [encontrado en: {bd_real}]"
+                    # Actualizar la columna "Base de Datos" con la BD real
+                    self.after(0, self.actualizar_columna_bd, iid, bd_real)
+                
+                self.after(0, self.actualizar_fila, iid, progreso_actual, resultado_final)
+                
+            except Exception as e:
+                self.after(0, self.actualizar_fila, iid, progreso_actual, f"Error: {str(e)[:40]}")
+        
+        print(f">>> [FASE 2] Completada")
         print(">>> [dialog-worker] F. Hilo worker_validacion FINALIZADO.")
         self.after(0, self.finalizar_validacion)
+    
+    def _procesar_resultado_fecha(self, fecha_db_str, fecha_local_ts, iid):
+        """Procesa el resultado de la fecha y retorna el texto formateado."""
+        if fecha_db_str not in ["No encontrado en DB", "Error de conexión"]:
+            try:
+                # Intentar parsear fecha
+                try:
+                    fecha_db_obj = datetime.datetime.strptime(fecha_db_str, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    fecha_db_obj = datetime.datetime.strptime(fecha_db_str, '%b %d %Y %I:%M:%S:%f%p')
+
+                fecha_local_obj = datetime.datetime.fromtimestamp(fecha_local_ts)
+                
+                # Lógica de resaltado
+                tags_a_aplicar = []
+                now = datetime.datetime.now()
+                un_mes_atras = now - datetime.timedelta(days=30)
+
+                if fecha_local_obj < fecha_db_obj:
+                    resultado = f"⚠️ Fecha local menor a fecha BD | {fecha_db_obj.strftime('%Y-%m-%d %H:%M:%S')}"
+                    tags_a_aplicar.append("advertencia_rojo")
+                elif fecha_db_obj > un_mes_atras:
+                    resultado = f"🟡 Reciente (<1 mes) | {fecha_db_obj.strftime('%Y-%m-%d %H:%M:%S')}"
+                    tags_a_aplicar.append("advertencia_amarillo")
+                else:
+                    resultado = fecha_db_obj.strftime('%Y-%m-%d %H:%M:%S')
+                
+                self.after(0, self.actualizar_tags_fila, iid, tags_a_aplicar)
+                return resultado
+                
+            except (ValueError, TypeError) as e:
+                return f"Error parseo fecha: {str(e)[:30]}"
+        else:
+            return fecha_db_str
 
     def actualizar_progreso(self, valor, texto):
         # --- CORRECCIÓN: Verificar si el widget existe antes de actualizar para evitar crash ---
@@ -554,6 +730,30 @@ class ValidacionAutomatizadaDialog(Toplevel):
             except tk.TclError:
                 continue # El widget fue destruido, pasar al siguiente
 
+    def actualizar_columna_bd(self, iid, nueva_bd):
+        """Actualiza la columna 'Base de Datos' cuando se encuentra en una BD diferente."""
+        if not self.winfo_exists():
+            return
+
+        # Obtener la lista de todos los treeviews existentes
+        treeviews = []
+        if self.es_multi_ambiente:
+            if hasattr(self, 'tabs_info'):
+                treeviews = [info['tree'] for info in self.tabs_info.values()]
+        else:
+            if hasattr(self, 'tree_preview') and self.tree_preview.winfo_exists():
+                treeviews = [self.tree_preview]
+
+        # Buscar el iid en todos los treeviews y actualizar la columna BD
+        for tree in treeviews:
+            try:
+                if tree and tree.winfo_exists() and tree.exists(iid):
+                    tree.set(iid, "Base de Datos", nueva_bd)
+                    print(f"  ✏️ Columna BD actualizada a: '{nueva_bd}' para iid {iid}")
+                    break # El iid es único, no es necesario seguir buscando
+            except tk.TclError:
+                continue # El widget fue destruido, pasar al siguiente
+
     def actualizar_tags_fila(self, iid, nuevos_tags):
         """Añade nuevos tags a una fila sin borrar los existentes."""
         if not self.winfo_exists():
@@ -580,6 +780,11 @@ class ValidacionAutomatizadaDialog(Toplevel):
     def finalizar_validacion(self):
         if not self.winfo_exists():
             return
+
+        # Actualizar la barra de progreso al 100%
+        if hasattr(self, 'progress_bar') and self.progress_bar.winfo_exists():
+            self.progress_bar['value'] = self.progress_bar['maximum']
+            self.progress_label.config(text="Validación completada al 100%")
 
         active_tab_state = self._get_active_tab_state()
         if active_tab_state:
@@ -620,16 +825,35 @@ class ValidacionAutomatizadaDialog(Toplevel):
             return
 
        # Construir el plan final solo con los ítems seleccionados
-        self.plan_ejecucion = [self.plan_plano[int(iid)] for iid in items_seleccionados]
+        # IMPORTANTE: Actualizar la BD con la encontrada durante la validación
+        active_tree = self._get_active_treeview()
+        self.plan_ejecucion = []
+        
+        for iid in items_seleccionados:
+            tarea_original = self.plan_plano[int(iid)]
+            archivo = tarea_original['archivo'].copy()
+            
+            # Obtener la BD correcta del Treeview (actualizada durante validación)
+            if active_tree and active_tree.exists(iid):
+                bd_validada = active_tree.set(iid, "Base de Datos")
+                if bd_validada and bd_validada != 'N/A':
+                    # Actualizar db_override con la BD correcta encontrada en validación
+                    archivo['db_override'] = bd_validada
+                    print(f">>> [dialog] BD actualizada para {archivo['nombre_archivo']}: {bd_validada}")
+            
+            self.plan_ejecucion.append({
+                'archivo': archivo,
+                'ambiente': tarea_original['ambiente']
+            })
         
         if self.plan_ejecucion:
             self.resultado = "ejecutar"
             print(f">>> [dialog] H. Plan final construido con {len(self.plan_ejecucion)} tareas.")
-            print(">>> [dialog] I. Cerrando diálogo para devolver control a la ventana principal...")
-            # --- CORRECCIÓN: Llamar a destroy() directamente para evitar que on_close() sobrescriba el resultado. ---
-            # on_close() está diseñado para cancelaciones, por eso siempre pone el resultado en "cancelar".
-            # Al llamar a destroy(), cerramos la ventana manteniendo el resultado "ejecutar".
-            self.destroy()
+            print(">>> [dialog] I. Llamando callback para ejecutar catalogación...")
+            # --- CAMBIO: Llamar al callback en lugar de cerrar la ventana ---
+            if self.on_ejecutar_callback:
+                self.on_ejecutar_callback(self.plan_ejecucion)
+            # La ventana permanece abierta durante la catalogación
 
     def bloquear_controles(self, bloquear):
         estado = "disabled" if bloquear else "normal"
@@ -669,6 +893,9 @@ class ValidacionAutomatizadaDialog(Toplevel):
                 active_tree.selection_add(iid)
                 active_tree.set(iid, "Sel.", "☑")
                 active_tab_state['checked_states'][iid] = True
+        
+        # Verificar si debe activarse la animación del botón
+        self._verificar_seleccion_para_animacion()
 
     def deseleccionar_todos(self):
         active_tree = self._get_active_treeview()
@@ -682,3 +909,6 @@ class ValidacionAutomatizadaDialog(Toplevel):
                 active_tab_state['checked_states'][iid] = False
         # Siempre eliminar la selección visual para que los colores sean visibles
         active_tree.selection_remove(active_tree.selection())
+        
+        # Verificar si debe desactivarse la animación del botón
+        self._verificar_seleccion_para_animacion()

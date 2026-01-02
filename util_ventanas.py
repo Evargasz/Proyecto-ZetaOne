@@ -2,8 +2,15 @@
 import tkinter as tk
 from tkinter import ttk
 
-def centrar_ventana(ventana, ancho=None, alto=None):
-    """Centra una ventana Toplevel en la pantalla."""
+def centrar_ventana(ventana, ancho=None, alto=None, offset_y=0):
+    """Centra una ventana Toplevel en la pantalla.
+    
+    Args:
+        ventana: Ventana a centrar
+        ancho: Ancho opcional (si None, usa el actual)
+        alto: Alto opcional (si None, usa el actual)
+        offset_y: Desplazamiento vertical en píxeles (negativo = arriba, positivo = abajo)
+    """
     ventana.update_idletasks()
     
     # Si no se especifican dimensiones, se usan las del widget
@@ -11,7 +18,7 @@ def centrar_ventana(ventana, ancho=None, alto=None):
     alto_ventana = alto if alto is not None else ventana.winfo_height()
     
     x = (ventana.winfo_screenwidth() // 2) - (ancho_ventana // 2)
-    y = (ventana.winfo_screenheight() // 2) - (alto_ventana // 2)
+    y = (ventana.winfo_screenheight() // 2) - (alto_ventana // 2) + offset_y
     
     ventana.geometry(f'{ancho_ventana}x{alto_ventana}+{x}+{y}')
 
@@ -36,6 +43,23 @@ class ProgressWindow(tk.Toplevel):
 
     def update_progress(self, value, text):
         """Actualiza la barra de progreso y el texto de estado."""
-        self.progress_bar['value'] = value
+        # Asegurar que el valor sea entero y válido para no mostrar decimales
+        try:
+            pct = int(round(float(value)))
+        except Exception:
+            pct = 0
+        pct = max(0, min(100, pct))
+
+        self.progress_bar['value'] = pct
+        # Si `text` contiene el porcentaje, reemplazarlo por la versión sin decimales
+        try:
+            # Si el texto ya incluye un porcentaje numérico, reemplazar la parte numérica
+            if isinstance(text, str) and '%' in text:
+                # Reemplaza el primer número que aparezca seguido de '%' por el entero
+                import re
+                text = re.sub(r"\d+(?:[.,]\d+)?%", f"{pct}%", text, count=1)
+        except Exception:
+            pass
+
         self.progress_label.config(text=text)
         self.update_idletasks()

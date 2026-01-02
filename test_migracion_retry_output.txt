@@ -1,0 +1,15 @@
+================================================================================
+LOGS CAPTURADOS DE LA MIGRACIÓN
+================================================================================
+
+[2025-11-28 09:32:45] ⚠️ Sin clave primaria detectada. Usando migración secuencial.
+[2025-11-28 09:35:15] 🔄 Intento de reconexión 1/2 al origen...
+[2025-11-28 09:35:16] ✅ Reconexión al origen exitosa.
+[2025-11-28 09:35:16] ⚠️ No se procesaron registros. Verificar condiciones WHERE o conectividad.
+
+================================================================================
+RESULTADO FINAL
+================================================================================
+Insertados: 0
+Omitidos: 0
+Progreso final: 100%

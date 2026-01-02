@@ -345,6 +345,16 @@ class ModernFileComparator(tk.Toplevel):
         self.line_numbers_a.delete("all")
         self.line_numbers_b.delete("all")
         
+        # Crear conjuntos de líneas con diferencias
+        diff_lines_a = set()
+        diff_lines_b = set()
+        if hasattr(self, 'all_detailed_diffs') and self.all_detailed_diffs:
+            for diff in self.all_detailed_diffs:
+                if diff['file1_line_num'] != "N/A":
+                    diff_lines_a.add(diff['file1_line_num'])
+                if diff['file2_line_num'] != "N/A":
+                    diff_lines_b.add(diff['file2_line_num'])
+        
         # Usar text_a como referencia, ya que están sincronizados
         try:
             first_visible_line_index = self.text_a.index("@0,0")
@@ -355,11 +365,16 @@ class ModernFileComparator(tk.Toplevel):
                 dline = self.text_a.dlineinfo(i)
                 if dline is None: break
                 y = dline[1]
-                linenum = str(i).split('.')[0]
+                linenum_str = str(i).split('.')[0]
+                linenum_int = int(linenum_str)
+                
+                # Determinar color según si la línea tiene diferencias
+                color_a = '#F44336' if linenum_int in diff_lines_a else '#666'
+                color_b = '#F44336' if linenum_int in diff_lines_b else '#666'
                 
                 # Dibujar en ambos
-                self.line_numbers_a.create_text(20, y, anchor="n", text=linenum, font=('Consolas', 10), fill='#666')
-                self.line_numbers_b.create_text(20, y, anchor="n", text=linenum, font=('Consolas', 10), fill='#666')
+                self.line_numbers_a.create_text(20, y, anchor="n", text=linenum_str, font=('Consolas', 10, 'bold' if linenum_int in diff_lines_a else 'normal'), fill=color_a)
+                self.line_numbers_b.create_text(20, y, anchor="n", text=linenum_str, font=('Consolas', 10, 'bold' if linenum_int in diff_lines_b else 'normal'), fill=color_b)
                 
                 i = self.text_a.index(f"{i}+1line")
         except tk.TclError:
@@ -956,7 +971,12 @@ class ModernFileComparator(tk.Toplevel):
                     
                     # --- Solución Definitiva: Post-filtrado ---
                     # Si las líneas procesadas son idénticas, no es una diferencia real, pero solo si la opción de ignorar está activa.
-                    if (self.processed_file_contents[matcher.a_name][i1 + k_line] == self.processed_file_contents[matcher.b_name][j1 + k_line]):
+                    # Validar que los índices estén dentro del rango antes de acceder
+                    idx_a = i1 + k_line
+                    idx_b = j1 + k_line
+                    if (idx_a < len(self.processed_file_contents[matcher.a_name]) and 
+                        idx_b < len(self.processed_file_contents[matcher.b_name]) and
+                        self.processed_file_contents[matcher.a_name][idx_a] == self.processed_file_contents[matcher.b_name][idx_b]):
                         continue
 
                     diff_type = self._classify_difference(line1, line2)

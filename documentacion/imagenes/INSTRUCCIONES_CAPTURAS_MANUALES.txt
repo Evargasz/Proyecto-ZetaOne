@@ -1,0 +1,121 @@
+
+╔══════════════════════════════════════════════════════════════════╗
+║                   CAPTURAS MANUALES PENDIENTES                   ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Para completar la documentación, necesitas capturar manualmente las
+siguientes pantallas usando la aplicación ZetaOne:
+
+📋 PASOS:
+
+1. Ejecuta ZetaOne.exe (o python ZLauncher.py)
+
+2. Para cada captura, usa: Win + Shift + S (Snipping Tool)
+
+3. Guarda en la carpeta correspondiente con el nombre indicado
+
+
+═══════════════════════════════════════════════════════════════════
+
+[01] PANTALLA DE INICIO
+────────────────────────────────────────────────────────────────────
+📁 Carpeta: imagenes/01_pantalla_inicio/
+📸 Nombre: pantalla_inicio.png
+
+✓ Ejecuta: python ZLauncher.py
+✓ Captura la pantalla con logo ZetaOne
+✓ Guarda
+
+
+═══════════════════════════════════════════════════════════════════
+
+[02] VENTANA PRINCIPAL ADMINISTRADOR  
+────────────────────────────────────────────────────────────────────
+📁 Carpeta: imagenes/03_admin_principal/
+
+📸 ventana_principal_admin.png
+   → Inicia sesión como Administrador
+   → Captura la ventana completa
+
+📸 pestana_validar.png
+   → Click en pestaña "Validar"
+   → Captura
+
+📸 pestana_catalogar.png
+   → Click en pestaña "Catalogar"
+   → Captura
+
+📸 pestana_repetidos.png
+   → Click en pestaña "Repetidos"
+   → Captura
+
+
+═══════════════════════════════════════════════════════════════════
+
+[03] PROCESO DE VALIDACIÓN
+────────────────────────────────────────────────────────────────────
+📁 Carpeta: imagenes/04_validacion/
+
+📸 dialogo_validacion_inicial.png
+   → Selecciona archivos para validar
+   → Captura el diálogo ANTES de iniciar
+
+📸 validacion_en_progreso.png
+   → Inicia validación
+   → Captura con barra de progreso al 40-60%
+
+📸 validacion_completada.png
+   → Espera a que termine
+   → Captura resultado final
+
+📸 tabla_resultados_validacion.png
+   → Captura la tabla de resultados
+
+
+═══════════════════════════════════════════════════════════════════
+
+[04] PROCESO DE CATALOGACIÓN
+────────────────────────────────────────────────────────────────────
+📁 Carpeta: imagenes/05_catalogacion/
+
+📸 dialogo_catalogacion_inicial.png
+   → Selecciona archivos para catalogar
+   → Captura el diálogo ANTES de iniciar
+
+📸 catalogacion_en_progreso.png
+   → Inicia catalogación
+   → Captura con barra de progreso
+
+📸 catalogo_generado.png
+   → Abre el archivo de catálogo generado
+   → Captura parte del contenido
+
+
+═══════════════════════════════════════════════════════════════════
+
+[05] VENTANA PRINCIPAL USUARIO BÁSICO
+────────────────────────────────────────────────────────────────────
+📁 Carpeta: imagenes/06_basico/
+
+📸 ventana_principal_basico.png
+   → Inicia sesión como Usuario Básico
+   → Captura la ventana completa
+
+📸 pestana_migracion.png
+   → Click en pestaña de Migración
+   → Captura
+
+📸 proceso_migracion.png
+   → Inicia una migración de prueba
+   → Captura con progreso
+
+
+═══════════════════════════════════════════════════════════════════
+
+VERIFICACIÓN FINAL:
+
+Ejecuta este comando PowerShell para verificar todas las imágenes:
+
+Get-ChildItem -Path "imagenes" -Recurse -Filter "*.png" | Select-Object Name, Directory | Format-Table -AutoSize
+
+═══════════════════════════════════════════════════════════════════

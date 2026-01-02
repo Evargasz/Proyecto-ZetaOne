@@ -10,13 +10,13 @@ import getpass
 import json
 
 #ventanas modales (importes absolutos de Usuario_basico)
-from Usuario_basico.Autorizar_tabla import AutorizarTablaVentana
-from Usuario_basico.file_comparator import ModernFileComparator
-from Usuario_basico.usuario_no_vigente import UsuarioNoVigenteVentana
-from Usuario_basico.Desbloquear_usuario import desbloquearUsuVentana
-from Usuario_basico.Migracion import MigracionVentana
-from Usuario_basico.Modificaciones_varias import ModificacionesVariasVentana
-from Usuario_basico.Actualizafechaconta import ActualizaFechaContabilidadVentana
+from .Autorizar_tabla import AutorizarTablaVentana
+from .file_comparator import ModernFileComparator
+from .usuario_no_vigente import UsuarioNoVigenteVentana
+from .Desbloquear_usuario import desbloquearUsuVentana
+from .Migracion import MigracionVentana
+from .Modificaciones_varias import ModificacionesVariasVentana
+from .Actualizafechaconta import ActualizaFechaContabilidadVentana
 from util_rutas import recurso_path
 
 #estilos (styles.py está en la raíz)
@@ -158,16 +158,16 @@ class usuBasicoMain(tb.Frame):
             usuario_img = Image.open(ruta_user_ico)
             usuario_img = usuario_img.resize((120, 120))
             self.usuario_icon = ImageTk.PhotoImage(usuario_img)
-            tb.Label(self.sidebar, image=self.usuario_icon, bootstyle="light").pack(pady=(30, 10))
+            tb.Label(self.sidebar, image=self.usuario_icon, bootstyle="light").pack(pady=(15, 5))
         except Exception as e:
             print(f"ADVERTENCIA: No se pudo cargar la imagen de usuario 'userico.png': {e}")
             # Si la imagen falla, se crea una etiqueta de texto como alternativa
-            tb.Label(self.sidebar, text="(Imagen no disponible)", bootstyle="secondary").pack(pady=(30, 10))
+            tb.Label(self.sidebar, text="(Imagen no disponible)", bootstyle="secondary").pack(pady=(15, 5))
 
         # Muestra el mensaje de bienvenida
         nombre_usuario = getpass.getuser()
         bienvenida_lbl = etiqueta_titulo(self.sidebar, f"BIENVENIDO\n  {nombre_usuario}", font=("Arial", 12))
-        bienvenida_lbl.pack(pady=(0, 200))
+        bienvenida_lbl.pack(pady=(0, 50))
 
         # Botones de navegación (Volver arriba, Salir abajo según mejores prácticas UX)
         self.btn_salir = boton_rojo(self.sidebar, "salir", comando=self.salir, width=15)
@@ -178,7 +178,7 @@ class usuBasicoMain(tb.Frame):
     #------------------------------------------frame de la derecha---------------------------------------------
     def armar_area_principal(self): #frame derecha
         barra_superior = tb.Frame(self.main_frame)
-        barra_superior.pack(fill="x", padx=40, pady=20)
+        barra_superior.pack(fill="x", padx=40, pady=(10, 15))
 
         # --- Buscador ---
         self.entry_busqueda = entrada_estandar(barra_superior, font=("Arial", 14))
@@ -222,7 +222,7 @@ class usuBasicoMain(tb.Frame):
 
         # --- Filtrado de contenido ---
         filtros_frame = tb.Frame(self.main_frame)
-        filtros_frame.pack(anchor="w", padx=56, pady=(5, 10))
+        filtros_frame.pack(anchor="w", padx=56, pady=(2, 8))
 
         self.filtro_todos = boton_comun(filtros_frame, "Todos", comando=self.mostrar_todos)
         self.filtro_todos.pack(side="left", padx=(0, 10))
@@ -243,7 +243,7 @@ class usuBasicoMain(tb.Frame):
 
         # Canvas con scrollbar para contenido dinámico
         canvas_frame = tk.Frame(self.main_frame, bg="#F7F7F7")
-        canvas_frame.pack(fill="both", expand=True, padx=40, pady=(0, 20))
+        canvas_frame.pack(fill="both", expand=True, padx=40, pady=(0, 10))
         
         self.canvas = tk.Canvas(canvas_frame, bg="#F7F7F7")
         self.scrollbar = tk.Scrollbar(canvas_frame, orient="vertical", command=self.canvas.yview)
@@ -481,13 +481,16 @@ class usuBasicoMain(tb.Frame):
         self.habilitar_sidebar(True)
 
     def usar_migracion_de_datos(self):
+        """Abre la ventana de migración sin bloquear la pantalla principal"""
         self.habilitar_sidebar(False)
-        ventana_mig_datos = MigracionVentana(master= self.root)
-        ventana_mig_datos.grab_set()
-        ventana_mig_datos.wait_window()
-        self.habilitar_sidebar(True)
+        ventana_mig_datos = MigracionVentana(master=self.root)
+        
+        # Configurar callback para cuando se cierre la ventana
+        # Cuando la ventana se destruye, se ejecuta la función lambda
+        ventana_mig_datos.bind('<Destroy>', lambda e: self.habilitar_sidebar(True))
 
     def usar_modificaciones_varias(self):
+        """Abre la ventana de modificaciones sin bloquear la pantalla principal"""
         try:
             # --- CORRECCIÓN: Cargar ambientes desde la función centralizada que lee el .dat ---
             from Usuario_administrador.handlers.ambientes import cargar_ambientes
@@ -500,9 +503,9 @@ class usuBasicoMain(tb.Frame):
         # Estandarizamos la apertura de la ventana
         self.habilitar_sidebar(False)
         ventana_modificaciones = ModificacionesVariasVentana(self.root, ambientes_lista)
-        ventana_modificaciones.grab_set()
-        self.root.wait_window(ventana_modificaciones)
-        self.habilitar_sidebar(True)
+        
+        # Configurar callback para cuando se cierre la ventana
+        ventana_modificaciones.bind('<Destroy>', lambda e: self.habilitar_sidebar(True))
 
     def usar_asistente_captura(self):
         """Abre el asistente de captura y grabación modular"""
@@ -510,8 +513,9 @@ class usuBasicoMain(tb.Frame):
             from Usuario_basico.asistente_captura_modular import abrir_asistente_captura_modular
             self.habilitar_sidebar(False)
             ventana_asistente = abrir_asistente_captura_modular(self.root)
-            self.root.wait_window(ventana_asistente)
-            self.habilitar_sidebar(True)
+            
+            # Configurar callback para cuando se cierre la ventana
+            ventana_asistente.bind('<Destroy>', lambda e: self.habilitar_sidebar(True))
         except ImportError as e:
             respuesta = messagebox.askyesno(
                 "Dependencias Faltantes", 

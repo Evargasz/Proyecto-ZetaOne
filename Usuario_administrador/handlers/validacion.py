@@ -18,16 +18,19 @@ def validar_archivos_multiambiente(archivos_unicos, seleccionados_idx, ambientes
             stored_proc, base_datos = ("-", "-")
         for amb in ambientes:
             if arch['tipo'] == 'sp' and stored_proc != "No encontrado" and base_datos != "No encontrado":
-                fecha_sybase_str, fecha_sybase = validar_archivo_sp_local_vs_sybase(arch, amb, stored_proc, base_datos)
+                fecha_sybase_str, fecha_sybase, bd_real = validar_archivo_sp_local_vs_sybase(arch, amb, stored_proc, base_datos)
+                # Si bd_real no es None, significa que se encontró en una BD diferente
+                bd_a_mostrar = bd_real if bd_real else base_datos
             else:
                 fecha_sybase_str = "No existe"
                 fecha_sybase = None
+                bd_a_mostrar = base_datos
             row = (
                 str(contador+1),
                 amb['nombre'],
                 arch['rel_path'],
                 fecha_local.strftime('%Y-%m-%d %H:%M'),
-                base_datos if base_datos else "-",
+                bd_a_mostrar if bd_a_mostrar else "-",  # Usar BD real si está disponible
                 stored_proc if stored_proc else "-",
                 fecha_sybase_str
             )

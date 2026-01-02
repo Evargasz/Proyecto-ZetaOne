@@ -39,7 +39,7 @@ class controladorVentanas:
             widget.place_forget()
             widget.destroy()
 
-    def _configurar_y_centrar_ventana(self, ancho, alto, redimensionable=False):
+    def _configurar_y_centrar_ventana(self, ancho, alto, redimensionable=False, offset_y=0):
         """Función de utilidad para configurar y centrar la ventana raíz."""
         # Resetear completamente las configuraciones de ventana
         self.root.withdraw()
@@ -53,8 +53,8 @@ class controladorVentanas:
         self.root.resizable(redimensionable, redimensionable)
         
         # Calcular posición para centrar (ajustado para evitar barra de tareas)
-        x = (self.root.winfo_screenwidth() // 2) - (ancho // 2) # --- CORRECCIÓN: Se elimina el offset vertical ---
-        y = (self.root.winfo_screenheight() // 2) - (alto // 2)
+        x = (self.root.winfo_screenwidth() // 2) - (ancho // 2)
+        y = (self.root.winfo_screenheight() // 2) - (alto // 2) + offset_y
         
         geometria = f"{ancho}x{alto}+{x}+{y}"
         
@@ -82,12 +82,12 @@ class controladorVentanas:
 
     def mostrar_admin(self):
         self.limpiar_root()
-        self._configurar_y_centrar_ventana(1300, 680, redimensionable=True)
+        self._configurar_y_centrar_ventana(1200, 650, redimensionable=True, offset_y=-50)
         usuAdminMain.iniciar_ventana(self.root, self)
 
     def mostrar_basico(self):
         self.limpiar_root()
-        self._configurar_y_centrar_ventana(900, 650, redimensionable=True)
+        self._configurar_y_centrar_ventana(900, 650, redimensionable=True, offset_y=-60)
         usuBasicoMain(self.root, self)
 
 if __name__ == "__main__":

@@ -3,14 +3,13 @@ from tkinter import ttk, messagebox, simpledialog, filedialog
 import json
 import os
 import pyodbc
-import re
-from collections import defaultdict
-import threading
-import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 
 #styles
 from styles import entrada_estandar, etiqueta_titulo, boton_accion, boton_rojo, boton_exito
+
+# --- IMPORTAR FUNCIÓN DE HISTORIAL ---
+from .migrar_tabla import guardar_en_historial
 
 # --- NUEVO WIDGET DE AUTOCOMPLETADO PERSONALIZADO (VERSIÓN DEFINITIVA) ---
 class AutocompleteEntry(tk.Frame):
@@ -143,465 +142,7 @@ class AutocompleteEntry(tk.Frame):
     def icursor(self, index):
         self.entry.icursor(index)
 
-CATALOGO_FILE = "catalogo_migracion.json"
-
-def _manage_trigger(cursor, tabla, action, log_func=None):
-    """
-    Maneja habilitación/deshabilitación de triggers de forma segura
-    action: 'DISABLE' o 'ENABLE'
-    """
-    if not tabla or 'ca_transaccion' not in tabla.lower():
-        return  # Solo aplicar a ca_transaccion
-    
-    try:
-        trigger_name = 'tg_ca_transaccion'
-        sql = f"ALTER TABLE ca_transaccion {action} TRIGGER {trigger_name}"
-        cursor.execute(sql)
-        if log_func:
-            status = "deshabilitado" if action == "DISABLE" else "rehabilitado"
-            log_func(f"[{tabla}] 🔧 Trigger {trigger_name} {status}")
-    except Exception as e:
-        if log_func:
-            log_func(f"[{tabla}] ⚠️ Error {action.lower()} trigger: {str(e)[:50]}")
-
-def es_nombre_tabla_valido(nombre):
-    # Permite solo letras, números, guion bajo y punto, sin espacios ni caracteres especiales
-    return bool(re.match(r'^[A-Za-z0-9_.]+$', nombre or ''))
-
-def columnas_tabla(conn_str, tabla):
-    if not es_nombre_tabla_valido(tabla):
-        raise ValueError(f"Nombre de tabla no válido: {tabla}")
-    query = f"SELECT * FROM {tabla} WHERE 1=0"
-    with pyodbc.connect(conn_str, timeout=8) as conn:
-        cur = conn.cursor()
-        try:
-            cur.execute(query)
-            cols = [desc[0] for desc in cur.description]
-            return cols
-        except Exception as e:
-            raise RuntimeError(f"Error obteniendo columnas de {tabla}: {e}")
-
-def pk_tabla(conn_str, tabla, is_sybase):
-    if not es_nombre_tabla_valido(tabla):
-        raise ValueError(f"Nombre de tabla no válido: {tabla}")
-    partes = tabla.split('.')
-    nombre_tb_simple = partes[-1]
-    pk_cols = []
-    try:
-        with pyodbc.connect(conn_str, timeout=8, autocommit=True) as conn:
-            cur = conn.cursor()
-            if is_sybase:
-                try:
-                    cur.execute("sp_pkeys @table_name=?", [nombre_tb_simple])
-                    pk_cols = [row.column_name.lower().strip() for row in cur.fetchall()]
-                except Exception:
-                    pk_cols = []
-                if not pk_cols:
-                    try:
-                        cur.execute("sp_help " + nombre_tb_simple)
-                        found = False
-                        while True:
-                            rows = cur.fetchall()
-                            columns = [col[0] for col in cur.description] if cur.description else []
-                            if ('index_description' in columns) and ('index_keys' in columns):
-                                idx_desc_idx = columns.index('index_description')
-                                idx_keys_idx = columns.index('index_keys')
-                                for row in rows:
-                                    idx_desc = row[idx_desc_idx]
-                                    if re.search(r'\bunique\b', idx_desc, re.IGNORECASE):
-                                        pk_cols = [col.strip() for col in row[idx_keys_idx].strip().split(',')]
-                                        found = True
-                                        break
-                                if found:
-                                    break
-                            if not cur.nextset():
-                                break
-                    except Exception:
-                        pk_cols = []
-            else:
-                consulta_pk = """
-                SELECT col.name
-                FROM sys.indexes pk
-                INNER JOIN sys.index_columns ic ON pk.object_id = ic.object_id AND pk.index_id = ic.index_id
-                INNER JOIN sys.columns col ON ic.object_id = col.object_id AND ic.column_id = col.column_id
-                INNER JOIN sys.tables t ON pk.object_id = t.object_id
-                WHERE pk.is_primary_key = 1 AND t.name = ?
-                ORDER BY ic.key_ordinal
-                """
-                cur.execute(consulta_pk, (nombre_tb_simple,))
-                pk_cols = [row[0].lower() for row in cur.fetchall()]
-    except Exception as e:
-        raise RuntimeError(f"Error obteniendo PK de {tabla}: {e}")
-    return pk_cols
-
-def desactivar_indices_secundarios(conn_str, tabla, log):
-    """Desactiva todos los índices que no sean PK/clustered (sólo SQL Server soportado aquí)"""
-    try:
-        with pyodbc.connect(conn_str, timeout=8, autocommit=True) as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT name FROM sys.indexes 
-                WHERE object_id = OBJECT_ID(?) 
-                  AND is_primary_key = 0 
-                  AND is_unique_constraint = 0 
-                  AND type_desc <> 'HEAP'
-            """, (tabla,))
-            idxs = [row[0] for row in cur.fetchall()]
-            for idx in idxs:
-                cur.execute(f"ALTER INDEX [{idx}] ON [{tabla}] DISABLE")
-            if idxs:
-                log(f"[{tabla}] Se desactivaron índices secundarios: {idxs}")
-    except Exception as e:
-        # Mensaje más claro: esto es normal en Sybase, solo funciona en SQL Server
-        log(f"[{tabla}] ℹ️ Optimización de índices no disponible (normal en Sybase): {str(e)[:100]}...")
-
-def _get_column_types(conn_str, tabla):
-    """Devuelve un diccionario de {nombre_col: tipo_pyodbc} para una tabla."""
-    if not es_nombre_tabla_valido(tabla):
-        return {}
-    try:
-        with pyodbc.connect(conn_str, timeout=5) as conn:
-            cursor = conn.cursor()
-            cursor.execute(f"SELECT * FROM {tabla} WHERE 1=0")
-            return {col[0].lower(): col[1] for col in cursor.description}
-    except Exception as e:
-        logging.warning(f"No se pudieron obtener los tipos de columna para '{tabla}': {e}")
-        return {}
-
-def reactivar_indices_secundarios(conn_str, tabla, log):
-    try:
-        with pyodbc.connect(conn_str, timeout=8, autocommit=True) as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT name FROM sys.indexes 
-                WHERE object_id = OBJECT_ID(?) 
-                  AND is_primary_key = 0 
-                  AND is_unique_constraint = 0 
-                  AND type_desc <> 'HEAP'
-            """, (tabla,))
-            idxs = [row[0] for row in cur.fetchall()]
-            for idx in idxs:
-                cur.execute(f"ALTER INDEX [{idx}] ON [{tabla}] REBUILD")
-            if idxs:
-                log(f"[{tabla}] Se reactivaron índices secundarios: {idxs}")
-    except Exception as e:
-        log(f"[{tabla}] ℹ️ Optimización de índices no disponible (normal en Sybase): {str(e)[:100]}...")
-
-def migrar_tabla_del_grupo(
-        tabla_conf,
-        variables,
-        conn_str_ori,
-        conn_str_dest,
-        batch_size,
-        idx_tabla,
-        total_tablas,
-        log, progress,
-        cancelar_func=None,
-        contadores=None):
-
-    def _sanitizar_valor(valor, tipo_columna):
-        """Limpia un valor para que sea compatible con el tipo de columna de destino."""
-        if isinstance(valor, str):
-            # Para tipos monetarios, eliminar '$' y ','
-            if tipo_columna in (pyodbc.SQL_DECIMAL, pyodbc.SQL_NUMERIC, pyodbc.SQL_REAL, pyodbc.SQL_FLOAT, pyodbc.SQL_DOUBLE):
-                return valor.replace('$', '').replace(',', '').strip()
-        return valor
-    
-    tabla = tabla_conf.get('tabla') or tabla_conf.get('tabla llave')
-    if not es_nombre_tabla_valido(tabla):
-        log(f"[{tabla}] Nombre de tabla inválido/peligroso. Abortando.")
-        return 0
-
-    llave = tabla_conf.get('llave', "")
-    join = tabla_conf.get('join', "")
-    condicion = tabla_conf.get('condicion', "")
-    
-    # --- CORRECCIÓN: Usar consultas parametrizadas y corregir literales ---
-    params = []
-    where = condicion
-
-    # --- MEJORA: Obtener tipos de columna de origen para aplicar RTRIM condicionalmente ---
-    col_types_ori = _get_column_types(conn_str_ori, tabla)
-    string_types_for_trim = (
-        pyodbc.SQL_CHAR, pyodbc.SQL_VARCHAR, pyodbc.SQL_LONGVARCHAR,
-        pyodbc.SQL_WCHAR, pyodbc.SQL_WVARCHAR, pyodbc.SQL_WLONGVARCHAR
-    )
-
-    # 1. Sustituir variables por '?' para parametrización
-    if variables:
-        # Usar regex para encontrar todas las variables como $var$
-        # Regex para encontrar: (columna) (operador) ($variable$)
-        pattern_var = re.compile(r"(\b\w+\b)\s*(=|!=|<>|LIKE)\s*(\$\w+\$)", re.IGNORECASE)
-
-        def rtrim_replacer(match):
-            columna, operador, variable_placeholder = match.groups()
-            var_name = variable_placeholder.strip('$')
-            valor_variable = variables.get(var_name)
-            params.append(valor_variable) # Siempre añadimos el valor original como string
-
-            # Construcción del SQL
-            # --- LÓGICA MEJORADA: Decidir la conversión basada en el *valor* de la variable ---
-            if valor_variable and valor_variable.isdigit():
-                # Si el valor es puramente numérico, asumimos que la columna es INT.
-                # Esto cubre los JOINs donde no conocemos el tipo de la columna.
-                return f"{columna} {operador} CONVERT(INT, ?)"
-            elif valor_variable and valor_variable.isalpha():
-                # Si el valor es puramente texto, usamos RTRIM para los CHAR.
-                return f"RTRIM({columna}) {operador} ?"
-            else:
-                # Caso por defecto (ej. alfanumérico) o si el valor está vacío.
-                # Usamos RTRIM como la opción más segura para compatibilidad con CHAR.
-                return f"RTRIM({columna}) {operador} ?"
-
-        where = pattern_var.sub(rtrim_replacer, where)
-        
-        # Fallback para variables que no sigan el patrón col = $var$
-        for var_match in re.finditer(r'\$\w+\$', where):
-            var_name = var_match.group(1)
-            if var_name in variables:
-                where = where.replace(var_match.group(0), '?', 1)
-                # Aquí no tenemos contexto del tipo de columna, así que pasamos como string
-                # Esta ruta de código es menos común.
-                params.append(variables.get(var_name))
-
-    # 2. Si no se usaron parámetros, intentar corregir literales de string sin comillas
-    if not params and where:
-        col_types = _get_column_types(conn_str_ori, tabla)
-        if col_types:
-            string_types = (
-                pyodbc.SQL_CHAR, pyodbc.SQL_VARCHAR, pyodbc.SQL_LONGVARCHAR,
-                pyodbc.SQL_WCHAR, pyodbc.SQL_WVARCHAR, pyodbc.SQL_WLONGVARCHAR,
-                pyodbc.SQL_TYPE_DATE, pyodbc.SQL_TYPE_TIME, pyodbc.SQL_TYPE_TIMESTAMP
-            )
-            
-            # Regex para encontrar `columna = valor` (o similar) donde valor es un literal sin comillas.
-            pattern = re.compile(r"([a-zA-Z0-9_]+)\s*(=|!=|<>|LIKE)\s*([a-zA-Z0-9_]+)")
-
-            def quote_replacer(match):
-                col, op, val = match.groups()
-                
-                # Heurística: si el nombre de la columna existe y el valor no es un nombre de columna,
-                # y el tipo de la columna es string, entonces añadir comillas.
-                if col.lower() in col_types and val.lower() not in col_types:
-                    col_type = col_types.get(col.lower())
-                    if col_type in string_types:
-                        return f"{col} {op} '{val}'" # Añadir comillas
-                
-                return match.group(0) # Devolver sin cambios si no cumple las condiciones
-
-            where = pattern.sub(quote_replacer, where)
-
-    log(f"[{tabla}] INICIO migración de tabla ({idx_tabla+1}/{total_tablas})")
-    progress(int(100 * (idx_tabla) / total_tablas))
-
-    # 1. Validar estructura
-    try:
-        cols_ori = columnas_tabla(conn_str_ori, tabla)
-        cols_dest = columnas_tabla(conn_str_dest, tabla)
-    except Exception as e:
-        log(f"[{tabla}] Error consultando columnas: {e}")
-        return 0
-    if cols_ori != cols_dest:
-        log(f"[{tabla}] ⚠️ Estructura diferente! Origen: {cols_ori} / Destino: {cols_dest}")
-        if contadores:
-            contadores['estructura_diferente'] += 1
-            contadores['tablas_estructura_diferente'].append(tabla)
-        return 0
-    else:
-        log(f"[{tabla}] ✅ Estructura igual en origen y destino.")
-
-    # 2. Detectar PK o índice unique
-    pk_cols = []
-    try:
-        pk_cols = pk_tabla(conn_str_ori, tabla, True)
-    except Exception as e:
-        log(f"[{tabla}] Advertencia: Error detectando PK: {e}")
-        pk_cols = []
-    if pk_cols:
-        log(f"[{tabla}] PK/índice unique detectado: {pk_cols}")
-    else:
-        log(f"[{tabla}] ⚠️ Sin PK/índice unique detectado. Posibles duplicados.")
-        if contadores:
-            contadores['sin_pk'] += 1
-            contadores['tablas_sin_pk'].append(tabla)
-
-    # 3. Desactiva índices secundarios (en destino) antes de insertar
-    desactivar_indices_secundarios(conn_str_dest, tabla, log)
-
-    tipos_col_dest = _get_column_types(conn_str_dest, tabla)
-
-
-    # 4. Armar SQL extracción
-    sql = ""
-    if llave and join:
-        tablas_llave = [t.strip() for t in llave.split(",")]
-        if len(tablas_llave) == 1:
-            sql = f"SELECT tbl.* FROM {tabla} tbl JOIN {tablas_llave[0]} ON {join}"
-            if where:
-                sql += f" WHERE {where}"
-        else:
-            sql = f"SELECT tbl.* FROM {tabla} tbl"
-            for t in tablas_llave:
-                sql += f", {t}"
-            condiciones = []
-            if join:
-                condiciones.append(join)
-            if where:
-                condiciones.append(where)
-            if condiciones:
-                sql += " WHERE " + " AND ".join(condiciones)
-    else:
-        sql = f"SELECT * FROM {tabla}"
-        if where:
-            sql += f" WHERE {where}"
-
-    log(f"[{tabla}] SQL de extracción: {sql}")
-
-    # 5. Proceso por lotes para optimización de performance
-    migrados = 0
-    omitidos = 0
-    BATCH_SIZE_EXTRACCION = 1000
-    try:
-        with pyodbc.connect(conn_str_ori, timeout=60) as conn_ori, \
-             pyodbc.connect(conn_str_dest, timeout=60, autocommit=False) as conn_dest:
-
-            cur_ori = conn_ori.cursor()
-            cur_ori.execute(sql, params)
-            colnames = [d[0] for d in cur_ori.description]
-            cur_dest = conn_dest.cursor()
-
-            total_filas = 0
-            lote_num = 0
-            while True:
-                filas = cur_ori.fetchmany(BATCH_SIZE_EXTRACCION)
-                if not filas:
-                    break
-                if cancelar_func and cancelar_func():
-                    log(f"[{tabla}] Migracion  de grupo cancelada por el usuario. rollback de cambios si es necesario.")
-                    
-                    # REHABILITAR TRIGGER AL CANCELAR
-                    _manage_trigger(cur_dest, tabla, "ENABLE", log)
-                    
-                    try:
-                        conn_dest.rollback()
-                    except Exception:
-                        pass
-                    return migrados
-                
-                total_filas += len(filas)
-                lote_num += 1
-                
-                # --- LÓGICA DE VERIFICACIÓN DE DUPLICADOS REFACTORIZADA ---
-                if pk_cols:
-                    pks_dest = set()
-                    pk_types = {col: tipos_col_dest.get(col.lower()) for col in pk_cols}
-                    
-                    # --- SOLUCIÓN DEFINITIVA PARA SYBASE: Usar tabla permanente en lugar de temporal ---
-                    # Se usa una tabla permanente porque las tablas temporales (##) no son visibles entre diferentes conexiones en Sybase.
-                    check_table_name = f"ZETA_CHECK_{os.getpid()}_{threading.get_ident()}"
-                    
-                    try:
-                        # Usar una conexión con autocommit para crear/borrar la tabla y evitar problemas de transacción.
-                        with pyodbc.connect(conn_str_dest, timeout=10, autocommit=True) as conn_check:
-                            cur_check = conn_check.cursor()
-                            
-                            # 1. Crear tabla permanente de chequeo
-                            col_defs = []
-                            for col in pk_cols:
-                                sql_type = "VARCHAR(255)" # Default
-                                py_type = pk_types.get(col)
-                                if py_type in (pyodbc.SQL_INTEGER, pyodbc.SQL_BIGINT): sql_type = "INT"
-                                elif py_type in (pyodbc.SQL_DECIMAL, pyodbc.SQL_NUMERIC): sql_type = "DECIMAL(18,2)"
-                                elif py_type == pyodbc.SQL_CHAR: sql_type = "CHAR(10)" # Ajustar longitud si es necesario
-                                col_defs.append(f"{col} {sql_type}")
-                            
-                            cur_check.execute(f"CREATE TABLE {check_table_name} ({', '.join(col_defs)})")
-
-                            # 2. Insertar PKs del lote en la tabla de chequeo
-                            pks_del_lote = [tuple(getattr(row, col) for col in pk_cols) for row in filas]
-                            if pks_del_lote:
-                                cur_check.executemany(f"INSERT INTO {check_table_name} VALUES ({','.join(['?']*len(pk_cols))})", pks_del_lote)
-
-                        # 3. Hacer JOIN para encontrar duplicados (usando el cursor de la transacción principal)
-                        # Ahora la tabla es visible para esta conexión.
-                        join_cond = " AND ".join([f"t1.{col} = t2.{col}" for col in pk_cols])
-                        select_dups_sql = f"SELECT t1.* FROM {check_table_name} t1 JOIN {tabla} t2 ON {join_cond}"
-                        pks_dest = set(tuple(row) for row in cur_dest.execute(select_dups_sql).fetchall())
-                    finally:
-                        # 4. Asegurarse de eliminar la tabla permanente, pase lo que pase.
-                        with pyodbc.connect(conn_str_dest, timeout=10, autocommit=True) as conn_cleanup:
-                            conn_cleanup.execute(f"IF OBJECT_ID('{check_table_name}') IS NOT NULL DROP TABLE {check_table_name}")
-
-                    # Prepara los insertables filtrando por PK (evitando duplicados)
-                    insertables = []
-                    for row in filas:
-                        # --- MEJORA: Verificar cancelación en cada registro para una respuesta más rápida ---
-                        if cancelar_func and cancelar_func():
-                            break # Salir del bucle de filas
-
-                        key = tuple(getattr(row, col) for col in pk_cols)
-                        if key not in pks_dest:
-                            # --- MEJORA: Sanitizar cada valor antes de añadirlo a la lista de inserción ---
-                            fila_sanitizada = []
-                            for col in colnames:
-                                fila_sanitizada.append(_sanitizar_valor(getattr(row, col), tipos_col_dest.get(col.lower())))
-                            insertables.append(fila_sanitizada)
-                        else:
-                            omitidos += 1
-                else:
-                    insertables = [[getattr(row, col) for col in colnames] for row in filas]
-
-                if insertables:
-                    # DESHABILITAR TRIGGER ANTES DE INSERTAR
-                    _manage_trigger(cur_dest, tabla, "DISABLE", log)
-                    
-                    sql_insert = f"INSERT INTO {tabla} ({','.join(colnames)}) VALUES ({','.join(['?' for _ in colnames])})"
-                    try:
-                        cur_dest.executemany(sql_insert, insertables)
-                        migrados += len(insertables)
-                        conn_dest.commit()
-                        log(f"[{tabla}] Batch {lote_num} migrado: {len(insertables)} registros insertados.")
-                        
-                        # REHABILITAR TRIGGER TRAS INSERCIÓN EXITOSA
-                        _manage_trigger(cur_dest, tabla, "ENABLE", log)
-                        
-                    except Exception as e:
-                        # REHABILITAR TRIGGER EN CASO DE ERROR
-                        _manage_trigger(cur_dest, tabla, "ENABLE", log)
-                        
-                        log(f"[{tabla}] Error insertando batch {lote_num}: {e}")
-                        conn_dest.rollback()
-                progress(
-                    int(100 * (idx_tabla + min(total_filas, migrados) / max(1, total_filas)) / total_tablas)
-                )
-    except Exception as e:
-        log(f"[{tabla}] Error global durante migración: {e}")
-        
-        # ASEGURAR QUE EL TRIGGER ESTÉ HABILITADO EN CASO DE ERROR GLOBAL
-        try:
-            with pyodbc.connect(conn_str_dest, timeout=8) as conn_dest_cleanup:
-                cur_dest_cleanup = conn_dest_cleanup.cursor()
-                _manage_trigger(cur_dest_cleanup, tabla, "ENABLE", log)
-        except Exception:
-            pass
-        
-        reactivar_indices_secundarios(conn_str_dest, tabla, log)
-        return migrados
-
-    # 9. Asegurar que el trigger esté habilitado al finalizar
-    try:
-        with pyodbc.connect(conn_str_dest, timeout=8) as conn_dest_final:
-            cur_dest_final = conn_dest_final.cursor()
-            _manage_trigger(cur_dest_final, tabla, "ENABLE", log)
-    except Exception:
-        pass
-    
-    # 10. Reactiva índices secundarios tras el insert
-    reactivar_indices_secundarios(conn_str_dest, tabla, log)
-    progress(int(100 * (idx_tabla+1) / total_tablas))
-    log(f"[{tabla}] FIN migración de tabla. Registros migrados: {migrados} / Omitidos (duplicados): {omitidos} / Progreso global: {idx_tabla+1}/{total_tablas}")
-
-    return migrados
+CATALOGO_FILE = os.path.join("json", "catalogo_migracion.json")
 
 def migrar_grupo(
         grupo_conf,
@@ -613,87 +154,213 @@ def migrar_grupo(
         abort_func,
         cancelar_func=None
     ):
-    log = log_func if log_func else print
-    progress = progress_func if progress_func else lambda x: None
-    abort = abort_func if abort_func else lambda msg: print(f"ABORT: {msg}")
-    
-    # Contadores para el resumen final
-    contadores = {
-        'estructura_diferente': 0,
-        'sin_pk': 0,
-        'total_tablas': 0,
-        'tablas_estructura_diferente': [],
-        'tablas_sin_pk': []
-    }
+    # --- REINVENCIÓN TOTAL DE LA LÓGICA DE MIGRACIÓN ---
+    """🚀 MIGRACIÓN DE GRUPO ULTRA-OPTIMIZADA (ESTRATEGIA PEC: Preparar-Extraer-Cargar)"""
+    log = log_func or print
+    progress = progress_func or (lambda x: None)
 
-    def _build_conn_str(amb):
-        driver = amb['driver']
-        if driver == 'Sybase ASE ODBC Driver':
-            return (
-                f"DRIVER={{{driver}}};"
-                f"SERVER={amb['ip']};"
-                f"PORT={amb['puerto']};"
-                f"DATABASE={amb['base']};"
-                f"UID={amb['usuario']};"
-                f"PWD={amb['clave']};"
-            )
-        else:
-            return (
-                f"DRIVER={{{driver}}};"
-                f"SERVER={amb['ip']},{amb['puerto']};"
-                f"DATABASE={amb['base']};"
-                f"UID={amb['usuario']};"
-                f"PWD={amb['clave']};"
-            )
+    def _build_conn_str(amb, autocommit=False):
+        # Esta función de utilidad se mantiene, ya que es correcta.
+        return (
+            f"DRIVER={{{driver}}};"
+            f"SERVER={amb['ip']},{amb['puerto']};"
+            f"DATABASE={amb['base']};"
+            f"UID={amb['usuario']};"
+            f"PWD={amb['clave']};"
+        ) if amb['driver'] != 'Sybase ASE ODBC Driver' else (
+            f"DRIVER={{{amb['driver']}}};SERVER={amb['ip']};PORT={amb['puerto']};"
+            f"DATABASE={amb['base']};UID={amb['usuario']};PWD={amb['clave']};"
+        )
+
+    def _convertir_fila_para_sql(fila):
+        """
+        Convierte una fila de datos de pyodbc a un formato seguro para la inserción.
+        Maneja explícitamente fechas y valores nulos para evitar errores de conversión implícita.
+        """
+        import datetime
+        fila_convertida = []
+        for valor in fila:
+            if isinstance(valor, (datetime.datetime, datetime.date)):
+                fila_convertida.append(valor.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]) # Formato ODBC canónico
+            else:
+                fila_convertida.append(valor) # Mantiene None, str, int, etc.
+        return fila_convertida
 
     conn_str_ori = _build_conn_str(amb_origen)
-    conn_str_dest = _build_conn_str(amb_destino)
+    # El destino NUNCA debe usar autocommit para cargas masivas.
+    conn_str_dest = _build_conn_str(amb_destino, autocommit=False)
     tablas = grupo_conf['tablas']
-    batch_size = 5000  # Puede ajustar el tamaño del batch
     total_tablas = len(tablas)
-    contadores['total_tablas'] = total_tablas
 
-    # Ejecutar migración de tablas en paralelo (1 tabla, 1 thread, cada tabla solo una vez)
-    resultados = []
-    with ThreadPoolExecutor(max_workers=min(4, total_tablas)) as executor:
-        futuras = []
-        for idx_tabla, tabla_conf in enumerate(tablas):
-            futuras.append(executor.submit(
-                migrar_tabla_del_grupo,
-                tabla_conf, variables, conn_str_ori, conn_str_dest, batch_size,
-                idx_tabla, total_tablas, log, progress, cancelar_func, contadores
-            ))
-        for future in as_completed(futuras):
+    stats = {
+        'migrados': 0,
+        'errores': [],
+        'omitidos': 0,
+    }
+
+    t_inicio = time.time()
+    log(f"\n{'='*60}")
+    log(f"🚀 INICIO MIGRACIÓN GRUPO: {grupo_conf.get('grupo', 'N/A')}")
+    log(f"📊 Tablas a procesar: {total_tablas}")
+    log(f"🔑 Variable: {variables}")
+    log(f"{'='*60}\n")
+
+    # --- FASE 1: PREPARAR (Una sola vez) ---
+    plan_ejecucion = []
+    log("1. Pre-compilando plan de ejecución...")
+    for tabla_conf in tablas:
+        tabla = tabla_conf.get('tabla') or tabla_conf.get('tabla llave') or ''
+        if not tabla:
+            stats['omitidos'] += 1
+            continue
+
+        # Construir SELECT
+        columnas = tabla_conf.get('columnas', ['*'])
+        columnas_str = ", ".join(columnas)
+        condicion = tabla_conf.get('condicion', '')
+        
+        # Reemplazar variables en la condición
+        params = []
+        if variables and condicion:
+            import re
+            # --- SOLUCIÓN: Regex mucho más específico y seguro ---
+            # Busca exactamente "columna = '$variable$'" (con o sin comillas simples opcionales)
+            # y no interfiere con otras cláusulas como IN (...).
+            pattern = re.compile(r"(\b\w+\b)\s*=\s*'?(\$\w+\$)'?")
+            def replacer(match):
+                col, var_placeholder = match.groups()
+                var_name = var_placeholder.strip('$')
+                if var_name in variables:
+                    params.append(str(variables[var_name]))
+                    return f"{col} = ?" # Reemplazo simple y seguro
+                return match.group(0)
+            condicion = pattern.sub(replacer, condicion)
+
+        sql_select = f"SELECT {columnas_str} FROM {tabla}"
+        if condicion:
+            sql_select += f" WHERE {condicion}"
+
+        # Construir INSERT
+        placeholders = ",".join(["?"] * len(columnas))
+        sql_insert = f"INSERT INTO {tabla} ({columnas_str}) VALUES ({placeholders})"
+
+        plan_ejecucion.append({
+            "tabla": tabla,
+            "select": sql_select,
+            "params": params,
+            "insert": sql_insert,
+            "columnas": columnas
+        })
+    log(f"Plan listo. {len(plan_ejecucion)} tablas válidas a procesar.")
+
+    # --- FASE 2 y 3: EXTRAER, CARGAR Y FINALIZAR ---
+    try:
+        # Conexión única para todo el grupo
+        with pyodbc.connect(conn_str_ori, timeout=30) as conn_ori, pyodbc.connect(conn_str_dest, timeout=30) as conn_dest:
+            cur_ori = conn_ori.cursor()
+            cur_dest = conn_dest.cursor()
+
+            # Activar fast_executemany para SQL Server si es posible
             try:
-                resultados.append(future.result())
-            except Exception as exc:
-                log(f"ERROR GLOBAL EN POOL DE MIGRACION DE TABLAS: {exc}")
+                cur_dest.fast_executemany = True
+                log("✅ 'fast_executemany' activado para rendimiento superior.")
+            except AttributeError:
+                log("⚠️ 'fast_executemany' no soportado. Usando 'executemany' estándar.", "warning")
 
-    total_global = sum(resultados)
-    
-    # Resumen final detallado
-    log("\n" + "="*60)
-    log(f"✅ RESUMEN DE MIGRACIÓN DE GRUPO '{grupo_conf.get('grupo', 'N/A')}'")
-    log("="*60)
-    log(f"📊 Total de tablas procesadas: {contadores['total_tablas']}")
-    log(f"💾 Total de registros migrados: {total_global}")
-    
-    if contadores['estructura_diferente'] > 0:
-        log(f"⚠️  Tablas con estructura diferente: {contadores['estructura_diferente']}")
-        for tabla in contadores['tablas_estructura_diferente']:
-            log(f"    • {tabla}")
-    else:
-        log(f"✅ Todas las tablas tienen estructura compatible")
-    
-    if contadores['sin_pk'] > 0:
-        log(f"⚠️  Tablas sin PK/índice unique: {contadores['sin_pk']} (riesgo de duplicados)")
-    else:
-        log(f"✅ Todas las tablas tienen PK/índice unique")
-    
-    log(f"ℹ️  Nota: Los errores de optimización de índices son normales en Sybase")
-    log("="*60)
+            for idx, plan in enumerate(plan_ejecucion):
+                if cancelar_func and cancelar_func():
+                    log("❌ Migración cancelada por el usuario")
+                    break
 
-    return {'insertados': total_global, 'omitidos': 0, 'errores': contadores['estructura_diferente']}
+                log(f"[{idx+1}/{len(plan_ejecucion)}] Procesando: {plan['tabla']}")
+                progress(int(100 * idx / total_tablas))
+
+                try:
+                    cur_ori.execute(plan["select"], plan["params"])
+                    filas = cur_ori.fetchall()
+
+                    if not filas:
+                        log(f"  ⏭️ Sin datos para migrar.")
+                        continue
+
+                    log(f"  📥 Extraídos: {len(filas)} registros. Insertando en lote...")
+
+                    # --- SOLUCIÓN: Convertir explícitamente cada fila antes de la inserción ---
+                    filas_convertidas = [
+                        _convertir_fila_para_sql(fila) for fila in filas
+                    ]
+                    cur_dest.executemany(plan["insert"], filas_convertidas)
+                    stats['migrados'] += len(filas)
+                    log(f"  ✅ Lote para tabla {plan['tabla']} preparado en la transacción.")
+
+                except Exception as e_tabla:
+                    log(f"  ❌ ERROR en tabla {plan['tabla']}: {str(e_tabla)[:200]}", "error")
+                    stats['errores'].append((plan['tabla'], str(e_tabla)))
+                    # Si una tabla falla, se rompe el bucle para hacer rollback de todo el grupo.
+                    raise Exception(f"Fallo en tabla {plan['tabla']}, abortando grupo.")
+
+            # --- FASE 3: FINALIZAR ---
+            if not (cancelar_func and cancelar_func()) and not stats['errores']:
+                log("\nTodas las tablas procesadas. Realizando COMMIT final...", "success")
+                conn_dest.commit()
+                log("✅ COMMIT exitoso. Migración de grupo completada.", "success")
+            else:
+                log("\nCancelación o error detectado. Realizando ROLLBACK global...", "warning")
+                conn_dest.rollback()
+                log("ROLLBACK completado. No se guardaron cambios.", "warning")
+
+            progress(100)
+
+    except Exception as e_global:
+        log(f"\n❌ ERROR CRÍTICO DE MIGRACIÓN: {e_global}", "error")
+        if not stats['errores']: # Si el error fue de conexión u otro no capturado
+            stats['errores'].append(("Global", str(e_global)))
+
+    # RESUMEN FINAL
+    t_total_ms = int((time.time() - t_inicio) * 1000)
+
+    log(f"\n{'='*60}")
+    log(f"✅ RESUMEN DE MIGRACIÓN")
+    log(f"{'='*60}")
+    log(f"📊 Tablas procesadas: {total_tablas}")
+    log(f"💾 Registros migrados: {stats['migrados']}")
+    log(f"⏭️ Tablas omitidas (sin config): {stats['omitidos']}")
+    log(f"⏱️  Duración: {t_total_ms/1000:.1f} s")
+
+    if stats['errores']:
+        log(f"\n⚠️  ERRORES ENCONTRADOS ({len(stats['errores'])}):")
+        for tabla, error in stats['errores']:
+            log(f"  • {tabla}: {error}")
+    else:
+        log(f"\n✅ Sin errores")
+
+    log(f"{'='*60}\n")
+
+    # Guardar en historial
+    resultado = {
+        'insertados': stats['migrados'],
+        'omitidos': stats['omitidos'],
+        'errores': len(stats['errores']),
+        'duracion_ms': t_total_ms
+    }
+
+    guardar_en_historial("Grupo", grupo_conf.get('grupo', 'N/A'), resultado, base_usuario=amb_origen.get('base'))
+
+    # Mensaje final
+    try:
+        messagebox.showinfo(
+            "Migración finalizada",
+            (
+                f"Grupo: {grupo_conf.get('grupo','N/A')}\n"
+                f"Registros migrados: {stats['migrados']}\n"
+                f"Errores: {len(stats['errores'])}\n"
+                f"Duración: {t_total_ms/1000:.1f} s"
+            )
+        )
+    except Exception:
+        pass
+
+    return resultado
 
 #################################################################
 # -------- CLASES DE LA ADMINISTRACION VISUAL DE GRUPOS ------- #

@@ -11,6 +11,13 @@ import threading # <-- SOLUCIÓN: Se añade el import que faltaba
 import re
 import getpass # <-- CAMBIO: Importar para obtener el usuario del PC
 
+# Importar win32api para leer versiones de archivos
+try:
+    import win32api
+    WIN32_AVAILABLE = True
+except ImportError:
+    WIN32_AVAILABLE = False
+
 # --- Import clave para que las rutas funcionen en el .exe ---
 from util_rutas import recurso_path
 
@@ -19,7 +26,7 @@ from .handlers.explorador import explorar_sd_folder
 from .util_repetidos import quitar_repetidos
 
 #Importacion de estilos
-from .handlers.catalogacion import catalogar_plan_ejecucion, mostrar_resultado_catalogacion
+from .handlers.catalogacion import catalogar_plan_ejecucion, mostrar_resultado_catalogacion, VentanaResultadosCatalogacion
 from .catalogacion_dialog import CatalogacionDialog
 from .widgets.tooltip import ToolTip
 from util_ventanas import ProgressWindow # <-- AÑADIDO: Importar la nueva ventana de progreso
@@ -47,7 +54,7 @@ class usuAdminMain:
             # Esto evita conflictos y centraliza el control de la ventana principal.
 
             # --- REQUERIMIENTO: Establecer un tamaño mínimo para la ventana ---
-            self.root.minsize(1400, 600)
+            self.root.minsize(1250, 650)
 
             # --- CORRECCIÓN: Carga de ícono de ventana de forma segura ---
             try:
@@ -108,31 +115,36 @@ class usuAdminMain:
             # Barra superior
             barra_sd = tb.Frame(self.frame, bootstyle="secondary", padding=(8, 6))
             barra_sd.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-            barra_sd.columnconfigure(0, weight=1, minsize=180)
-            barra_sd.columnconfigure(1, weight=1, minsize=230)
-            barra_sd.columnconfigure(2, weight=5)
-            barra_sd.columnconfigure(3, weight=2, minsize=240)
+            barra_sd.columnconfigure(0, weight=1, minsize=110)
+            barra_sd.columnconfigure(1, weight=1, minsize=170)
+            barra_sd.columnconfigure(2, weight=1, minsize=150)
+            barra_sd.columnconfigure(3, weight=1, minsize=170)
+            barra_sd.columnconfigure(4, weight=1, minsize=100)  # Frontend
 
             #botones de seleccion
             self.single_sd_btn = tb.Button(
-                barra_sd, text="SD Único", command=self.single_sd, bootstyle="primary-outline", width=14
+                barra_sd, text="SD Único", command=self.single_sd, bootstyle="primary-outline", width=10
             )
             self.multi_sd_btn = tb.Button(
-                barra_sd, text="Carpeta con varios SD", command=self.multi_sd, bootstyle="primary-outline", width=22
+                barra_sd, text="Carpeta varios SD", command=self.multi_sd, bootstyle="primary-outline", width=17
             )
-            self.single_sd_btn.grid(row=0, column=0, padx=10, sticky="ew")
-            self.multi_sd_btn.grid(row=0, column=1, padx=10, sticky="ew")
+            self.single_sd_btn.grid(row=0, column=0, padx=(6, 3), sticky="ew")
+            self.multi_sd_btn.grid(row=0, column=1, padx=(3, 3), sticky="ew")
 
-            self.sd_label = tb.Label(barra_sd, text="")
-            self.sd_label.grid(row=0, column=2, sticky="w", padx=(16, 0))
+            # self.sd_label = tb.Label(barra_sd, text="")
+            # self.sd_label.grid(row=0, column=2, sticky="w", padx=(16, 0))
+
+            self.btn_cata_cts = tb.Button(barra_sd, text="CTS", command=self.abrir_Catalog_CTS, bootstyle="dark-outline-button", width=14)
+            self.btn_cata_cts.grid(row=0, column=2, padx=(3, 3), sticky="ew")
 
             self.btn_repetidos = tb.Button(
-                barra_sd, text="Programas Repetidos", command=self.ver_repetidos, width=31, bootstyle="dark-outline-button"
+                barra_sd, text="Repetidos", command=self.ver_repetidos, width=16, bootstyle="dark-outline-button"
             )
-            self.btn_repetidos.grid(row=0, column=3, padx=(6, 6), sticky="e")
-
-            self.btn_cata_cts = tb.Button(barra_sd, text="catalogacion de CTS", command=self.abrir_Catalog_CTS, width=31, bootstyle="dark-outline-button")
-            self.btn_cata_cts.grid(row=0, column=2, padx=(6, 6), sticky="e")
+            self.btn_repetidos.grid(row=0, column=3, padx=(3, 3), sticky="ew")
+            
+            # Botón Frontend (inicialmente oculto)
+            self.btn_frontend = tb.Button(barra_sd, text="Frontend", command=self.abrir_frontend, bootstyle="info-outline", width=10)
+            # No se hace grid inicialmente, se mostrará solo cuando se detecte carpeta frontend
 
             #parte principal
             archivos_frame = tb.LabelFrame(
@@ -173,11 +185,14 @@ class usuAdminMain:
             #botones
             tb.Button(barra_accion, text="Seleccionar Todos", command=self.seleccionar_todos, bootstyle="success-outline").pack(side="left", padx=8) #verder borde
             tb.Button(barra_accion, text="Deseleccionar", command=self.deseleccionar_todos, bootstyle="secondary-outline").pack(side="left", padx=7) #gris borde
-            self.btn_validar_auto = tb.Button(barra_accion, text="Validar", command=self.validar_seleccionados, bootstyle="warning-outline", state="disabled")
+            self.btn_validar_auto = tb.Button(barra_accion, text="Validar", command=self.validar_seleccionados, bootstyle="secondary-outline", state="disabled")
             self.btn_validar_auto.pack(side="left", padx=18)
             tb.Button(barra_accion, text="Log de Operaciones 📝", command=self.toggle_log, bootstyle="TButton").pack(side="left", padx=18) #azul
             tb.Button(barra_accion, text="Salir", command=self.salir, bootstyle="danger", width=10).pack(side="right", padx=18) #Rojo
             tb.Button(barra_accion, text="volver", command=self.volver_creden, bootstyle="dark", width=10).pack(side="right", padx=18) #gris
+            
+            # Vincular evento de selección del treeview para activar animación
+            self.tree.bind("<<TreeviewSelect>>", lambda e: self._verificar_seleccion_para_animacion_validar())
 
             self.frame.columnconfigure(0, weight=1)
             self.frame.rowconfigure(1, weight=1)
@@ -186,6 +201,22 @@ class usuAdminMain:
             self.selected_sd_folder = ""
             self.multi_sd_flag = False
             self.repetidos_log = []
+            self.btn_repetidos_animacion_activa = False
+            self.btn_repetidos_animacion_estado = 0  # 0 o 1 para alternar colores
+            self.archivos_no_referenciados = []  # Archivos físicos no referenciados en ningún .txt
+            
+            # Variables para animación del botón validar
+            self.animacion_validar_activa = False
+            self.animacion_validar_estado = 0  # 0 o 1 para alternar colores
+            self.animacion_validar_id = None  # ID del after() para poder cancelarlo
+            
+            # Variables para funcionalidad Frontend
+            self.carpetas_frontend = []  # Lista de carpetas frontend encontradas
+            self.archivos_frontend = []  # Lista de archivos .exe y .dll encontrados
+            self.btn_frontend_visible = False  # Estado de visibilidad del botón
+            self.animacion_frontend_activa = False
+            self.animacion_frontend_estado = 0
+            self.animacion_frontend_id = None
 
         def abrir_Catalog_CTS(self):
             if CatalogacionCTS:
@@ -206,11 +237,13 @@ class usuAdminMain:
             for iid in self.tree.get_children():
                 self.tree.selection_add(iid)
             self.logear_panel("Seleccionados todos los archivos en el listado.")
+            self._verificar_seleccion_para_animacion_validar()
 
         def deseleccionar_todos(self):
             for iid in self.tree.selection():
                 self.tree.selection_remove(iid)
             self.logear_panel("Deseleccionados todos los archivos.")
+            self._verificar_seleccion_para_animacion_validar()
 
         def salir(self):
             self.logear_panel("Aplicación finalizada a solicitud del usuario.")
@@ -219,13 +252,341 @@ class usuAdminMain:
 
         def volver_creden(self):
             self.controlador.mostrar_pantalla_inicio()
+        
+        def _verificar_seleccion_para_animacion_validar(self):
+            """Verifica si hay archivos seleccionados y activa/desactiva la animación del botón validar."""
+            items_seleccionados = len(self.tree.selection())
+            
+            # Solo animar si el botón está habilitado (state="normal") y hay archivos seleccionados
+            estado_boton = str(self.btn_validar_auto['state'])
+            
+            if items_seleccionados > 0 and estado_boton == "normal":
+                # Hay archivos seleccionados y el botón está habilitado - activar animación
+                if not self.animacion_validar_activa:
+                    self._iniciar_animacion_validar()
+            else:
+                # No hay archivos seleccionados o botón deshabilitado - detener animación
+                if self.animacion_validar_activa:
+                    self._detener_animacion_validar()
+        
+        def _iniciar_animacion_validar(self):
+            """Inicia la animación de parpadeo del botón Validar."""
+            if self.animacion_validar_activa:
+                return  # Ya está activa
+            
+            self.animacion_validar_activa = True
+            self._animar_boton_validar()
+        
+        def _detener_animacion_validar(self):
+            """Detiene la animación del botón y lo restaura a su estado normal."""
+            self.animacion_validar_activa = False
+            
+            # Cancelar el after() pendiente si existe
+            if self.animacion_validar_id is not None:
+                try:
+                    self.app_root.after_cancel(self.animacion_validar_id)
+                except:
+                    pass
+                self.animacion_validar_id = None
+            
+            # Restaurar el botón a su estilo normal solo si sigue existiendo
+            try:
+                if self.btn_validar_auto.winfo_exists():
+                    estado_actual = str(self.btn_validar_auto['state'])
+                    if estado_actual == "normal":
+                        self.btn_validar_auto.configure(bootstyle="secondary-outline")
+                    # Si está disabled, mantener el estilo que tenga
+            except:
+                pass
+        
+        def _animar_boton_validar(self):
+            """Alterna el color del botón para crear efecto de parpadeo."""
+            if not self.animacion_validar_activa:
+                return
+            
+            try:
+                if not self.btn_validar_auto.winfo_exists():
+                    self.animacion_validar_activa = False
+                    return
+                
+                # Alternar entre dos estilos
+                if self.animacion_validar_estado == 0:
+                    nuevo_estilo = "success"
+                    self.animacion_validar_estado = 1
+                else:
+                    nuevo_estilo = "success-outline"
+                    self.animacion_validar_estado = 0
+                
+                self.btn_validar_auto.config(bootstyle=nuevo_estilo)
+                
+                # Llamar nuevamente después de 500ms
+                self.animacion_validar_id = self.app_root.after(500, self._animar_boton_validar)
+            except Exception as e:
+                self.animacion_validar_activa = False
+        
+        def _detectar_carpetas_frontend(self):
+            """Detecta carpetas llamadas 'frontend' (case-insensitive) en las subcarpetas del SD seleccionado."""
+            self.carpetas_frontend = []
+            self.archivos_frontend = []
+            
+            if not self.selected_sd_folder or not os.path.exists(self.selected_sd_folder):
+                self.logear_panel("⚠️ No hay carpeta seleccionada o no existe")
+                return
+            
+            self.logear_panel(f"🔍 Buscando carpetas 'frontend' en: {self.selected_sd_folder}")
+            carpetas_totales_revisadas = 0
+            
+            # Buscar recursivamente carpetas llamadas 'frontend'
+            for root, dirs, files in os.walk(self.selected_sd_folder):
+                carpetas_totales_revisadas += len(dirs)
+                for dir_name in dirs:
+                    # Log de todas las carpetas encontradas para debug
+                    if 'front' in dir_name.lower():
+                        self.logear_panel(f"  📁 Carpeta con 'front': {dir_name} en {root}")
+                    
+                    if dir_name.lower() == 'frontend':
+                        frontend_path = os.path.join(root, dir_name)
+                        self.carpetas_frontend.append(frontend_path)
+                        self.logear_panel(f"✅ Carpeta frontend detectada: {frontend_path}")
+                        
+                        # Buscar archivos .exe y .dll en esta carpeta frontend
+                        for fe_root, _, fe_files in os.walk(frontend_path):
+                            for fe_file in fe_files:
+                                if fe_file.lower().endswith(('.exe', '.dll')):
+                                    file_path = os.path.join(fe_root, fe_file)
+                                    rel_path = os.path.relpath(file_path, self.selected_sd_folder)
+                                    version = self._obtener_version_archivo(file_path)
+                                    
+                                    self.archivos_frontend.append({
+                                        'nombre': fe_file,
+                                        'ruta': rel_path,
+                                        'ruta_completa': file_path,
+                                        'version': version
+                                    })
+            
+            self.logear_panel(f"📊 Total de carpetas revisadas: {carpetas_totales_revisadas}")
+            
+            # Mostrar/ocultar botón Frontend según detección
+            if self.carpetas_frontend:
+                self.logear_panel(f"✅ Se encontraron {len(self.carpetas_frontend)} carpeta(s) frontend con {len(self.archivos_frontend)} archivo(s) .exe/.dll")
+                self._mostrar_boton_frontend()
+            else:
+                self.logear_panel(f"❌ No se encontraron carpetas 'frontend' (revisadas {carpetas_totales_revisadas} carpetas)")
+                self._ocultar_boton_frontend()
+        
+        def _obtener_version_archivo(self, filepath):
+            """Obtiene la versión de un archivo .exe o .dll usando win32api."""
+            if not WIN32_AVAILABLE:
+                return "N/A (win32api no disponible)"
+            
+            try:
+                # Obtener información de versión del archivo
+                info = win32api.GetFileVersionInfo(filepath, "\\")
+                
+                # Verificar que info sea un diccionario
+                if not isinstance(info, dict):
+                    return "N/A (formato no válido)"
+                
+                # Extraer los números de versión
+                ms = info.get('FileVersionMS', 0)
+                ls = info.get('FileVersionLS', 0)
+                
+                # Construir versión en formato X.X.X.X
+                version = f"{win32api.HIWORD(ms)}.{win32api.LOWORD(ms)}.{win32api.HIWORD(ls)}.{win32api.LOWORD(ls)}"
+                return version
+            except Exception as e:
+                return f"N/A ({str(e)[:25]})"
+        
+        def _mostrar_boton_frontend(self):
+            """Muestra el botón Frontend en la barra superior y activa su animación."""
+            self.logear_panel(f"🔧 Intentando mostrar botón Frontend (visible actual: {self.btn_frontend_visible})")
+            if not self.btn_frontend_visible:
+                # Ajustar el grid para que quepa el botón Frontend
+                # Columna 4 para el botón Frontend (al final de la barra)
+                self.btn_frontend.grid(row=0, column=4, padx=(3, 6), sticky="ew")
+                self.btn_frontend_visible = True
+                self.logear_panel(f"✅ Botón Frontend mostrado en columna 4")
+                self._iniciar_animacion_frontend()
+            else:
+                self.logear_panel(f"ℹ️ Botón Frontend ya estaba visible")
+        
+        def _ocultar_boton_frontend(self):
+            """Oculta el botón Frontend y detiene su animación."""
+            if self.btn_frontend_visible:
+                self.btn_frontend.grid_remove()
+                self.btn_frontend_visible = False
+                self._detener_animacion_frontend()
+        
+        def _iniciar_animacion_frontend(self):
+            """Inicia la animación del botón Frontend."""
+            self.logear_panel(f"🎬 Iniciando animación del botón Frontend")
+            if not self.animacion_frontend_activa:
+                self.animacion_frontend_activa = True
+                self._animar_boton_frontend()
+            else:
+                self.logear_panel(f"ℹ️ Animación ya estaba activa")
+        
+        def _detener_animacion_frontend(self):
+            """Detiene la animación del botón Frontend."""
+            if self.animacion_frontend_activa:
+                self.animacion_frontend_activa = False
+                if self.animacion_frontend_id:
+                    self.app_root.after_cancel(self.animacion_frontend_id)
+                    self.animacion_frontend_id = None
+                self.btn_frontend.config(bootstyle="info-outline")
+        
+        def _animar_boton_frontend(self):
+            """Alterna el color del botón Frontend para crear efecto titilante."""
+            if not self.animacion_frontend_activa:
+                return
+            
+            # Alternar entre dos estilos llamativos
+            if self.animacion_frontend_estado == 0:
+                nuevo_estilo = "info"
+                self.animacion_frontend_estado = 1
+            else:
+                nuevo_estilo = "warning"
+                self.animacion_frontend_estado = 0
+            
+            self.btn_frontend.config(bootstyle=nuevo_estilo)
+            
+            # Llamar nuevamente después de 500ms
+            self.animacion_frontend_id = self.app_root.after(500, self._animar_boton_frontend)
+        
+        def abrir_frontend(self):
+            """Abre una ventana mostrando los archivos frontend detectados."""
+            if not self.archivos_frontend:
+                messagebox.showinfo(
+                    "Sin archivos Frontend",
+                    "No se encontraron archivos .exe o .dll en las carpetas frontend.",
+                    parent=self.frame
+                )
+                return
+            
+            # Crear ventana de visualización
+            ventana = tb.Toplevel(self.frame)
+            ventana.title(f"Archivos Frontend - {len(self.archivos_frontend)} archivo(s)")
+            ventana.geometry("900x500")
+            ventana.transient(self.frame)
+            
+            # Frame principal
+            main_frame = tb.Frame(ventana, padding=10)
+            main_frame.pack(fill="both", expand=True)
+            
+            # Label informativo
+            info_label = tb.Label(
+                main_frame,
+                text=f"Se encontraron {len(self.carpetas_frontend)} carpeta(s) frontend con {len(self.archivos_frontend)} archivo(s)",
+                font=("Segoe UI", 10, "bold")
+            )
+            info_label.pack(pady=(0, 10))
+            
+            # Frame para el Treeview
+            tree_frame = tb.Frame(main_frame)
+            tree_frame.pack(fill="both", expand=True)
+            
+            # Treeview con columnas
+            columns = ("Nombre", "Ruta", "Versión")
+            tree = tb.Treeview(
+                tree_frame,
+                columns=columns,
+                show="headings",
+                bootstyle="primary"
+            )
+            
+            tree.heading("Nombre", text="Nombre")
+            tree.column("Nombre", width=200, anchor="w")
+            tree.heading("Ruta", text="Ruta")
+            tree.column("Ruta", width=450, anchor="w")
+            tree.heading("Versión", text="Versión")
+            tree.column("Versión", width=150, anchor="center")
+            
+            tree.pack(side="left", fill="both", expand=True)
+            
+            # Scrollbars
+            tree_vscroll = tb.Scrollbar(tree_frame, orient="vertical", command=tree.yview, bootstyle="info-round")
+            tree_vscroll.pack(side="right", fill="y")
+            tree.configure(yscrollcommand=tree_vscroll.set)
+            
+            # Llenar el Treeview con los archivos
+            for idx, archivo in enumerate(self.archivos_frontend):
+                tag = "alt" if idx % 2 == 1 else ""
+                tree.insert(
+                    "",
+                    "end",
+                    values=(archivo['nombre'], archivo['ruta'], archivo['version']),
+                    tags=(tag,)
+                )
+            
+            tree.tag_configure('alt', background="#f3f9fb")
+            
+            # Frame para botones
+            button_frame = tb.Frame(main_frame)
+            button_frame.pack(fill="x", pady=(10, 0))
+            
+            # Botón para exportar a archivo
+            def exportar_lista():
+                try:
+                    carpeta_frontend = r"C:\ZetaOne\Frontend"
+                    os.makedirs(carpeta_frontend, exist_ok=True)
+                    
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    nombre_archivo = f"archivos_frontend_{timestamp}.txt"
+                    ruta_archivo = os.path.join(carpeta_frontend, nombre_archivo)
+                    
+                    with open(ruta_archivo, 'w', encoding='utf-8') as f:
+                        f.write(f"--- Archivos Frontend Detectados ---\\n")
+                        f.write(f"Fecha: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\\n")
+                        f.write(f"Carpeta Escaneada: {self.selected_sd_folder}\\n")
+                        f.write(f"Carpetas frontend encontradas: {len(self.carpetas_frontend)}\\n")
+                        f.write("-" * 80 + "\\n\\n")
+                        
+                        for archivo in self.archivos_frontend:
+                            f.write(f"Nombre: {archivo['nombre']}\\n")
+                            f.write(f"Ruta: {archivo['ruta']}\\n")
+                            f.write(f"Versión: {archivo['version']}\\n")
+                            f.write("-" * 80 + "\\n")
+                    
+                    messagebox.showinfo(
+                        "Exportación exitosa",
+                        f"Lista exportada a:\\n{ruta_archivo}",
+                        parent=ventana
+                    )
+                except Exception as e:
+                    messagebox.showerror(
+                        "Error al exportar",
+                        f"No se pudo exportar la lista:\\n{str(e)}",
+                        parent=ventana
+                    )
+            
+            btn_exportar = tb.Button(
+                button_frame,
+                text="📄 Exportar Lista",
+                command=exportar_lista,
+                bootstyle="success-outline"
+            )
+            btn_exportar.pack(side="left", padx=5)
+            
+            btn_cerrar = tb.Button(
+                button_frame,
+                text="Cerrar",
+                command=ventana.destroy,
+                bootstyle="secondary"
+            )
+            btn_cerrar.pack(side="right", padx=5)
+            
+            # Centrar ventana
+            ventana.update_idletasks()
+            x = (ventana.winfo_screenwidth() // 2) - (ventana.winfo_width() // 2)
+            y = (ventana.winfo_screenheight() // 2) - (ventana.winfo_height() // 2)
+            ventana.geometry(f"+{x}+{y}")
 
         def single_sd(self):
             carpeta = filedialog.askdirectory(title="Seleccionar carpeta SD única")
             if carpeta:
                 self.selected_sd_folder = carpeta
                 self.multi_sd_flag = False
-                self.sd_label.config(text="SD único: " + carpeta)
+                # self.sd_label.config(text="SD único: " + carpeta)
                 self.logear_panel(f"Seleccionado SD único: {carpeta}")
                 self.escanear_archivos_inner()
 
@@ -234,15 +595,17 @@ class usuAdminMain:
             if carpeta:
                 self.selected_sd_folder = carpeta
                 self.multi_sd_flag = True
-                self.sd_label.config(text="Carpeta con varios SDs: " + carpeta)
+                # self.sd_label.config(text="Carpeta con varios SDs: " + carpeta)
                 self.logear_panel(f"Seleccionada carpeta multi-SD: {carpeta}")
                 self.escanear_archivos_inner()
 
         def escanear_archivos_inner(self):
             # --- INICIO: Resetear estado del flujo ---
             self.btn_validar_auto.config(state="disabled")
+            self._detener_animacion_validar()  # Detener animación al resetear
             self.ambientes_panel.set_bloqueo_ambientes_hijos(bloqueado=False)
             self.archivos_del_txt = []
+            self.archivos_no_referenciados = []  # Resetear archivos no referenciados
             
             # --- CORRECCIÓN: Limpiar la grilla antes de agregar nuevos elementos ---
             self.tree.delete(*self.tree.get_children())
@@ -341,17 +704,32 @@ class usuAdminMain:
                 tag = "alt" if idx % 2 == 1 else ""
                 self.tree.insert("", "end", iid=str(idx), values=(a['nombre_archivo'], ruta_corta, fecha), tags=(tag,))
             self.tree.tag_configure('alt', background="#f3f9fb")
+            self.tree.tag_configure('no_referenciado', background="#ffcccc")  # Rojo claro para no referenciados
             self.logear_panel(f"Escaneados {len(self.archivos_unicos)} archivos únicos. Repetidos: {len(self.repetidos_log)}.")
+
+            # --- CAMBIO: Activar animación del botón si hay repetidos ---
+            if len(self.repetidos_log) > 0:
+                self._activar_animacion_boton_repetidos()
+            else:
+                self._desactivar_animacion_boton_repetidos()
+            # --- FIN DEL CAMBIO ---
 
             # --- CORRECCIÓN: Se restaura la validación automática contra el .txt ---
             self.logear_panel("Iniciando validación automática de archivos .txt...")
-            messagebox.showinfo(
-                "Validación Automática",
-                "Se están validando los archivos listados en la carpeta con el/los archivo(s) .txt encontrados. Por favor, espere...",
-                parent=self.frame
-            )
             threading.Thread(target=self._validacion_txt_thread, daemon=True).start()
             # --- FIN DE LA CORRECCIÓN ---
+            
+            # --- NUEVO: Detectar carpetas frontend después de cargar archivos ---
+            self.logear_panel("Buscando carpetas frontend...")
+            self._detectar_carpetas_frontend()
+            # --- FIN NUEVO ---
+            
+            # --- CAMBIO: Activar animación del botón si hay repetidos ---
+            if len(self.repetidos_log) > 0:
+                self._activar_animacion_boton_repetidos()
+            else:
+                self._desactivar_animacion_boton_repetidos()
+            # --- FIN DEL CAMBIO ---
 
         def get_tooltip_for_row(self, iid):
             try:
@@ -360,6 +738,46 @@ class usuAdminMain:
             except (ValueError, IndexError):
                 return ""
             return ""
+        
+        def _activar_animacion_boton_repetidos(self):
+            """Activa la animación (titilante) del botón de repetidos."""
+            if not self.btn_repetidos_animacion_activa:
+                self.btn_repetidos_animacion_activa = True
+                self._animar_boton_repetidos()
+        
+        def _desactivar_animacion_boton_repetidos(self):
+            """Desactiva la animación del botón de repetidos."""
+            self.btn_repetidos_animacion_activa = False
+            self.btn_repetidos.config(bootstyle="dark-outline-button")
+        
+        def _animar_boton_repetidos(self):
+            """Alterna el estilo del botón entre warning y danger para crear efecto titilante."""
+            if not self.btn_repetidos_animacion_activa:
+                return
+            
+            # Alternar entre dos estilos llamativos usando variable de estado
+            if self.btn_repetidos_animacion_estado == 0:
+                nuevo_estilo = "warning"
+                self.btn_repetidos_animacion_estado = 1
+            else:
+                nuevo_estilo = "danger"
+                self.btn_repetidos_animacion_estado = 0
+            
+            self.btn_repetidos.config(bootstyle=nuevo_estilo)
+            
+            # Llamar nuevamente después de 500ms para crear efecto titilante
+            self.app_root.after(500, self._animar_boton_repetidos)
+        
+        def _activar_animacion_boton_repetidos(self):
+            """Activa la animación (titilante) del botón de repetidos."""
+            if not self.btn_repetidos_animacion_activa:
+                self.btn_repetidos_animacion_activa = True
+                self._animar_boton_repetidos()
+        
+        def _desactivar_animacion_boton_repetidos(self):
+            """Desactiva la animación del botón de repetidos."""
+            self.btn_repetidos_animacion_activa = False
+            self.btn_repetidos.config(bootstyle="dark-outline-button")
 
         def ver_repetidos(self):
             if not hasattr(self, "repetidos_log") or not self.repetidos_log:
@@ -396,12 +814,23 @@ class usuAdminMain:
 
                 if not txt_files:
                     # No hay .txt, el flujo no puede continuar como automático
-                    self.app_root.after(0, self._finalizar_validacion_txt, "No se encontraron archivos .txt. No se puede realizar la validación automática.", True, False)
+                    self.app_root.after(0, self._finalizar_validacion_txt, "No se encontraron archivos .txt. No se puede realizar la validación automática.", True, False, None)
                     return
 
-                # 2. Leer todas las rutas de los .txt
-                nombres_archivo_en_txt = []
+                # 2. Procesar cada .txt individualmente para detectar discrepancias
+                # Obtener nombres de archivo de la grilla en ORDEN (archivos .sp, .sql, .tg)
+                archivos_grid_ordenados = [a for a in self.archivos_unicos if a['nombre_archivo'].lower().endswith(('.sp', '.sql', '.tg'))]
+                nombres_en_grid_orden = [a['nombre_archivo'] for a in archivos_grid_ordenados]
+                nombres_en_grid = set(nombres_en_grid_orden)
+                # Crear diccionario que mapea nombre de archivo a ruta relativa
+                archivo_a_ruta = {a['nombre_archivo']: a.get('rel_path', a['nombre_archivo']) for a in archivos_grid_ordenados}
+                
+                # Diccionario para almacenar archivos de cada txt
+                archivos_por_txt = {}
+                todos_archivos_txt = []
+                
                 for txt_file in txt_files:
+                    archivos_este_txt = []
                     with open(txt_file, 'r', encoding='utf-8', errors='ignore') as f:
                         # --- CAMBIO: Omitir la primera línea del archivo .txt ---
                         try:
@@ -410,50 +839,138 @@ class usuAdminMain:
                             continue # Si el archivo está vacío o solo tiene el título, pasa al siguiente.
 
                         for line in f:
-                            cleaned_line = line.strip().replace('\\', '/')
-                            if cleaned_line:
-                                # --- CAMBIO: Extraer solo el nombre del archivo de la ruta ---
-                                nombre_archivo = os.path.basename(cleaned_line)
-                                # --- CAMBIO: Ignorar archivos .sqr listados en el .txt ---
-                                if nombre_archivo.lower().endswith('.sqr'):
-                                    continue
+                            cleaned_line = line.strip()
+                            if not cleaned_line:
+                                continue
+                            
+                            # --- VALIDACIÓN INTELIGENTE: Solo procesar líneas que sean rutas de archivos válidas ---
+                            # Verificar que termine en extensiones válidas (.sp, .sql, .tg)
+                            if not cleaned_line.lower().endswith(('.sp', '.sql', '.tg', '.sqr')):
+                                # No es una ruta de archivo válida, ignorar
+                                continue
+                            
+                            # Ignorar archivos .sqr
+                            if cleaned_line.lower().endswith('.sqr'):
+                                continue
+                            
+                            # Extraer el nombre del archivo de la ruta (puede tener \ o /)
+                            nombre_archivo = os.path.basename(cleaned_line)
+                            
+                            # Validar que el nombre extraído sea válido (no vacío y con extensión)
+                            if not nombre_archivo or '.' not in nombre_archivo:
+                                continue
+                            
+                            # Validación adicional: verificar que contenga caracteres típicos de nombres de archivo
+                            if not any(c.isalnum() for c in nombre_archivo):
+                                continue
 
-                                nombres_archivo_en_txt.append(nombre_archivo)
+                            # Agregar solo el NOMBRE del archivo
+                            archivos_este_txt.append(nombre_archivo)
+                            todos_archivos_txt.append(nombre_archivo)
+                    
+                    archivos_por_txt[txt_file] = archivos_este_txt
                 
-                self.archivos_del_txt = nombres_archivo_en_txt # Guardar para el procesamiento final
+                self.archivos_del_txt = todos_archivos_txt # Guardar para el procesamiento final
 
-                # 3. Obtener nombres de archivo de la grilla (archivos .sp, .sql, .tg)
-                nombres_en_grid = {a['nombre_archivo'] for a in self.archivos_unicos}
-                nombres_en_txt_set = set(self.archivos_del_txt)
+                # 3. Analizar discrepancias por cada .txt
+                txt_con_discrepancias = []
+                nombres_en_grid_restantes = set(nombres_en_grid)
+                
+                for txt_file, archivos_txt in archivos_por_txt.items():
+                    archivos_txt_set = set(archivos_txt)
+                    # Archivos en este txt que NO están en la carpeta
+                    faltantes = list(archivos_txt_set - nombres_en_grid)
+                    
+                    # Validar ORDEN: comparar el orden del txt con el orden de la grilla
+                    # Filtrar solo archivos que están en ambos
+                    archivos_comunes_txt = [a for a in archivos_txt if a in nombres_en_grid]
+                    archivos_comunes_grid = [a for a in nombres_en_grid_orden if a in archivos_txt_set]
+                    
+                    orden_incorrecto = []
+                    if archivos_comunes_txt != archivos_comunes_grid:
+                        # El orden no coincide
+                        for idx, archivo in enumerate(archivos_comunes_txt):
+                            if idx >= len(archivos_comunes_grid) or archivo != archivos_comunes_grid[idx]:
+                                posicion_txt = idx + 1
+                                if archivo in archivos_comunes_grid:
+                                    posicion_grid = archivos_comunes_grid.index(archivo) + 1
+                                    orden_incorrecto.append(f"{archivo} (en .txt: posición {posicion_txt}, en carpeta: posición {posicion_grid})")
+                    
+                    if faltantes or orden_incorrecto:
+                        txt_con_discrepancias.append({
+                            'ruta': txt_file,
+                            'faltantes': faltantes,
+                            'orden_incorrecto': orden_incorrecto
+                        })
+                    
+                    # Quitar los archivos que sí están en este txt
+                    nombres_en_grid_restantes -= archivos_txt_set
 
-                # 4. Realizar el cruce
-                archivos_ok_count = len(nombres_en_grid.intersection(nombres_en_txt_set))
-                en_grid_no_en_txt = list(nombres_en_grid - nombres_en_txt_set)
-                en_txt_no_en_grid = list(nombres_en_txt_set - nombres_en_grid)
-
-                # 5. Preparar mensaje de resumen
-                discrepancias = bool(en_grid_no_en_txt or en_txt_no_en_grid)
-                if not discrepancias:
+                # 4. Preparar mensaje de resumen
+                # Convertir los archivos no referenciados a lista con rutas
+                en_grid_no_en_txt = [{'nombre': nombre, 'ruta': archivo_a_ruta.get(nombre, nombre)} 
+                                     for nombre in nombres_en_grid_restantes]
+                hay_discrepancias = bool(txt_con_discrepancias or en_grid_no_en_txt)
+                
+                # Guardar la lista de nombres de archivos no referenciados para marcarlos en rojo
+                self.archivos_no_referenciados = list(nombres_en_grid_restantes)
+                
+                if not hay_discrepancias:
                     resumen = "Todos los archivos detectados en la carpeta coinciden exactamente con los listados en el archivo .txt."
                 else:
-                    resumen = f"""Validación completada con discrepancias.
-Archivos en carpeta referenciados en el .txt: {archivos_ok_count}.
-
-Archivos en carpeta NO referenciados en el .txt:
-{chr(10).join(f'- {f}' for f in en_grid_no_en_txt) if en_grid_no_en_txt else 'Ninguno.'}
-
-Archivos en el .txt NO encontrados físicamente en la carpeta:
-{chr(10).join(f'- {f}' for f in en_txt_no_en_grid) if en_txt_no_en_grid else 'Ninguno.'}
-"""
+                    resumen_partes = ["Validación completada con discrepancias.\n"]
+                    
+                    # Mostrar archivos en carpeta NO referenciados en ningún .txt
+                    if en_grid_no_en_txt:
+                        resumen_partes.append("Archivos en carpeta NO referenciados en ningún .txt:")
+                        for archivo_info in en_grid_no_en_txt:
+                            resumen_partes.append(f"-  {archivo_info['nombre']}")
+                            resumen_partes.append(f"   Ruta: {archivo_info['ruta']}")
+                        resumen_partes.append("")
+                    
+                    # Mostrar discrepancias por cada .txt
+                    if txt_con_discrepancias:
+                        for txt_info in txt_con_discrepancias:
+                            resumen_partes.append(f"Archivo .txt: {txt_info['ruta']}")
+                            
+                            if txt_info.get('orden_incorrecto'):
+                                resumen_partes.append("Archivos en ORDEN INCORRECTO:")
+                                resumen_partes.extend([f'-  {f}' for f in txt_info['orden_incorrecto']])
+                            
+                            if txt_info.get('faltantes'):
+                                resumen_partes.append("Archivos en el .txt NO encontrados físicamente en la carpeta:")
+                                resumen_partes.extend([f'-  {f}' for f in txt_info['faltantes']])
+                            
+                            resumen_partes.append("")
+                    
+                    resumen = "\n".join(resumen_partes).rstrip()
+                
+                # 5. Marcar visualmente los archivos no referenciados en el Treeview
+                if self.archivos_no_referenciados:
+                    self.app_root.after(0, self._marcar_archivos_no_referenciados)
                 
                 # 6. Enviar el resultado al hilo principal
-                self.app_root.after(0, self._finalizar_validacion_txt, resumen, discrepancias, True)
+                self.app_root.after(0, self._finalizar_validacion_txt, resumen, hay_discrepancias, True, txt_files)
 
             except Exception as e:
                 error_msg = f"Ocurrió un error inesperado durante la validación de archivos .txt: {e}"
-                self.app_root.after(0, self._finalizar_validacion_txt, error_msg, True, False)
+                self.app_root.after(0, self._finalizar_validacion_txt, error_msg, True, False, None)
 
-        def _finalizar_validacion_txt(self, resumen: str, hay_discrepancias: bool, exito: bool):
+        def _marcar_archivos_no_referenciados(self):
+            """Marca visualmente en rojo los archivos no referenciados en el Treeview."""
+            for iid in self.tree.get_children():
+                idx = int(iid)
+                if idx < len(self.archivos_unicos):
+                    archivo = self.archivos_unicos[idx]
+                    if archivo['nombre_archivo'] in self.archivos_no_referenciados:
+                        # Obtener tags actuales y agregar 'no_referenciado'
+                        tags_actuales = list(self.tree.item(iid, 'tags'))
+                        if 'no_referenciado' not in tags_actuales:
+                            tags_actuales.append('no_referenciado')
+                            self.tree.item(iid, tags=tuple(tags_actuales))
+            self.logear_panel(f"Marcados {len(self.archivos_no_referenciados)} archivos no referenciados en rojo.")
+        
+        def _finalizar_validacion_txt(self, resumen: str, hay_discrepancias: bool, exito: bool, txt_files=None):
             """
             (Main Thread) Muestra el resumen, bloquea ambientes y habilita el botón final.
             """
@@ -480,27 +997,45 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
             except Exception as e:
                 error_msg = f"No se pudo guardar el archivo de resultado de validación: {e}"
                 self.logear_panel(error_msg)
-                messagebox.showerror("Error de Archivo", error_msg, parent=self.frame)
             # --- FIN DEL CAMBIO ---
             
-            if hay_discrepancias:
-                messagebox.showwarning("Validación con Discrepancias", resumen, parent=self.frame)
-            else:
-                messagebox.showinfo("Validación Exitosa", resumen, parent=self.frame)
+            # Mostrar mensaje de resultado de validación
+            if exito:
+                if hay_discrepancias:
+                    # Mostrar mensaje con diferencias detalladas
+                    messagebox.showwarning(
+                        "Validación con Diferencias",
+                        f"Se validaron los archivos listados con el/los archivo(s) .txt encontrados.\n\n{resumen}",
+                        parent=self.frame
+                    )
+                else:
+                    # Validación exitosa sin diferencias
+                    messagebox.showinfo(
+                        "Validación Exitosa",
+                        f"Se validaron los archivos listados con el/los archivo(s) .txt encontrados exitosamente.\n\nTodos los archivos coinciden.",
+                        parent=self.frame
+                    )
 
             # --- CAMBIO: Habilitar botón y bloquear ambientes solo si la validación fue exitosa ---
             if exito:
                 self.ambientes_panel.set_bloqueo_ambientes_hijos(bloqueado=True)
                 self.btn_validar_auto.config(state="normal")
                 self.logear_panel("Botón 'Validar' habilitado.")
+                # Verificar si hay archivos seleccionados para activar animación
+                self._verificar_seleccion_para_animacion_validar()
             else:
                 # Si hubo un error (ej. no se encontró .txt), mantener el botón deshabilitado
                 self.btn_validar_auto.config(state="disabled")
                 self.logear_panel("La validación no fue exitosa. El flujo automático se detiene.")
+                # Asegurar que la animación esté detenida
+                self._detener_animacion_validar()
 
         def validar_seleccionados(self):
             # Ahora esta función es el punto de entrada para el procesamiento final
             print(">>> [main] 1. validar_seleccionados() INICIADO")
+            
+            # Detener la animación del botón al hacer clic
+            self._detener_animacion_validar()
             
             # 1. Obtener macroambientes seleccionados
             ambientes_seleccionados_idx = self.ambientes_panel.get_seleccionados()
@@ -536,46 +1071,55 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
             self._abrir_dialogo_validacion()
 
         def _abrir_dialogo_validacion(self):
-            """Abre el diálogo de validación y espera su resultado."""
-            dialogo = ValidacionAutomatizadaDialog(self.frame, self.plan_para_reabrir, self.macros_para_reabrir)
-            self.frame.wait_window(dialogo)
-            print(f">>> [main] 6. Diálogo de validación cerrado. Resultado: '{dialogo.resultado}'")
+            """Abre el diálogo de validación con callback para ejecutar catalogación."""
+            self.dialogo_validacion = ValidacionAutomatizadaDialog(
+                self.frame, 
+                self.plan_para_reabrir, 
+                self.macros_para_reabrir,
+                on_ejecutar_callback=self._iniciar_catalogacion_desde_dialogo
+            )
+            # No esperamos que se cierre, el diálogo llama al callback cuando se ejecuta
+            print(f">>> [main] 6. Diálogo de validación abierto con callback.")
 
-            if dialogo.resultado == "ejecutar":
-                self.logear_panel("Confirmación de catalogación aceptada. Iniciando proceso...")
-                print(">>> [main] 7. El usuario confirmó la catalogación. Pidiendo descripción...")
-                
-                descripcion = simpledialog.askstring(
-                    "Descripción de Cambios", 
-                    "Ingrese una breve descripción para este lote de catalogación:",
-                    parent=self.frame
-                )
-                if descripcion is None: # Si el usuario presiona cancelar en la descripción
-                    self.logear_panel("Catalogación cancelada. Reabriendo diálogo de validación...")
-                    print(">>> [main] 8. Catalogación cancelada. Reabriendo validación...")
-                    self.app_root.after(100, self._abrir_dialogo_validacion) # Reabre el diálogo
-                    return
+        def _iniciar_catalogacion_desde_dialogo(self, plan_ejecutar):
+            """Callback que se ejecuta cuando el usuario hace clic en Ejecutar Catalogación."""
+            print(">>> [main] 7. Callback de catalogación recibido.")
+            self.logear_panel("Confirmación de catalogación aceptada. Iniciando proceso...")
+            
+            descripcion = simpledialog.askstring(
+                "Descripción de Cambios", 
+                "Ingrese una breve descripción para este lote de catalogación:",
+                parent=self.frame
+            )
+            if descripcion is None:
+                self.logear_panel("Catalogación cancelada.")
+                return
 
-                # --- INICIO: LÓGICA DE LA BARRA DE PROGRESO ---
-                # 1. Crear y mostrar la ventana de progreso
-                progress_dialog = ProgressWindow(self.frame, "Catalogando Archivos")
+            # Crear carpeta de catalogaciones (para pasar a la ventana de resultados)
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            carpeta_catalogaciones = os.path.join("C:\\ZetaOne\\Catalogaciones", f"cataloga{timestamp}")
+            os.makedirs(carpeta_catalogaciones, exist_ok=True)
 
-                # 2. Crear una función de callback para actualizar el progreso
-                def update_progress_callback(current, total, filename):
-                    progress_dialog.update_progress((current / total) * 100, f"({current}/{total}) Catalogando: {filename}...")
-                # --- FIN: LÓGICA DE LA BARRA DE PROGRESO ---
+            # Crear y mostrar la ventana de resultados ANTES de catalogar
+            # Usar dialogo_validacion como padre si existe, sino usar self.frame
+            parent_ventana = self.dialogo_validacion if hasattr(self, 'dialogo_validacion') else self.frame
+            ventana_resultados = VentanaResultadosCatalogacion(parent_ventana, carpeta_catalogaciones)
+            # Guardar referencia a la ventana de resultados
+            self.ventana_resultados_catalogacion = ventana_resultados
+            
+            # Crear y mostrar la ventana de progreso
+            progress_dialog = ProgressWindow(parent_ventana, "Catalogando...")
+            progress_dialog.progress_bar.config(mode='indeterminate')
+            progress_dialog.progress_bar.start()
 
-                final_plan = dialogo.plan_ejecucion
-                print(">>> [main] 9. Lanzando hilo de catalogación (_worker_catalogacion)...")
-                # El worker ahora llamará a _on_catalogacion_finalizada cuando termine.
-                # --- CAMBIO: Pasar la función de progreso y la ventana al worker ---
-                threading.Thread(target=self._worker_catalogacion, args=(final_plan, descripcion, update_progress_callback, progress_dialog), daemon=True).start()
+            def update_progress_callback(current, total, filename):
+                progress_dialog.update_progress(current, f"({current}/{total}) Catalogando: {filename}...")
 
-            elif dialogo.resultado == "finalizar":
-                self.logear_panel("Proceso de validación/catalogación finalizado por el usuario.")
-            else: # "cancelar"
-                self.logear_panel("Proceso cancelado. Reabriendo diálogo de validación...")
-                self.app_root.after(100, self._abrir_dialogo_validacion) # Reabre el diálogo
+            print(">>> [main] 9. Lanzando hilo de catalogación (_worker_catalogacion)...")
+            threading.Thread(target=self._worker_catalogacion, 
+                           args=(plan_ejecutar, descripcion, update_progress_callback, 
+                                progress_dialog, ventana_resultados, carpeta_catalogaciones), 
+                           daemon=True).start()
 
         def construir_plan_ejecucion(self, archivos, macros_seleccionados):
             """
@@ -655,7 +1199,7 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
             
             return plan
         
-        def _worker_catalogacion(self, plan, descripcion, progress_callback, progress_dialog):
+        def _worker_catalogacion(self, plan, descripcion, progress_callback, progress_dialog, ventana_resultados=None, carpeta_catalogaciones=None):
             """
             (Worker Thread) Ejecuta el plan de catalogación y muestra los resultados.
             """
@@ -668,53 +1212,68 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
                     self.app_root.after(0, self.logear_panel, msg)
             # --- FIN DE LA SOLUCIÓN ---
             
+            # Callback para agregar resultados progresivamente
+            def agregar_resultado_callback(resultado):
+                if ventana_resultados:
+                    self.app_root.after(0, ventana_resultados.agregar_resultado, resultado)
+            
             try: # <--- ADDED TRY BLOCK
                 # Bloquear UI
                 self.app_root.after(0, self.btn_validar_auto.config, {"state": "disabled"})
                 
                 # --- CORRECCIÓN: Pasar la función de log segura en lugar de la directa ---
                 print(">>> [worker] 11. Llamando a catalogar_plan_ejecucion...")
-                # --- CAMBIO: Pasar la función de progreso a la lógica de catalogación ---
-                resultados = catalogar_plan_ejecucion(plan, descripcion, log_func=log_thread_safe, progress_func=progress_callback)
+                # --- CAMBIO: Pasar la función de progreso y el callback de resultados ---
+                resultados, carpeta_cat = catalogar_plan_ejecucion(plan, descripcion, 
+                                                                    log_func=log_thread_safe, 
+                                                                    progress_func=progress_callback,
+                                                                    resultado_callback=agregar_resultado_callback,
+                                                                    carpeta_destino=carpeta_catalogaciones)
                 
                 # --- REQUERIMIENTO: Guardar el resultado en un archivo de texto ---
-                # --- CAMBIO: Pasar el nombre de usuario logueado ---
-                self._guardar_resultado_catalogacion_en_archivo(resultados, descripcion, self.controlador.usuario_logueado, log_thread_safe)
+                # --- CAMBIO: Pasar el nombre de usuario logueado y la carpeta de catalogación ---
+                self._guardar_resultado_catalogacion_en_archivo(resultados, descripcion, self.controlador.usuario_logueado, log_thread_safe, carpeta_cat)
                 
-                print(">>> [worker] 12. catalogar_plan_ejecucion finalizado. Mostrando resultados...")
-                # --- CAMBIO: Llamar al callback en el hilo principal, pasando la ventana de progreso para cerrarla ---
-                self.app_root.after(0, self._on_catalogacion_finalizada, resultados, progress_dialog)
+                print(">>> [worker] 12. catalogar_plan_ejecucion finalizado.")
+                # --- CAMBIO: Solo cerrar la ventana de progreso, la de resultados ya está visible ---
+                self.app_root.after(0, self._on_catalogacion_finalizada, progress_dialog)
 
 
             except Exception as e: # <--- ADDED EXCEPT BLOCK
                 print(f">>> [worker] ERROR CRÍTICO: {e}\n{traceback.format_exc()}")
                 error_msg = f"ERROR CRÍTICO EN HILO DE CATALOGACIÓN: {str(e)}\n{traceback.format_exc()}"
                 log_thread_safe(error_msg)
-                # --- CAMBIO: Asegurarse de cerrar la ventana de progreso si hay un error ---
+                # --- CAMBIO: Asegurarse de cerrar ambas ventanas si hay un error ---
                 if progress_dialog:
                     self.app_root.after(0, progress_dialog.destroy)
+                if ventana_resultados:
+                    self.app_root.after(0, ventana_resultados.destroy)
                 self.app_root.after(0, lambda: messagebox.showerror("Error Crítico", "La catalogación falló inesperadamente. Revise el log de operaciones.", parent=self.frame))
                 self.app_root.after(0, self.btn_validar_auto.config, {"state": "normal"}) # Asegurarse de que el botón se re-habilite
         
-        def _on_catalogacion_finalizada(self, resultados, progress_dialog):
+        def _on_catalogacion_finalizada(self, progress_dialog):
             """Callback que se ejecuta en el hilo principal después de la catalogación."""
-            # --- CAMBIO: Cerrar la ventana de progreso antes de mostrar los resultados ---
+            # --- CAMBIO: Solo cerrar la ventana de progreso ---
             if progress_dialog:
+                # --- CAMBIO: Detener la animación de la barra antes de cerrar ---
+                progress_dialog.progress_bar.stop()
                 progress_dialog.destroy()
 
             self.btn_validar_auto.config(state="normal")
-            mostrar_resultado_catalogacion(self.frame, resultados)
-            # Después de que el usuario cierre la ventana de resultados, se reabre la de validación.
-            print(">>> [main] 13. El ciclo de catalogación ha terminado. Reabriendo validación...")
-            self._abrir_dialogo_validacion()
+            self.logear_panel("Catalogación finalizada. Revise los resultados.")
+            print(">>> [main] 13. Catalogación completada.")
+            
+            # Mostrar mensaje de catalogación finalizada automáticamente
+            if hasattr(self, 'ventana_resultados_catalogacion') and self.ventana_resultados_catalogacion:
+                self.ventana_resultados_catalogacion.mostrar_mensaje_finalizado()
 
 
-        def _guardar_resultado_catalogacion_en_archivo(self, resultados, descripcion, usuario_app, log_func):
+        def _guardar_resultado_catalogacion_en_archivo(self, resultados, descripcion, usuario_app, log_func, carpeta_catalogaciones):
             """
             (Worker Thread) Guarda el resumen de la catalogación en un archivo de texto.
             """
             try:
-                carpeta_catalogaciones = r"C:\ZetaOne\Catalogaciones"
+                # La carpeta ya fue creada en catalogar_plan_ejecucion
                 os.makedirs(carpeta_catalogaciones, exist_ok=True)
                 
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -730,11 +1289,12 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
                     f.write(f"Descripción del Lote: {descripcion}\n")
                     f.write("-" * 40 + "\n\n")
                     
-                    f.write(f"{'ESTADO':<10} | {'AMBIENTE':<15} | {'RUTA RELATIVA':<40} | {'DETALLE'}\n")
-                    f.write(f"{'-'*10} | {'-'*15} | {'-'*40} | {'-'*50}\n")
+                    f.write(f"{'ESTADO':<10} | {'AMBIENTE':<15} | {'BASE DATOS':<15} | {'RUTA RELATIVA':<40} | {'DETALLE'}\n")
+                    f.write(f"{'-'*10} | {'-'*15} | {'-'*15} | {'-'*40} | {'-'*50}\n")
 
                     for res in resultados:
-                        f.write(f"{res['estado']:<10} | {res['ambiente']:<15} | {res.get('ruta', 'N/A'):<40} | {res['detalle']}\n")
+                        bd_usada = res.get('base_datos', 'N/A')
+                        f.write(f"{res['estado']:<10} | {res['ambiente']:<15} | {bd_usada:<15} | {res.get('ruta', 'N/A'):<40} | {res['detalle']}\n")
                 
                 log_func(f"Resultado de la catalogación guardado en: {ruta_archivo}")
             except Exception as e:
@@ -982,11 +1542,6 @@ Archivos en el .txt NO encontrados físicamente en la carpeta:
             
             if bloqueado:
                 self.logear_panel("Bloqueando selección de ambientes hijos.")
-                messagebox.showinfo(
-                    "Ambientes Bloqueados",
-                    "La selección de ambientes relacionados ha sido bloqueada. Solo puede elegir ambientes principales.",
-                    parent=self.frame
-                )
             else:
                 self.logear_panel("Desbloqueando todos los ambientes para selección.")
         

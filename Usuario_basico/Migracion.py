@@ -12,9 +12,10 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 
 #Linkeo de ventanas
-from Usuario_basico.migrar_tabla import migrar_tabla, consultar_tabla_e_indice
-from Usuario_basico.migrar_grupo import migrar_grupo, MigracionGruposGUI
-from Usuario_basico.historialConsultas import HistorialConsultasVen, cargar_historial, guardar_historial
+from .migrar_tabla import migrar_tabla, consultar_tabla_e_indice
+# --- CAMBIO: Volver a la importación original ahora que el código está consolidado ---
+from .migrar_grupo import migrar_grupo, MigracionGruposGUI
+from .historialConsultas import HistorialConsultasVen, cargar_historial, guardar_historial
 
 # --- NUEVO WIDGET DE AUTOCOMPLETADO PERSONALIZADO (VERSIÓN DEFINITIVA) ---
 class AutocompleteEntry(tk.Frame):
@@ -355,6 +356,16 @@ class MigracionVentana(tk.Toplevel):
             self.entry_db_origen = entrada_estandar(self.frame_tabla, width=24)
             self.entry_db_origen.grid(row=0, column=1, sticky="w", padx=(2, 20))
 
+        # --- NUEVO: Botón Script SQL para migraciones tabla a tabla ---
+        if "boton_accion" in globals():
+            self.btn_script_sql = boton_accion(
+                self.frame_tabla,
+                texto="Script SQL",
+                comando=self._on_script_sql_tabla,
+                width=12
+            )
+            self.btn_script_sql.grid(row=0, column=2, padx=(2,2), pady=0, sticky="nwe")
+
         # Historial botón
         if "boton_accion" in globals():
             self.btn_historial = boton_accion(
@@ -363,7 +374,7 @@ class MigracionVentana(tk.Toplevel):
                 comando=self.mostrar_ven_historial,
                 width=22
             )
-            self.btn_historial.grid(row=0, column=2, padx=(8,2), pady=0, sticky="nwe")
+            self.btn_historial.grid(row=0, column=3, padx=(8,2), pady=0, sticky="nwe")
 
         if "entrada_estandar" in globals():
             etiqueta_titulo(self.frame_tabla, texto="Tabla:").grid(row=1, column=0, sticky="e")
@@ -398,13 +409,13 @@ class MigracionVentana(tk.Toplevel):
                 comando=self.on_consultar_tabla,
                 width=22
             )
-        self.btn_consultar.grid(row=1, column=2, padx=(8, 2), pady=0, sticky="nwe")
+        self.btn_consultar.grid(row=1, column=3, padx=(8, 2), pady=0, sticky="nwe")
 
         self.btn_limpiar_tabla = boton_rojo(
             self.frame_tabla, texto="Limpiar",
             cursor='hand2', comando=self.limpiar_tabla, width=12
         )
-        self.btn_limpiar_tabla.grid(row=2, column=2, padx=(8,2), pady=(2,0), sticky="we")
+        self.btn_limpiar_tabla.grid(row=2, column=3, padx=(8,2), pady=(2,0), sticky="we")
 
         # --- Bloque GRUPO ---
         self.frame_grupo = tk.LabelFrame(main_panel, text="Grupo de migración", padx=10, pady=10)
@@ -561,7 +572,7 @@ class MigracionVentana(tk.Toplevel):
         
         # Pasar el grupo seleccionado a la nueva ventana
         app = MigracionGruposGUI(self, self.reload_catalogo, json_path=self.json_path_grupo, grupo_inicial=grupo_seleccionado)
-        app.grab_set()
+        # Removido grab_set() para permitir acceso a otras ventanas durante la migración
 
     def reload_catalogo(self):
         self.catalogo = cargar_json(self.json_path_grupo) or []
@@ -578,20 +589,42 @@ class MigracionVentana(tk.Toplevel):
             return
 
         last = self.progress["value"]
-        if percent > last or percent == 0 or percent == 100:
-            self.progress["value"] = percent
-            self.progress_lbl["text"] = f"{percent}%"
+        # Forzamos entero y limitamos entre 0 y 100 para evitar decimales en la UI
+        try:
+            pct = int(round(float(percent)))
+        except Exception:
+            pct = 0
+        pct = max(0, min(100, pct))
+
+        if pct > last or pct == 0 or pct == 100:
+            self.progress["value"] = pct
+            self.progress_lbl["text"] = f"{pct}%"
             self.update_idletasks()
 
     def error_migracion(self, msg):
-        self.log(msg, nivel="error")
-        messagebox.showerror("Error en migración", msg)
-        # --- MEJORA: Cambiar color de la barra a rojo en caso de error ---
-        self.progress.config(bootstyle="danger")
-        self.progress["value"] = 0
-        self.progress_lbl["text"] = ""
-        self.habilitar_botones(True)
-        self.migrando = False
+        # --- SOLUCIÓN: Usar self.after para actualizar la GUI de forma segura desde el hilo ---
+        self.after(0, self._actualizar_gui_en_error, msg)
+
+    def _actualizar_gui_en_error(self, msg):
+        """Función auxiliar que se ejecuta en el hilo principal de la GUI."""
+        try:
+            if not self.winfo_exists():
+                logging.warning("La aplicación ha sido destruida. No se puede actualizar la GUI.")
+                return
+
+            self.log(msg, nivel="error")
+            messagebox.showerror("Error en migración", msg)
+
+            if self.progress.winfo_exists():
+                # Cambiar color de la barra a rojo en caso de error
+                self.progress.config(bootstyle="danger")
+                self.progress["value"] = 0
+                self.progress_lbl["text"] = ""
+
+            self.habilitar_botones(True)  # Habilitar controles
+            self.migrando = False
+        except Exception as e:
+            logging.error(f"Error al actualizar la GUI: {e}")
 
     def toggle_tipo(self):
         if self.tipo_var.get() == "tabla":
@@ -615,27 +648,17 @@ class MigracionVentana(tk.Toplevel):
         self.info_tabla_origen = None
 
     def on_salir(self):
-        """Maneja el cierre de la ventana, asegurando que los hilos terminen."""
+        """Cierra la ventana inmediatamente. Si hay migración, marca cancelación y sale."""
         if self.migrando:
-            resp = messagebox.askyesno(
-                "Confirmar cierre",
-                "Hay una migración en curso. ¿Deseas cancelarla y salir?",
-                parent=self
-            )
-            if not resp:
-                return
-            
-            # Iniciar cierre seguro en un hilo para no bloquear la UI
-            self.log("Cierre solicitado. Cancelando migración en curso...", "warning")
+            # Cancelar sin bloquear y cerrar inmediatamente (rollback ya gestionado en el flujo de migración)
             self.cancelar_migracion = True
-            self.btn_cancelar.config(state="disabled")
-            self.btn_migrar.config(state="disabled")
-            self.btn_salir.config(state="disabled", text="Saliendo...")
-            
-            # Hilo que espera a que la migración termine
-            threading.Thread(target=self._esperar_y_cerrar, daemon=True).start()
-        else:
-            self.destroy()
+            try:
+                self.btn_cancelar.config(state="disabled")
+                self.btn_migrar.config(state="disabled")
+            except Exception:
+                pass
+        # Cerrar la ventana de inmediato siempre
+        self.destroy()
 
     def _esperar_y_cerrar(self):
         """
@@ -814,52 +837,34 @@ class MigracionVentana(tk.Toplevel):
             if not es_seguro:
                 self.error_migracion(f"Condición WHERE no segura: {mensaje}")
                 return
-
-        # Validaciones
+        
+        # Validar campos
         if not tabla:
-            self.entry_tabla_origen.config(bootstyle="danger")
-            errores.append("Tabla (origen)")
+            errores.append("Tabla")
         if not base:
-            self.entry_db_origen.config(bootstyle="danger")
-            errores.append("Base de datos (origen)")
-        if not nombre_origen or not nombre_destino:
-            errores.append("Ambientes")
-        if not es_nombre_tabla_valido(tabla):
-            self.entry_tabla_origen.config(bootstyle="danger")
-            errores.append("Nombre de tabla no válido (solo A-Z, 0-9, _, .)")
-        if not es_nombre_tabla_valido(base):
-            self.entry_db_origen.config(bootstyle="danger")
-            errores.append("Nombre de base no válido (solo A-Z, 0-9, _, .)")
-
-        # BLOQUE DE CORRECCIÓN: deshabilitar ambos botones si hay errores
+            errores.append("Base de datos")
+        if not nombre_origen or "Selecciona" in nombre_origen:
+            errores.append("Ambiente de origen")
+        if not nombre_destino or "Selecciona" in nombre_destino:
+            errores.append("Ambiente de destino")
+        
         if errores:
-            self.error_migracion("❌ Errores encontrados: " + ", ".join(errores))
-            self.btn_migrar["state"] = "disabled"
-            self.btn_cancelar["state"] = "disabled"
-            # Limpiar estilos de error después de 3 segundos
-            self.after(3000, lambda: [
-                self.entry_tabla_origen.config(bootstyle=""),
-                self.entry_db_origen.config(bootstyle="")
-            ])
+            self.error_migracion("Faltan los siguientes campos: " + ", ".join(errores))
             return
-
+        
+        if not es_nombre_tabla_valido(tabla) or not es_nombre_tabla_valido(base):
+            self.error_migracion("Nombre de tabla o base de datos no válido.")
+            return
+        
         amb_origen = next((a for a in self.ambientes if a["nombre"] == nombre_origen), None)
-        if not amb_origen:
-            self.error_migracion("Debes seleccionar un ambiente de origen válido.")
-            self.btn_migrar["state"] = "disabled"
-            self.btn_cancelar["state"] = "disabled"
-            return
         amb_destino = next((a for a in self.ambientes if a["nombre"] == nombre_destino), None)
-        if not amb_destino:
-            self.error_migracion("Debes seleccionar un ambiente de destino válido.")
-            self.btn_migrar["state"] = "disabled"
-            self.btn_cancelar["state"] = "disabled"
+        
+        if not amb_origen or not amb_destino:
+            self.error_migracion("No se encontró la configuración para los ambientes seleccionados.")
             return
-
-        # Mostrar indicador de progreso y deshabilitar controles
+        
+        # Deshabilitar botón durante consulta
         self.btn_consultar.config(state="disabled", text="Consultando...")
-        self.progress.config(mode="indeterminate")
-        self.progress.start(10)
         self.progress_lbl.config(text="Consultando estructura y datos...")
         
         # Ejecutar consulta en hilo separado
@@ -868,6 +873,68 @@ class MigracionVentana(tk.Toplevel):
             args=(tabla, amb_origen, amb_destino, where, base),
             daemon=True
         ).start()
+
+    def _on_script_sql_tabla(self):
+        """Abre el diálogo para ejecutar un script SELECT personalizado."""
+        nombre_origen = self.combo_amb_origen.get()
+        if not nombre_origen or nombre_origen == "Selecciona un ambiente":
+            messagebox.showerror("Error", "Debe seleccionar un ambiente de origen primero.", parent=self)
+            return
+        
+        dialog = MigracionScriptSQLDialog(self, self._ejecutar_desde_script_tabla, nombre_origen)
+
+    def _ejecutar_desde_script_tabla(self, parsed_data, script_dialog):
+        """Recibe los datos parseados del script SELECT y rellena los campos."""
+        table_full = parsed_data['table']
+        condition = parsed_data['condition'] or ""
+        
+        # Parsear tabla: base.dbo.tabla -> base y tabla
+        if '.' in table_full:
+            parts = table_full.split('.')
+            if len(parts) == 2:
+                base = parts[0]
+                tabla = parts[1]
+            elif len(parts) == 3:
+                base = parts[0]
+                # parts[1] sería el schema (dbo), ignora do
+                tabla = parts[2]
+            else:
+                messagebox.showerror(
+                    "Error de Formato",
+                    f"Formato de tabla inválido: {table_full}\n"
+                    "Debe ser: base.tabla o base.schema.tabla",
+                    parent=self
+                )
+                return
+        else:
+            messagebox.showerror(
+                "Error de Formato",
+                "El nombre de la tabla debe incluir la base de datos (ej: mi_base.tabla)\n"
+                "O con schema: mi_base.dbo.tabla",
+                parent=self
+            )
+            return
+        
+        # Limpiar campos y rellenar con datos del script
+        self.entry_db_origen.delete(0, tk.END)
+        self.entry_db_origen.insert(0, base)
+        
+        self.entry_tabla_origen.delete(0, tk.END)
+        self.entry_tabla_origen.insert(0, tabla)
+        
+        self.entry_where.delete(0, tk.END)
+        if condition:
+            self.entry_where.insert(0, condition)
+        
+        # Cerrar el diálogo y ejecutar consulta
+        script_dialog.progress.stop()
+        script_dialog.progress.lower()
+        script_dialog.btn_ejecutar.config(state="normal")
+        script_dialog.sql_text.config(state="normal")
+        script_dialog.destroy()
+        
+        # Ejecutar consulta después de cerrar el diálogo
+        self.after(100, self.on_consultar_tabla)
         
     def _consultar_en_hilo(self, tabla, amb_origen, amb_destino, where, base):
         """Ejecuta la consulta en un hilo separado para no bloquear la UI"""
@@ -882,30 +949,62 @@ class MigracionVentana(tk.Toplevel):
     
     def _finalizar_consulta(self, resultado):
         """Finaliza la consulta y actualiza la UI"""
+        # Verificar que los widgets existan antes de usarlos
+        if not self.winfo_exists():
+            return
+
         # Detener progreso
-        self.progress.stop()
-        self.progress_lbl.config(text="")
-        self.btn_consultar.config(state="normal", text="Consultar datos a migrar")
-        
+        try:
+            self.progress.stop()
+        except Exception:
+            pass
+
+        try:
+            self.progress_lbl.config(text="")
+        except Exception:
+            pass
+
+        try:
+            self.btn_consultar.config(state="normal", text="Consultar datos a migrar")
+        except Exception:
+            pass
+
         if resultado:
+            # Guardar todo el resultado, incluyendo ajuste_columnas y columnas_destino si existen
             self.info_tabla_origen = resultado
             self.btn_migrar["state"] = "normal"
             self.btn_cancelar["state"] = "normal"
             self.combo_amb_origen["state"] = "disabled"
             self.combo_amb_destino["state"] = "disabled"
-            self.log(
-                f"Tabla lista para migrar. Clave primaria: {resultado['clave_primaria']}, "
-                f"Total registros: {resultado['nregs']}", nivel="info"
-            )
+            msg = f"Tabla lista para migrar. Clave primaria: {resultado['clave_primaria']}, Total registros: {resultado['nregs']}"
+            if resultado.get('ajuste_columnas') and resultado.get('columnas_destino'):
+                msg += " | Se aplicará ajuste de columnas en destino."
+            self.log(msg, nivel="info")
         else:
             self.btn_migrar["state"] = "disabled"
             self.btn_cancelar["state"] = "disabled"
     
     def _error_consulta_hilo(self, mensaje):
         """Maneja errores desde el hilo de consulta"""
-        self.progress.stop()
-        self.progress_lbl.config(text="")
-        self.btn_consultar.config(state="normal", text="Consultar datos a migrar")
+        # Verificar que los widgets existan antes de usarlos
+        if not self.winfo_exists():
+            return
+        
+        try:
+            self.progress.stop()
+        except Exception:
+            pass
+        
+        try:
+            self.progress_lbl.config(text="")
+        except Exception:
+            pass
+        
+        try:
+            self.btn_consultar.config(state="normal", text="Consultar datos a migrar")
+        except Exception:
+            pass
+        
         self.error_migracion(mensaje)
 
     def on_migrar(self):
@@ -988,23 +1087,32 @@ class MigracionVentana(tk.Toplevel):
             self.update_progress(25)
             self.error_migracion("Debe consultar primero la estructura y clave primaria de la tabla.")
             return
+        # Detectar si hay ajuste de columnas
+        columnas = self.info_tabla_origen.get('columnas')
+        clave_primaria = self.info_tabla_origen.get('clave_primaria')
+        total_registros = self.info_tabla_origen.get('nregs')
+        ajuste_columnas = self.info_tabla_origen.get('ajuste_columnas')
+        columnas_destino = self.info_tabla_origen.get('columnas_destino')
+        if ajuste_columnas and columnas_destino:
+            self.log("Aplicando ajuste de columnas en destino según selección del usuario...", nivel="info")
         self.log(f"Iniciando migración tabla '{base}..{tabla_origen}' de {nombre_origen} a {nombre_destino}...", nivel="info")
         self.update_progress(25)
         def progress_fase(p):
             self.update_progress(25 + (p * 0.7))
         resultado_migracion = migrar_tabla(
-            tabla_origen,
-            where,
-            amb_origen,
-            amb_destino,
             log_func=self.log,
             progress_func=progress_fase,
             abort_func=self.error_migracion,
-            columnas=self.info_tabla_origen['columnas'],
-            clave_primaria=self.info_tabla_origen['clave_primaria'],
+            amb_origen=amb_origen,
+            amb_destino=amb_destino,
+            tabla=tabla_origen,
+            where=where,
             base_usuario=base, # type: ignore
             cancelar_func=self.is_cancelled,
-            total_registros=self.info_tabla_origen['nregs']
+            total_registros=total_registros,
+            ajuste_columnas=ajuste_columnas,
+            columnas=columnas,
+            columnas_destino=columnas_destino
         )
         try:
             # --- CORRECCIÓN: Se pasa la nueva consulta y el historial por separado a la función centralizada ---
@@ -1032,7 +1140,11 @@ class MigracionVentana(tk.Toplevel):
             self.progress.config(bootstyle="danger")
             omitidos = resultado_migracion.get("omitidos", 0) if resultado_migracion else 0
             self.log(f"Migración completada sin inserciones. Omitidos: {omitidos}", "warning")
-            messagebox.showinfo("Sin Datos Migrados", f"No se insertaron nuevos registros.\n\nPosibles causas:\n- Todos los registros ya existían en el destino (Omitidos: {omitidos:,})\n- La tabla de origen estaba vacía o no cumplía la condición WHERE.", parent=self)
+            messagebox.showinfo(
+                "Sin Datos Migrados",
+                f"No se insertaron nuevos registros.\n\nPosibles causas:\n- Todos los registros ya existían en el destino (Omitidos: {omitidos:,})\n- La tabla de origen estaba vacía o no cumplía la condición WHERE.\n\nNota: También puede deberse a una desconexión de red/VPN durante el commit. Revisa la conexión y el log; intenta ejecutar la migración de nuevo si procede.",
+                parent=self,
+            )
         # --- FIN DE LA MEJORA ---
 
         # Habilita los controles para una nueva consulta, pero mantiene deshabilitados Migrar y Cancelar.
@@ -1096,7 +1208,11 @@ class MigracionVentana(tk.Toplevel):
             # --- MEJORA: Cambiar a rojo si no hubo inserciones ---
             self.progress.config(bootstyle="danger")
             self.log("Migración de grupo completada sin inserciones.", "warning")
-            messagebox.showinfo("Sin Datos Migrados", "NO se insertaron nuevos registros durante la migración del grupo. Revisa el log para más detalles.", parent=self)
+            messagebox.showinfo(
+                "Sin Datos Migrados",
+                "NO se insertaron nuevos registros durante la migración del grupo.\n\nNota: Esto puede deberse a que no había datos para migrar, o a una desconexión de red/VPN durante el proceso. Revisa la conexión y el log; considera reintentar.",
+                parent=self,
+            )
         
 
         self.habilitar_botones(True) # Habilitar todos los botones
@@ -1105,4 +1221,192 @@ class MigracionVentana(tk.Toplevel):
         self.btn_cancelar.config(state="disabled") # Deshabilitar cancelar al final
         self.migrando = False # 
         
+    def _migrar_grupo_optimizado(self, grupo_conf, variables, amb_origen, amb_destino, log_func, progress_func, abort_func, cancelar_func):
+        """
+        Implementación optimizada para la migración de grupos usando carga por lotes.
+        Reemplaza la llamada a la función externa 'migrar_grupo'.
+        """
+        from db_operations import get_db_connection  # Importación local
+        total_insertados_grupo = 0
+        tablas_con_error = []
+        num_tablas = len(grupo_conf.get("tablas", []))
+
+        for i, tabla_info in enumerate(grupo_conf.get("tablas", [])):
+            if cancelar_func():
+                log_func("Migración cancelada por el usuario.", "warning")
+                return None
+
+            tabla_nombre = tabla_info["tabla"]
+            log_func(f"--- Procesando tabla {i+1}/{num_tablas}: {tabla_nombre} ---", "info")
+
+            # Construir la consulta SELECT
+            columnas_str = ", ".join(tabla_info["columnas"])
+            condicion_str = tabla_info.get("condicion", "")
+            for var, val in variables.items():
+                condicion_str = condicion_str.replace(f"${var}$", str(val))
+            
+            select_query = f"SELECT {columnas_str} FROM {tabla_nombre}"
+            if condicion_str:
+                select_query += f" WHERE {condicion_str}"
+
+            # Construir la plantilla INSERT
+            placeholders = ", ".join(["?"] * len(tabla_info["columnas"]))
+            insert_template = f"INSERT INTO {tabla_nombre} ({columnas_str}) VALUES ({placeholders})"
+
+            conn_origen = None
+            conn_destino = None
+            try:
+                conn_origen = get_db_connection(amb_origen)
+                conn_destino = get_db_connection(amb_destino)
+                cursor_origen = conn_origen.cursor()
+                cursor_destino = conn_destino.cursor()
+
+                # --- Lógica de carga por lotes ---
+                log_func(f"Ejecutando SELECT: {select_query[:300]}...", "info")
+                cursor_origen.execute(select_query)
+                
+                try:
+                    cursor_destino.fast_executemany = True
+                except AttributeError:
+                    log_func("Driver no soporta 'fast_executemany', usando método estándar.", "warning")
+
+                batch_size = 1000
+                total_insertados_tabla = 0
+                while not cancelar_func():
+                    registros_lote = cursor_origen.fetchmany(batch_size)
+                    if not registros_lote:
+                        break
+                    
+                    cursor_destino.executemany(insert_template, registros_lote)
+                    total_insertados_tabla += len(registros_lote)
+                    log_func(f"  Lote insertado. {len(registros_lote)} registros. Total tabla: {total_insertados_tabla}", "info")
+
+                if not cancelar_func():
+                    conn_destino.commit()
+                    log_func(f"COMMIT exitoso para tabla {tabla_nombre}. Total insertado: {total_insertados_tabla}", "success")
+                    total_insertados_grupo += total_insertados_tabla
+                else:
+                    log_func(f"ROLLBACK para tabla {tabla_nombre} debido a cancelación.", "warning")
+                    conn_destino.rollback()
+
+            except Exception as e:
+                log_func(f"❌ Error migrando tabla {tabla_nombre}: {e}", "error")
+                tablas_con_error.append(tabla_nombre)
+                if conn_destino:
+                    conn_destino.rollback()
+            finally:
+                if conn_origen: conn_origen.close()
+                if conn_destino: conn_destino.close()
+
+            # Actualizar progreso general
+            progress_func((i + 1) / num_tablas * 100)
+
+        return {"insertados": total_insertados_grupo, "errores": tablas_con_error}
+
         # FIX: Cancelación ahora funciona correctamente
+
+
+class MigracionScriptSQLDialog(tk.Toplevel):
+    """Diálogo para ejecutar un script SELECT personalizado para migración tabla a tabla."""
+
+    def __init__(self, parent, callback_ejecutar, ambiente_origen):
+        super().__init__(parent)
+        self.callback_ejecutar = callback_ejecutar
+        self.title("Ejecutar Script SELECT para Migración")
+        self.geometry("700x400")
+        self.resizable(False, False)
+        self.transient(parent)
+
+        # Centrar ventana
+        self.update_idletasks()
+        ancho = self.winfo_width() or 700
+        alto = self.winfo_height() or 400
+        x = (self.winfo_screenwidth() // 2) - (ancho // 2)
+        y = (self.winfo_screenheight() // 2) - (alto // 2)
+        self.geometry(f"{ancho}x{alto}+{x}+{y}")
+
+        # Información
+        info_frame = tk.Frame(self)
+        info_frame.pack(fill="x", padx=10, pady=(10, 5))
+        etiqueta_titulo(info_frame, texto=f"Ambiente origen: {ambiente_origen}", wraplength=680).pack(anchor='w')
+
+        info_text = (
+            "Pegue un script SELECT personalizado:\n"
+            "SELECT * FROM base.dbo.tabla WHERE condicion\n\n"
+            "El script debe contener FROM y opcionalmente WHERE."
+        )
+        etiqueta_titulo(info_frame, texto=info_text, justify="left").pack(pady=(5,0), anchor='w')
+
+        # TextBox para el script
+        self.sql_text = scrolledtext.ScrolledText(self, wrap=tk.WORD, height=12, font=("Courier New", 10))
+        self.sql_text.pack(pady=5, padx=10, fill="both", expand=True)
+        self.sql_text.focus_set()
+
+        # Botones
+        btn_frame = tk.Frame(self)
+        btn_frame.pack(pady=10)
+
+        self.btn_ejecutar = boton_accion(btn_frame, "Ejecutar Script", self.on_ejecutar_script)
+        self.btn_ejecutar.pack(side="left", padx=10)
+        self.btn_cancelar = boton_accion(btn_frame, "Cancelar", self.destroy)
+        self.btn_cancelar.pack(side="left", padx=10)
+
+        # Barra de progreso
+        self.progress = ttk.Progressbar(self, mode="indeterminate")
+        self.progress.pack(fill="x", padx=10, pady=(0, 5))
+        self.progress.lower()
+
+    def on_ejecutar_script(self):
+        sql = self.sql_text.get("1.0", tk.END).strip()
+        if not sql:
+            messagebox.showwarning("Entrada vacía", "Por favor, ingrese un script SELECT.", parent=self)
+            return
+
+        # Validar que sea un SELECT con FROM
+        if not sql.lower().lstrip().startswith("select") or "from" not in sql.lower():
+            messagebox.showerror(
+                "Error de Formato",
+                "El script debe ser una sentencia SELECT que contenga FROM.\n\n"
+                "Ejemplo: SELECT * FROM base.dbo.tabla WHERE condicion",
+                parent=self
+            )
+            return
+
+        # Regex para parsear: SELECT ... FROM base.dbo.tabla [WHERE condicion]
+        regex = re.compile(
+            r"^\s*SELECT\s+.+?\s+FROM\s+(?P<table>[\w\.]+)(?:\s+WHERE\s+(?P<condition>.+?))?\s*;?\s*$",
+            re.IGNORECASE | re.DOTALL
+        )
+        match = regex.search(sql)
+
+        if not match:
+            messagebox.showerror(
+                "Error de Formato",
+                "No se pudo procesar el script. Asegúrese de que sigue el formato:\n"
+                "SELECT * FROM base.dbo.tabla [WHERE condicion]",
+                parent=self
+            )
+            return
+
+        parsed_data = match.groupdict()
+
+        # Deshabilitar controles
+        self.sql_text.config(state="disabled")
+        self.btn_ejecutar.config(state="disabled")
+        self.btn_cancelar.config(text="Cerrar")
+
+        # Mostrar progreso
+        self.progress.lift()
+        self.progress.start(10)
+
+        # Ejecutar callback
+        try:
+            self.callback_ejecutar(parsed_data, self)
+        except Exception as e:
+            # En caso de error, restaurar controles
+            self.progress.stop()
+            self.progress.lower()
+            self.sql_text.config(state="normal")
+            self.btn_ejecutar.config(state="normal")
+            self.btn_cancelar.config(text="Cancelar")
+            messagebox.showerror("Error", f"Error ejecutando el script: {e}", parent=self)

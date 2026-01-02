@@ -1,0 +1,121 @@
+INFO:__main__: Iniciando prueba de migración con reintentos automáticos...
+INFO:__main__: ================================================================================
+INFO:__main__: PRUEBA DE MIGRACIÓN CON REINTENTOS AUTOMÁTICOS
+INFO:__main__: ================================================================================
+INFO:__main__: Ambiente origen: SYBREPOR (192.168.36.216)
+INFO:__main__: Ambiente destino: SYBCOB25 (192.168.36.51)
+INFO:__main__: 
+Tabla a migrar: cob_conta_super..sb_balance
+INFO:__main__: Condición WHERE: ba_empresa = 1 AND ba_periodo = '202411' LIMIT 5
+INFO:__main__: 
+================================================================================
+INFO:__main__: INICIANDO MIGRACIÓN...
+INFO:__main__: ================================================================================
+
+WARNING:__main__: ⚠️ Sin clave primaria detectada. Usando migración secuencial.
+WARNING:__main__: 🔄 Intento de reconexión 1/2 al origen...
+INFO:__main__: ✅ Reconexión al origen exitosa.
+ERROR:__main__: ABORT: ❌ Error en migración secuencial: can only join an iterable
+WARNING:__main__: ⚠️ No se procesaron registros. Verificar condiciones WHERE o conectividad.
+INFO:__main__: Progreso: 100%
+INFO:__main__: 
+================================================================================
+INFO:__main__: RESULTADO FINAL
+INFO:__main__: ================================================================================
+INFO:__main__: Insertados: 0
+INFO:__main__: Omitidos: 0
+INFO:__main__: Progreso final: 100%
+WARNING:__main__: ⚠️ No se procesó ningún registro. Posible problema de conectividad o tabla vacía.
+INFO:__main__: 
+📄 Logs guardados en: test_migracion_retry_output.txt
+ERROR:__main__: 
+❌ PRUEBA FALLÓ O TUVO PROBLEMAS
+INFO:__main__: Iniciando prueba de migracion con reintentos automaticos...
+INFO:__main__: ================================================================================
+INFO:__main__: PRUEBA DE MIGRACION CON REINTENTOS AUTOMATICOS
+INFO:__main__: ================================================================================
+INFO:__main__: Ambiente origen: SYBREPOR (192.168.36.216)
+INFO:__main__: Ambiente destino: SYBCOB25 (192.168.36.51)
+INFO:__main__: 
+Tabla a migrar: cob_conta_super..sb_balance
+INFO:__main__: Condicion WHERE: ba_empresa = 1 AND ba_periodo = '202411'
+INFO:__main__: Columnas: 8
+INFO:__main__: Clave primaria: []
+INFO:__main__: Registros a migrar: -1
+INFO:__main__: 
+================================================================================
+INFO:__main__: INICIANDO MIGRACIÓN...
+INFO:__main__: ================================================================================
+
+WARNING:__main__: ?? Sin clave primaria detectada. Usando migraci?n secuencial.
+WARNING:__main__: ? Intento de reconexi?n 1/2 al origen...
+INFO:__main__: ? Reconexi?n al origen exitosa.
+ERROR:__main__: ABORT: ? Error en migraci?n secuencial: ('42000', "[42000] [Sybase][ODBC Driver][Adaptive Server Enterprise]Implicit conversion from datatyp
+WARNING:__main__: ?? No se procesaron registros. Verificar condiciones WHERE o conectividad.
+INFO:__main__: Progreso: 100%
+INFO:__main__: 
+================================================================================
+INFO:__main__: RESULTADO FINAL
+INFO:__main__: ================================================================================
+INFO:__main__: Insertados: 0
+INFO:__main__: Omitidos: 0
+INFO:__main__: Progreso final: 100%
+WARNING:__main__: [WARNING] No se proceso ningun registro. Posible problema de conectividad o tabla vacia.
+INFO:__main__: 
+Archivos de log guardados:
+INFO:__main__:   - test_migracion_retry.log
+INFO:__main__:   - test_migracion_retry_output.txt
+ERROR:__main__: 
+[ERROR] PRUEBA FALLO O TUVO PROBLEMAS
+INFO:__main__: Iniciando prueba de migracion con reintentos automaticos...
+INFO:__main__: ================================================================================
+INFO:__main__: PRUEBA DE MIGRACION CON REINTENTOS AUTOMATICOS
+INFO:__main__: ================================================================================
+INFO:__main__: Ambiente origen: SYBREPOR (192.168.36.216)
+INFO:__main__: Ambiente destino: SYBCOB25 (192.168.36.51)
+INFO:__main__: 
+Tabla a migrar: cob_conta_super..sb_balance
+INFO:__main__: Columnas: 8
+INFO:__main__: Clave primaria: []
+INFO:__main__: Registros a migrar: 2005542
+INFO:__main__: 
+================================================================================
+INFO:__main__: INICIANDO MIGRACIÓN...
+INFO:__main__: ================================================================================
+
+WARNING:__main__: ?? Sin clave primaria detectada. Usando migraci?n secuencial.
+WARNING:__main__: ? Intento de reconexi?n 1/2 al origen...
+INFO:__main__: ? Reconexi?n al origen exitosa.
+ERROR:__main__: ABORT: ? Error en migraci?n secuencial: name 'clave_primaria' is not defined
+WARNING:__main__: ?? No se procesaron registros. Verificar condiciones WHERE o conectividad.
+INFO:__main__: Progreso: 100%
+INFO:__main__: 
+================================================================================
+INFO:__main__: RESULTADO FINAL
+INFO:__main__: ================================================================================
+INFO:__main__: Insertados: 0
+INFO:__main__: Omitidos: 0
+INFO:__main__: Progreso final: 100%
+WARNING:__main__: [WARNING] No se proceso ningun registro. Posible problema de conectividad o tabla vacia.
+INFO:__main__: 
+Archivos de log guardados:
+INFO:__main__:   - test_migracion_retry.log
+INFO:__main__:   - test_migracion_retry_output.txt
+ERROR:__main__: 
+[ERROR] PRUEBA FALLO O TUVO PROBLEMAS
+INFO:__main__: Iniciando prueba de migracion con reintentos automaticos...
+INFO:__main__: ================================================================================
+INFO:__main__: PRUEBA DE MIGRACION CON REINTENTOS AUTOMATICOS
+INFO:__main__: ================================================================================
+INFO:__main__: Ambiente origen: SYBREPOR (192.168.36.216)
+INFO:__main__: Ambiente destino: SYBCOB25 (192.168.36.51)
+INFO:__main__: 
+Tabla a migrar: cl_tipo_cuenta
+INFO:__main__: Iniciando prueba de migracion con reintentos automaticos...
+INFO:__main__: ================================================================================
+INFO:__main__: PRUEBA DE MIGRACION CON REINTENTOS AUTOMATICOS
+INFO:__main__: ================================================================================
+INFO:__main__: Ambiente origen: SYBREPOR (192.168.36.216)
+INFO:__main__: Ambiente destino: SYBCOB25 (192.168.36.51)
+INFO:__main__: 
+Tabla a migrar: dbo.cl_tipo_cuenta
