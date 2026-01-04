@@ -76,20 +76,56 @@ def consultar_tabla_e_indice(tabla, amb_origen, amb_destino, log, abort, where=N
     """
     def _build_conn_str_local(amb):
         drv = amb.get('driver', '')
+        base_db = amb.get('base','')
+        # Allow caller to override database by setting amb['_base_override'] if present
+        if amb.get('_base_override'):
+            base_db = amb.get('_base_override')
         if 'Sybase' in drv:
-            return f"DRIVER={{{drv}}};SERVER={amb.get('ip','')};PORT={amb.get('puerto','')};DATABASE={amb.get('base','')};UID={amb.get('usuario','')};PWD={amb.get('clave','')}"
+            return f"DRIVER={{{drv}}};SERVER={amb.get('ip','')};PORT={amb.get('puerto','')};DATABASE={base_db};UID={amb.get('usuario','')};PWD={amb.get('clave','')}"
         else:
             # Normalmente SQL Server u otros ODBC drivers
-            return f"DRIVER={{{drv}}};SERVER={amb.get('ip','')},{amb.get('puerto','')};DATABASE={amb.get('base','')};UID={amb.get('usuario','')};PWD={amb.get('clave','')}"
+            return f"DRIVER={{{drv}}};SERVER={amb.get('ip','')},{amb.get('puerto','')};DATABASE={base_db};UID={amb.get('usuario','')};PWD={amb.get('clave','')}"
 
     columnas_origen = []
     columnas_destino = []
     clave_primaria = []
+    columnas_destino_types = {}
     nregs = 0
 
     try:
-        conn_str_ori = _build_conn_str_local(amb_origen)
-        conn_str_dest = _build_conn_str_local(amb_destino)
+        # Allow overriding database for origin and destination when UI provided a different base
+        try:
+            amb_origen_local = dict(amb_origen) if amb_origen else {}
+            amb_destino_local = dict(amb_destino) if amb_destino else {}
+            if base_usuario:
+                # Aplicar override de base a ORIGEN y DESTINO — la pantalla provee la DB a usar
+                amb_origen_local['_base_override'] = base_usuario
+                amb_destino_local['_base_override'] = base_usuario
+        except Exception:
+            amb_origen_local = amb_origen
+            amb_destino_local = amb_destino
+        conn_str_ori = _build_conn_str_local(amb_origen_local)
+        conn_str_dest = _build_conn_str_local(amb_destino_local)
+
+        # Log environments being used for this check so user sees origen/destino claramente
+        try:
+            # Extraer nombre amigable
+            ori_name = (amb_origen_local.get('nombre') if isinstance(amb_origen_local, dict) else None) or (amb_origen_local.get('ip','') if amb_origen_local else 'origen_desconocido')
+            dest_name = (amb_destino_local.get('nombre') if isinstance(amb_destino_local, dict) else None) or (amb_destino_local.get('ip','') if amb_destino_local else 'destino_desconocido')
+
+            # Extraer la base real usada desde la cadena de conexión (más fiable que leer el dict)
+            def _extract_db_from_conn(cs):
+                try:
+                    m = re.search(r"DATABASE=([^;]+)", cs, flags=re.IGNORECASE)
+                    return m.group(1) if m else ''
+                except Exception:
+                    return ''
+
+            ori_db = _extract_db_from_conn(conn_str_ori)
+            dest_db = _extract_db_from_conn(conn_str_dest)
+            log(f"🔎 Consultando estructura. Origen: {ori_name} (DB={ori_db}) -> Destino: {dest_name} (DB={dest_db})", "info")
+        except Exception:
+            pass
 
         # Obtener columnas origen
         try:
@@ -108,6 +144,25 @@ def consultar_tabla_e_indice(tabla, amb_origen, amb_destino, log, abort, where=N
                 sql = f"SELECT * FROM {tabla} WHERE 1=0"
                 curd.execute(sql)
                 columnas_destino = [col[0] for col in curd.description]
+                # Intentar obtener tipos de columnas desde INFORMATION_SCHEMA.COLUMNS
+                columnas_destino_types = {}
+                try:
+                    tbl_simple = tabla.split('.')[-1].strip()
+                    sql_types = (
+                        "SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE "
+                        "FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ?"
+                    )
+                    curd.execute(sql_types, tbl_simple)
+                    for r in curd.fetchall():
+                        cname = r[0]
+                        columnas_destino_types[cname] = {
+                            'data_type': r[1],
+                            'char_length': r[2],
+                            'numeric_precision': r[3],
+                            'numeric_scale': r[4]
+                        }
+                except Exception:
+                    columnas_destino_types = {}
         except Exception as e:
             log(f"⚠️ No se pudieron obtener columnas del destino: {str(e)[:200]}", "warning")
 
@@ -166,6 +221,7 @@ def consultar_tabla_e_indice(tabla, amb_origen, amb_destino, log, abort, where=N
             'nregs': nregs,
             'ajuste_columnas': None,
             'columnas_destino': columnas_destino,
+            'columnas_destino_types': columnas_destino_types,
         }
     except Exception as e:
         log(f"❌ Error verificando estructura tabla: {str(e)[:200]}", "error")
@@ -175,6 +231,7 @@ def consultar_tabla_e_indice(tabla, amb_origen, amb_destino, log, abort, where=N
             'nregs': nregs,
             'ajuste_columnas': None,
             'columnas_destino': columnas_destino,
+            'columnas_destino_types': {}
         }
 
 
@@ -216,10 +273,13 @@ def migrar_tabla(
 
     def _build_conn_str_local(amb, autocommit=False):
         drv = amb.get('driver', '') if amb else ''
+        base_db = amb.get('base','') if amb else ''
+        if amb and amb.get('_base_override'):
+            base_db = amb.get('_base_override')
         if 'Sybase' in drv:
-            return f"DRIVER={{{drv}}};SERVER={amb.get('ip','')};PORT={amb.get('puerto','')};DATABASE={amb.get('base','')};UID={amb.get('usuario','')};PWD={amb.get('clave','')}"
+            return f"DRIVER={{{drv}}};SERVER={amb.get('ip','')};PORT={amb.get('puerto','')};DATABASE={base_db};UID={amb.get('usuario','')};PWD={amb.get('clave','')}"
         else:
-            return f"DRIVER={{{drv}}};SERVER={amb.get('ip','')},{amb.get('puerto','')};DATABASE={amb.get('base','')};UID={amb.get('usuario','')};PWD={amb.get('clave','')}"
+            return f"DRIVER={{{drv}}};SERVER={amb.get('ip','')},{amb.get('puerto','')};DATABASE={base_db};UID={amb.get('usuario','')};PWD={amb.get('clave','')}"
 
     def _sanitizar_valor(v):
         try:
@@ -339,6 +399,8 @@ def migrar_tabla(
     columnas_origen = columnas or (info.get('columnas') if info else None)
     pk = clave_primaria or (info.get('clave_primaria') if info else [])
     nregs_estimado = total_registros or (info.get('nregs') if info else 0)
+    # ajuste_columnas puede ser un dict {col_dest: default_value} provisto por la UI
+    ajuste_columnas = ajuste_columnas or {}
 
     if not columnas_origen:
         abort("No se pudo determinar columnas de origen.")
@@ -347,8 +409,19 @@ def migrar_tabla(
     cols_insert = columnas_destino if columnas_destino else columnas_origen
 
     # Conexiones
-    conn_str_ori = _build_conn_str_local(amb_origen)
-    conn_str_dest = _build_conn_str_local(amb_destino)
+    # Aplicar override local de base (igual que en la verificación) para que la conexión
+    # real use la DB especificada por el usuario en la pantalla.
+    try:
+        amb_origen_local = dict(amb_origen) if amb_origen else {}
+        amb_destino_local = dict(amb_destino) if amb_destino else {}
+        if base_usuario:
+            amb_origen_local['_base_override'] = base_usuario
+            amb_destino_local['_base_override'] = base_usuario
+    except Exception:
+        amb_origen_local = amb_origen
+        amb_destino_local = amb_destino
+    conn_str_ori = _build_conn_str_local(amb_origen_local)
+    conn_str_dest = _build_conn_str_local(amb_destino_local)
 
     SUB_BATCH = 500
     COMMIT_BATCH = 1000
@@ -501,10 +574,14 @@ def migrar_tabla(
                         row_map = []
                         for c in cols:
                             try:
-                                idx = columnas_origen.index(c)
-                                row_map.append(r[idx])
+                                if c in columnas_origen:
+                                    idx = columnas_origen.index(c)
+                                    row_map.append(r[idx])
+                                else:
+                                    # columna nueva en destino: usar valor por defecto proporcionado
+                                    row_map.append(ajuste_columnas.get(c, None))
                             except Exception:
-                                row_map.append(None)
+                                row_map.append(ajuste_columnas.get(c, None))
                         mapped_rows.append(tuple(row_map))
                     rows_to_exec = mapped_rows
                 else:

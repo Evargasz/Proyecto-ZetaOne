@@ -1007,6 +1007,97 @@ class MigracionVentana(tk.Toplevel):
         
         self.error_migracion(mensaje)
 
+    def solicitar_ajuste_columnas(self, extras):
+        """Muestra un diálogo modal para que el usuario ingrese valores por defecto
+        para las columnas nuevas en el destino. Devuelve dict col->valor o None si
+        el usuario cancela.
+        """
+        dlg = tk.Toplevel(self)
+        dlg.title("Ajuste de columnas en destino")
+        dlg.transient(self)
+        dlg.grab_set()
+        lbl = tk.Label(dlg, text="Se detectaron columnas nuevas en el destino. Introduce valores por defecto (vacío = NULL):")
+        lbl.pack(padx=10, pady=(10, 5))
+        entries = {}
+        frm = tk.Frame(dlg)
+        frm.pack(padx=10, pady=5, fill='both', expand=True)
+        # extras can be list of (col, type) tuples or simple column names
+        for item in extras:
+            if isinstance(item, (list, tuple)):
+                c, ctype = item[0], item[1]
+            else:
+                c, ctype = item, None
+            row = tk.Frame(frm)
+            row.pack(fill='x', pady=2)
+            label_text = c if not ctype else f"{c} ({ctype.get('data_type') if isinstance(ctype, dict) else ctype})"
+            tk.Label(row, text=label_text, width=40, anchor='w').pack(side='left')
+            e = tk.Entry(row)
+            e.pack(side='left', fill='x', expand=True)
+            entries[c] = (e, ctype)
+
+        btns = tk.Frame(dlg)
+        btns.pack(pady=(5,10))
+        result = {}
+
+        def _cast_value(vstr, ctype):
+            # Cast string to python object according to SQL type (best-effort)
+            if vstr is None:
+                return None
+            s = vstr.strip()
+            if s == '':
+                return None
+            t = None
+            if not ctype:
+                return s
+            if isinstance(ctype, dict):
+                t = (ctype.get('data_type') or '').lower()
+            else:
+                t = str(ctype).lower()
+            from decimal import Decimal
+            from datetime import datetime
+            try:
+                if 'int' in t or t in ('smallint','bigint','tinyint'):
+                    return int(s)
+                if 'decimal' in t or 'numeric' in t or 'money' in t or 'float' in t or 'real' in t:
+                    return Decimal(s)
+                if 'bit' in t:
+                    if s.lower() in ('1','true','t','yes'):
+                        return 1
+                    if s.lower() in ('0','false','f','no'):
+                        return 0
+                    raise ValueError('Invalid boolean')
+                if 'date' in t or 'time' in t:
+                    try:
+                        return datetime.fromisoformat(s)
+                    except Exception:
+                        return s
+                # default: string
+                return s
+            except Exception as e:
+                raise ValueError(f"No se pudo convertir '{s}' a tipo {t}: {e}")
+
+        def on_ok():
+            # Validate and cast inputs
+            for k, (ent, ctype) in entries.items():
+                v = ent.get()
+                try:
+                    casted = _cast_value(v, ctype)
+                except Exception as e:
+                    messagebox.showerror("Valor inválido", f"Valor inválido para {k}: {e}", parent=dlg)
+                    return
+                result[k] = casted
+            dlg.destroy()
+
+        def on_cancel():
+            dlg.destroy()
+            result.clear()
+
+        tk.Button(btns, text='Aceptar', command=on_ok).pack(side='left', padx=5)
+        tk.Button(btns, text='Cancelar', command=on_cancel).pack(side='left', padx=5)
+
+        self.wait_window(dlg)
+        return result if result else None
+
     def on_migrar(self):
         # --- CORRECCIÓN #1: Se usan los nombres correctos para los combos de ambiente ---
         amb_origen_nombre = self.combo_amb_origen.get()
@@ -1034,6 +1125,18 @@ class MigracionVentana(tk.Toplevel):
             if not self.info_tabla_origen:
                 self.error_migracion("Debe usar 'Consultar datos a migrar' antes de poder migrar.")
                 return
+            # Si el destino tiene columnas extra, solicitar valores por defecto al usuario
+            columnas = self.info_tabla_origen.get('columnas') or []
+            columnas_destino = self.info_tabla_origen.get('columnas_destino') or []
+            extras = [c for c in columnas_destino if c.lower() not in [x.lower() for x in columnas]] if columnas_destino else []
+            if extras:
+                ajustes = self.solicitar_ajuste_columnas(extras)
+                if ajustes is None:
+                    # usuario canceló el ajuste
+                    self.log('Migración cancelada por el usuario (ajuste de columnas).', 'warning')
+                    return
+                # Guardar los ajustes para que el hilo los use
+                self.info_tabla_origen['ajuste_columnas'] = ajustes
             self.migrando = True
             self.deshabilitar_controles_tabla()
             self.btn_cancelar.config(state="normal")
