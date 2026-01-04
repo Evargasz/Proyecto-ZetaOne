@@ -1,7 +1,6 @@
 # Set default behavior, in case people don't have core.autocrlf set.
 # This handles normalization for files detected as text.
 * text=auto
-
 # Explicitly declare text files to always be normalized to LF in the repo.
 *.py text eol=lf
 *.json text eol=lf
@@ -13,11 +12,9 @@
 *.vbproj text eol=lf
 *.vcproj text eol=lf
 *.sln text eol=lf
-
 # Declare files that will always have LF line endings, common for scripts.
 *.sh eol=lf
 *.bat eol=crlf
-
 # Denote all files that are truly binary and should not be modified.
 *.png binary
 *.jpg binary
@@ -25,3 +22,4 @@
 *.gif binary
 *.dat binary
 *.dll binary
+instalador_generado/*.exe filter=lfs diff=lfs merge=lfs -text
