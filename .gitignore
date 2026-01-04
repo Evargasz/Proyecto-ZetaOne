@@ -27,3 +27,6 @@ encriptaciones
 
 dist
 build
+ 
+# Auditoría: evitar subir archivos generados de migraciones
+output/migration_rejects/
