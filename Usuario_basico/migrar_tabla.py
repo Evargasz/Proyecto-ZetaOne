@@ -656,8 +656,19 @@ def migrar_tabla(
                         for row_err in sub:
                             try:
                                 cur_dest.execute(sql_ins, row_err)
-                                conn_dest.commit()
-                                insertados += 1
+                                # Usar reintentos al hacer commit por fila también
+                                success_row_commit, msg_row = _commit_with_retries(conn_dest, max_retries=3)
+                                if success_row_commit:
+                                    insertados += 1
+                                else:
+                                    # No se pudo commitear la fila; registrar y auditar
+                                    logging.getLogger(__name__).error(f"Commit por fila falló: {msg_row}")
+                                    try:
+                                        conn_dest.rollback()
+                                    except Exception:
+                                        pass
+                                    # Tratar como fallo en la inserción para auditoría más abajo
+                                    raise Exception(f"Commit failed: {msg_row}")
                             except Exception as e2:
                                 emsg = str(e2)
                                 # Detectar duplicado y extraer PK para mensaje amigable

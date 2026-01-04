@@ -30,12 +30,12 @@ VSVersionInfo(
         '040904B0',
         [StringStruct('CompanyName', 'BAC'),
         StringStruct('FileDescription', 'Aplicación de Migración de Grupos ZetaOne'),
-        StringStruct('FileVersion', '1.0.0.1'),
+        StringStruct('FileVersion', '1.4.1.0'),
         StringStruct('InternalName', 'ZetaOne.exe'),
         StringStruct('LegalCopyright', 'Copyright © 2025 BAC'),
         StringStruct('OriginalFilename', 'ZetaOne.exe'),
         StringStruct('ProductName', 'ZetaOne'),
-        StringStruct('ProductVersion', '1.0.0.0')])
+        StringStruct('ProductVersion', '1.4.1.0')])
       ]), 
     VarFileInfo([VarStruct('Translation', [1033, 1200])])
   ]

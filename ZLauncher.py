@@ -15,7 +15,7 @@ from ttkbootstrap import Style
 from styles import configurar_estilos
 
 # --- Versión de la Aplicación ---
-__version__ = "1.4.0" # Ejemplo: Major.Minor.Patch
+__version__ = "1.4.1" # Ejemplo: Major.Minor.Patch (actualizado)
 
 class controladorVentanas:
     def __init__(self, root):
